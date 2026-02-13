@@ -32,7 +32,7 @@ export default async function StudentsPage({
           <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
             Students
           </h2>
-          <p className="text-sm text-neutral-700">
+          <p className="text-sm text-neutral-800">
             Manage student records.
           </p>
         </div>
@@ -93,7 +93,7 @@ export default async function StudentsPage({
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-8 text-center text-sm text-neutral-700"
+                      className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No students found.
                     </td>

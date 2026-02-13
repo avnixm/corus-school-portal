@@ -60,7 +60,7 @@ export default async function RegistrarDashboardPage() {
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Registrar Dashboard
         </h2>
-        <p className="mt-1 text-sm text-neutral-700">
+        <p className="mt-1 text-sm text-neutral-800">
           Overview of enrollment setup, approvals, and announcements.
         </p>
       </section>
@@ -173,7 +173,7 @@ export default async function RegistrarDashboardPage() {
             <div className="text-3xl font-bold text-[#6A0000]">
               {announcementsThisWeek}
             </div>
-            <p className="mt-1 text-xs text-neutral-700">This week</p>
+            <p className="mt-1 text-xs text-neutral-800">This week</p>
           </CardContent>
         </Card>
       </section>
@@ -196,13 +196,13 @@ export default async function RegistrarDashboardPage() {
                   <span className="font-medium text-[#6A0000]">
                     {fullName(row)}
                   </span>
-                  <span className="text-xs text-neutral-600">
+                  <span className="text-xs text-neutral-800">
                     {row.program ?? "—"} • {row.yearLevel ?? "—"}
                   </span>
                 </Link>
               ))}
               {latestPendingEnrollments.length === 0 && (
-                <p className="py-4 text-center text-sm text-neutral-500">
+                <p className="py-4 text-center text-sm text-neutral-700">
                   No pending enrollment approvals.
                 </p>
               )}
@@ -231,7 +231,7 @@ export default async function RegistrarDashboardPage() {
                   className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
                 >
                   <span className="font-medium text-[#6A0000]">{row.title}</span>
-                  <span className="text-xs text-neutral-600">
+                  <span className="text-xs text-neutral-800">
                     {row.createdAt
                       ? new Date(row.createdAt).toLocaleDateString()
                       : "—"}
@@ -239,7 +239,7 @@ export default async function RegistrarDashboardPage() {
                 </Link>
               ))}
               {recentAnnouncements.length === 0 && (
-                <p className="py-4 text-center text-sm text-neutral-500">
+                <p className="py-4 text-center text-sm text-neutral-700">
                   No announcements yet.
                 </p>
               )}

@@ -29,7 +29,7 @@ export default async function EnrollmentApprovalsPage({
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Enrollment Approvals
         </h2>
-        <p className="text-sm text-neutral-700">
+        <p className="text-sm text-neutral-800">
           Review and approve or reject enrollment requests.
         </p>
       </div>
@@ -71,7 +71,7 @@ export default async function EnrollmentApprovalsPage({
                         {fullName(row)}
                       </Link>
                       {row.studentCode && (
-                        <span className="ml-1 text-xs text-neutral-500">
+                        <span className="ml-1 text-xs text-neutral-700">
                           ({row.studentCode})
                         </span>
                       )}
@@ -81,7 +81,7 @@ export default async function EnrollmentApprovalsPage({
                     </td>
                     <td className="px-4 py-2">{row.program ?? "—"}</td>
                     <td className="px-4 py-2">{row.yearLevel ?? "—"}</td>
-                    <td className="px-4 py-2 text-neutral-700">
+                    <td className="px-4 py-2 text-neutral-800">
                       {row.createdAt
                         ? new Date(row.createdAt).toLocaleDateString()
                         : "—"}
@@ -95,7 +95,7 @@ export default async function EnrollmentApprovalsPage({
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-8 text-center text-sm text-neutral-700"
+                      className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No pending enrollment approvals.
                     </td>

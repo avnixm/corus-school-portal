@@ -60,25 +60,25 @@ export default async function PendingApplicationDetailPage({
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p>
-              <span className="text-neutral-600">Name:</span>{" "}
+              <span className="text-neutral-800">Name:</span>{" "}
               <span className="font-medium text-[#6A0000]">{fullName}</span>
             </p>
             <p>
-              <span className="text-neutral-600">Email:</span>{" "}
+              <span className="text-neutral-800">Email:</span>{" "}
               {row.email ?? "—"}
             </p>
             <p>
-              <span className="text-neutral-600">Birthday:</span>{" "}
+              <span className="text-neutral-800">Birthday:</span>{" "}
               {row.birthday
                 ? new Date(row.birthday).toLocaleDateString()
                 : "—"}
             </p>
             <p>
-              <span className="text-neutral-600">Program:</span>{" "}
+              <span className="text-neutral-800">Program:</span>{" "}
               {row.program ?? "—"}
             </p>
             <p>
-              <span className="text-neutral-600">Year Level:</span>{" "}
+              <span className="text-neutral-800">Year Level:</span>{" "}
               {row.yearLevel ?? "—"}
             </p>
           </CardContent>
@@ -103,13 +103,13 @@ export default async function PendingApplicationDetailPage({
               Notes
             </CardTitle>
           </CardHeader>
-          <CardContent className="whitespace-pre-wrap text-sm text-neutral-700">
+          <CardContent className="whitespace-pre-wrap text-sm text-neutral-800">
             {row.notes}
           </CardContent>
         </Card>
       )}
 
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-neutral-700">
         Submitted:{" "}
         {row.createdAt
           ? new Date(row.createdAt).toLocaleString()

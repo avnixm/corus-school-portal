@@ -71,6 +71,13 @@ export async function getProfileAndStudentByUserId(userId: string) {
   return { profile, student: student ?? null };
 }
 
+export async function updateUserProfileRole(profileId: string, role: Role) {
+  await db
+    .update(userProfile)
+    .set({ role, updatedAt: new Date() })
+    .where(eq(userProfile.id, profileId));
+}
+
 // ============ Pending Applications ============
 
 export async function hasPendingApplicationByUserProfileId(userProfileId: string) {

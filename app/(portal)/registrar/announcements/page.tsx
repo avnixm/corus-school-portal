@@ -24,7 +24,7 @@ export default async function AnnouncementsPage() {
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Announcements
         </h2>
-        <p className="text-sm text-neutral-700">
+        <p className="text-sm text-neutral-800">
           Create and manage announcements.
         </p>
       </div>
@@ -46,10 +46,10 @@ export default async function AnnouncementsPage() {
               >
                 <div className="flex-1">
                   <h3 className="font-semibold text-[#6A0000]">{row.title}</h3>
-                  <p className="mt-1 text-sm text-neutral-700 line-clamp-2">
+                  <p className="mt-1 text-sm text-neutral-800 line-clamp-2">
                     {row.body}
                   </p>
-                  <p className="mt-2 text-xs text-neutral-500">
+                  <p className="mt-2 text-xs text-neutral-700">
                     {AUDIENCE_LABELS[row.audience] ?? row.audience} •{" "}
                     {row.createdAt
                       ? new Date(row.createdAt).toLocaleString()
@@ -60,7 +60,7 @@ export default async function AnnouncementsPage() {
               </div>
             ))}
             {announcements.length === 0 && (
-              <p className="py-8 text-center text-sm text-neutral-700">
+              <p className="py-8 text-center text-sm text-neutral-800">
                 No announcements yet.
               </p>
             )}

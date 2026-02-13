@@ -23,7 +23,7 @@ export default async function RequirementsPage() {
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Requirements
         </h2>
-        <p className="text-sm text-neutral-700">
+        <p className="text-sm text-neutral-800">
           Master requirements and student verification queue.
         </p>
       </div>
@@ -57,7 +57,7 @@ export default async function RequirementsPage() {
                     <td className="px-4 py-2">
                       <span
                         className={`rounded px-2 py-0.5 text-xs ${
-                          row.active ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-600"
+                          row.active ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-800"
                         }`}
                       >
                         {row.active ? "Yes" : "No"}
@@ -69,7 +69,7 @@ export default async function RequirementsPage() {
                   <tr>
                     <td
                       colSpan={3}
-                      className="px-4 py-8 text-center text-sm text-neutral-700"
+                      className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No requirements yet.
                     </td>
@@ -125,7 +125,7 @@ export default async function RequirementsPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-4 py-8 text-center text-sm text-neutral-700"
+                      className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No requirements awaiting verification.
                     </td>

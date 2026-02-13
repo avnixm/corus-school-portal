@@ -55,7 +55,7 @@ export function CreateUserForm() {
       className="flex flex-col gap-4 rounded-lg border bg-white p-4 shadow-sm"
     >
       <h3 className="font-semibold text-[#6A0000]">Create Test User</h3>
-      <p className="text-xs text-neutral-600">
+      <p className="text-xs text-neutral-800">
         Creates an auth user + profile. Skips email verification (for testing).
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -91,7 +91,7 @@ export function CreateUserForm() {
             id="role"
             name="role"
             required
-            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select role</option>
             {ROLES.map((r) => (

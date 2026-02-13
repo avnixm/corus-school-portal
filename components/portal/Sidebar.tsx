@@ -28,7 +28,7 @@ export function Sidebar({ items }: SidebarProps) {
           <span className="text-sm font-semibold tracking-tight text-[#6A0000]">
             CORUS
           </span>
-          <span className="text-xs text-neutral-500">
+          <span className="text-xs text-neutral-700">
             Student Portal
           </span>
         </div>
@@ -46,7 +46,7 @@ export function Sidebar({ items }: SidebarProps) {
               href={item.href}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                "text-neutral-700 hover:bg-[#6A0000]/5 hover:text-[#6A0000]",
+                "text-neutral-800 hover:bg-[#6A0000]/5 hover:text-[#6A0000]",
                 isActive &&
                   "bg-[#6A0000]/10 text-[#6A0000] border border-[#6A0000]/30"
               )}

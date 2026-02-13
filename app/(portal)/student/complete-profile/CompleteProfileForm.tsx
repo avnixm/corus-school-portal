@@ -150,7 +150,7 @@ export default function CompleteProfileForm({
   }
 
   const inputClass =
-    "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 placeholder:text-neutral-600 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40 focus:border-[#6A0000]";
+    "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40 focus:border-[#6A0000]";
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
@@ -159,7 +159,7 @@ export default function CompleteProfileForm({
           <CardTitle className="text-2xl text-[#6A0000]">
             Complete Student Information
           </CardTitle>
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-neutral-900">
             Please provide the following details to finish setting up your CORUS
             account.
           </p>
@@ -190,12 +190,12 @@ export default function CompleteProfileForm({
 
             {step === 1 && (
               <div>
-                <div className="mb-3 text-xs uppercase tracking-wide text-neutral-500">
+                <div className="mb-3 text-xs uppercase tracking-wide text-neutral-700">
                   Personal information
                 </div>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-700">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Full name<span className="text-red-600">*</span>
                     </label>
                     <input
@@ -206,11 +206,11 @@ export default function CompleteProfileForm({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-700">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Email
                     </label>
                     <input
-                      className="w-full rounded-md border border-neutral-300 bg-neutral-100 px-3 py-2 text-neutral-700"
+                      className="w-full rounded-md border border-neutral-300 bg-neutral-100 px-3 py-2 text-neutral-900"
                       value={email}
                       disabled
                     />
@@ -218,7 +218,7 @@ export default function CompleteProfileForm({
                 </div>
                 <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-700">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Birthday
                     </label>
                     <input
@@ -229,7 +229,7 @@ export default function CompleteProfileForm({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Program
                     </label>
                     <select
@@ -250,12 +250,12 @@ export default function CompleteProfileForm({
 
             {step === 2 && (
               <div>
-                <div className="mb-3 text-xs uppercase tracking-wide text-neutral-500">
+                <div className="mb-3 text-xs uppercase tracking-wide text-neutral-700">
                   Enrollment details
                 </div>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Year level
                     </label>
                     <select
@@ -271,7 +271,7 @@ export default function CompleteProfileForm({
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Province
                     </label>
                     <select
@@ -298,7 +298,7 @@ export default function CompleteProfileForm({
                 </div>
                 <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Municipality / City
                     </label>
                     <select
@@ -320,7 +320,7 @@ export default function CompleteProfileForm({
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                    <label className="mb-1 block text-sm font-medium text-neutral-900">
                       Barangay
                     </label>
                     <select
@@ -337,7 +337,7 @@ export default function CompleteProfileForm({
                   </div>
                 </div>
                 <div className="mt-5">
-                  <label className="mb-1 block text-sm font-medium text-neutral-800">
+                  <label className="mb-1 block text-sm font-medium text-neutral-900">
                     House / Street / Purok
                   </label>
                   <input
@@ -353,7 +353,7 @@ export default function CompleteProfileForm({
             {step === 3 && (
               <div>
                 <div className="mb-1 flex items-center gap-2">
-                  <label className="block text-sm font-medium text-neutral-800">
+                  <label className="block text-sm font-medium text-neutral-900">
                     Upload requirements
                   </label>
                   <button
@@ -364,12 +364,12 @@ export default function CompleteProfileForm({
                   >
                     <Info size={12} />
                   </button>
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-xs text-neutral-700">
                     Tap the i for the checklist
                   </span>
                 </div>
                 {showRequirements && (
-                  <div className="mb-2 rounded-md border border-[#6A0000]/20 bg-white p-3 text-sm text-neutral-700">
+                  <div className="mb-2 rounded-md border border-[#6A0000]/20 bg-white p-3 text-sm text-neutral-900">
                     <div className="mb-1 font-medium text-[#6A0000]">
                       Typical new student requirements:
                     </div>
@@ -382,7 +382,7 @@ export default function CompleteProfileForm({
                     </ul>
                   </div>
                 )}
-                <p className="mb-2 text-xs text-neutral-600">
+                <p className="mb-2 text-xs text-neutral-700">
                   File upload will be available in a future update. Add any notes
                   for the registrar below.
                 </p>

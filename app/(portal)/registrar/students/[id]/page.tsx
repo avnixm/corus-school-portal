@@ -55,27 +55,27 @@ export default async function StudentDetailPage({
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>
-            <span className="text-neutral-600">Student No:</span>{" "}
+            <span className="text-neutral-800">Student No:</span>{" "}
             {student.studentCode ?? "—"}
           </p>
           <p>
-            <span className="text-neutral-600">Name:</span>{" "}
+            <span className="text-neutral-800">Name:</span>{" "}
             {fullName(student)}
           </p>
           <p>
-            <span className="text-neutral-600">Email:</span>{" "}
+            <span className="text-neutral-800">Email:</span>{" "}
             {student.email ?? "—"}
           </p>
           <p>
-            <span className="text-neutral-600">Contact:</span>{" "}
+            <span className="text-neutral-800">Contact:</span>{" "}
             {student.contactNo ?? "—"}
           </p>
           <p>
-            <span className="text-neutral-600">Program:</span>{" "}
+            <span className="text-neutral-800">Program:</span>{" "}
             {student.program ?? "—"}
           </p>
           <p>
-            <span className="text-neutral-600">Year Level:</span>{" "}
+            <span className="text-neutral-800">Year Level:</span>{" "}
             {student.yearLevel ?? "—"}
           </p>
         </CardContent>
@@ -128,7 +128,7 @@ export default async function StudentDetailPage({
                         {row.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-neutral-700">
+                    <td className="px-4 py-2 text-neutral-800">
                       {row.createdAt
                         ? new Date(row.createdAt).toLocaleDateString()
                         : "—"}
@@ -139,7 +139,7 @@ export default async function StudentDetailPage({
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-8 text-center text-sm text-neutral-700"
+                      className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No enrollments yet.
                     </td>

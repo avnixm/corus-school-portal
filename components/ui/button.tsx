@@ -11,7 +11,7 @@ const Button = React.forwardRef<
   const variants = {
     default: "bg-[--color-corus-maroon] text-white hover:bg-[--color-corus-maroon-dark] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[--color-corus-maroon]",
     outline: "border border-[--color-corus-maroon]/30 text-[--color-corus-maroon] hover:bg-[--color-corus-maroon]/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[--color-corus-maroon]",
-    ghost: "text-neutral-600 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-300"
+    ghost: "text-neutral-800 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-300"
   }
   const sizes = {
     default: "h-9 px-4 py-2 text-sm font-medium rounded-md",

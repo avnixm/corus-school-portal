@@ -33,7 +33,7 @@ export default async function SchedulesPage({
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Schedules
         </h2>
-        <p className="text-sm text-neutral-700">
+        <p className="text-sm text-neutral-800">
           Manage class schedules.
         </p>
       </div>
@@ -94,7 +94,7 @@ export default async function SchedulesPage({
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-4 py-8 text-center text-sm text-neutral-700"
+                      className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No schedules found.
                     </td>

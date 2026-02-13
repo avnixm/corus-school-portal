@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/portal/AppShell";
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";
-import { getRegistrarNavItems } from "@/components/portal/nav/registrar";
 import { signOutAction } from "@/app/actions/auth";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +26,7 @@ export default async function RegistrarLayout({
   return (
     <AppShell
       title="Registrar"
-      sidebarItems={getRegistrarNavItems()}
+      navVariant="registrar"
       userDisplay={userDisplay}
       userId={user.userId}
       role={user.role}

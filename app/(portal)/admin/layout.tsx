@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/portal/AppShell";
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";
-import { getAdminNavItems } from "@/components/portal/nav/admin";
 import { signOutAction } from "@/app/actions/auth";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +26,6 @@ export default async function AdminLayout({
   return (
     <AppShell
       title="Admin"
-      sidebarItems={getAdminNavItems()}
       userDisplay={userDisplay}
       userId={user.userId}
       role={user.role}

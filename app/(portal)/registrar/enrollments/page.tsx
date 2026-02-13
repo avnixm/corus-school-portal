@@ -37,7 +37,7 @@ export default async function EnrollmentsPage({
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Enrollment Records
         </h2>
-        <p className="text-sm text-neutral-700">
+        <p className="text-sm text-neutral-800">
           Create and manage student enrollments.
         </p>
       </div>
@@ -82,7 +82,7 @@ export default async function EnrollmentsPage({
                         {fullName(row)}
                       </Link>
                       {row.studentCode && (
-                        <span className="ml-1 text-xs text-neutral-500">
+                        <span className="ml-1 text-xs text-neutral-700">
                           ({row.studentCode})
                         </span>
                       )}
@@ -105,7 +105,7 @@ export default async function EnrollmentsPage({
                         {row.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-neutral-700">
+                    <td className="px-4 py-2 text-neutral-800">
                       {row.createdAt
                         ? new Date(row.createdAt).toLocaleDateString()
                         : "—"}
@@ -125,7 +125,7 @@ export default async function EnrollmentsPage({
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-4 py-8 text-center text-sm text-neutral-700"
+                      className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No enrollments found.
                     </td>

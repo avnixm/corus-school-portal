@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId, createUserProfile } from "@/db/queries";
+import {
+  getUserProfileByUserId,
+  createUserProfile,
+  updateUserProfileRole,
+} from "@/db/queries";
 
 export async function createUserAction(formData: FormData) {
   const session = (await auth.getSession())?.data;
@@ -65,6 +69,65 @@ export async function createUserAction(formData: FormData) {
     role,
     emailVerificationBypassed: true,
   });
+
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+const VALID_ROLES = [
+  "student",
+  "registrar",
+  "admin",
+  "teacher",
+  "finance",
+  "program_head",
+  "dean",
+] as const;
+
+export type ValidRole = (typeof VALID_ROLES)[number];
+
+export async function updateUserRoleAction(profileId: string, role: string) {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) return { error: "Not authenticated" };
+
+  const profile = await getUserProfileByUserId(session.user.id);
+  if (!profile || profile.role !== "admin") {
+    return { error: "Unauthorized" };
+  }
+
+  if (!VALID_ROLES.includes(role as ValidRole)) {
+    return { error: "Invalid role" };
+  }
+
+  await updateUserProfileRole(profileId, role as ValidRole);
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+export async function updateUserPasswordAction(
+  authUserId: string,
+  newPassword: string
+) {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) return { error: "Not authenticated" };
+
+  const profile = await getUserProfileByUserId(session.user.id);
+  if (!profile || profile.role !== "admin") {
+    return { error: "Unauthorized" };
+  }
+
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "Password must be at least 8 characters" };
+  }
+
+  const result = await auth.admin.setUserPassword({
+    userId: authUserId,
+    newPassword,
+  });
+
+  if (result.error) {
+    return { error: result.error.message ?? "Failed to update password" };
+  }
 
   revalidatePath("/admin/users");
   return { success: true };
