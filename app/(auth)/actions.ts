@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/server";
-import { createUserProfile } from "@/db/queries";
+import { getUserProfileByUserId, createUserProfile } from "@/db/queries";
 
 export interface AuthState {
   error?: string;
@@ -41,17 +41,8 @@ export async function register(
     return { error: signUpResult.error?.message || "Sign up failed" };
   }
 
-  const authUser = signUpResult.data.user as { id: string };
-
-  // Create user_profile row with student role (student record created when form is approved)
-  await createUserProfile({
-    userId: authUser.id,
-    email,
-    fullName,
-    role: "student",
-  });
-
-  // After registration, send user to verify email
+  // Do NOT create user_profile here - wait until email is verified (OTP).
+  // This prevents bots from creating accounts without verifying email.
   redirect("/verify-email?email=" + encodeURIComponent(email));
 }
 
@@ -122,7 +113,20 @@ export async function verifyEmailWithOTP(
     };
   }
 
-  // Redirect to student portal - the session will now have emailVerified: true
+  // Create user_profile only after OTP verification (prevents bot accounts)
+  const session = (await auth.getSession())?.data;
+  if (session?.user?.id) {
+    const existing = await getUserProfileByUserId(session.user.id);
+    if (!existing) {
+      await createUserProfile({
+        userId: session.user.id,
+        email,
+        fullName: session.user.name ?? undefined,
+        role: "student",
+      });
+    }
+  }
+
   redirect("/student");
 }
 

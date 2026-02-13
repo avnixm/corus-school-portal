@@ -1,0 +1,1 @@
+ALTER TABLE "user_profile" ADD COLUMN "email_verification_bypassed" boolean DEFAULT false NOT NULL;

@@ -27,40 +27,43 @@ export async function getCurrentUserWithRole(): Promise<CurrentUser | null> {
     const profile = await getUserProfileByUserId(userId);
 
     if (!profile) {
-      await createUserProfile({
-        userId,
-        email,
-        fullName: name,
-        role: "student",
-      });
+      // Only create user_profile after email is verified. Unverified users
+      // (e.g. just signed up) must complete OTP first - prevents bot accounts.
+      if (emailVerified) {
+        await createUserProfile({
+          userId,
+          email,
+          fullName: name,
+          role: "student",
+        });
+      }
 
-      const currentUser: CurrentUser = {
+      return {
         userId,
         email,
         name,
         role: "student",
         emailVerified,
       };
-      return currentUser;
     }
 
-    const currentUser: CurrentUser = {
+    const effectiveVerified =
+      emailVerified || (profile.emailVerificationBypassed ?? false);
+
+    return {
       userId,
       email,
       name,
       role: profile.role,
-      emailVerified,
+      emailVerified: effectiveVerified,
     };
-
-    return currentUser;
   } catch {
-    const currentUser: CurrentUser = {
+    return {
       userId,
       email,
       name,
       role: "student",
       emailVerified,
     };
-    return currentUser;
   }
 }

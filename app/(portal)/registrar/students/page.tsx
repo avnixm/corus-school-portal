@@ -3,8 +3,9 @@ import { Suspense } from "react";
 import { getStudentsList } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreateStudentForm } from "./CreateStudentForm";
+
 import { StudentsSearch } from "./StudentsSearch";
+import { CreateStudentForm } from "./CreateStudentForm";
 
 export const dynamic = "force-dynamic";
 

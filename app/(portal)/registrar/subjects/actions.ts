@@ -22,7 +22,7 @@ export async function createSubjectAction(formData: FormData) {
     return { error: "Code and description are required" };
   }
 
-  await createSubject({ code, description, units: units ? parseFloat(units) : null });
+  await createSubject({ code, description, units: units || null });
   revalidatePath("/registrar/subjects");
   revalidatePath("/registrar");
   return { success: true };
@@ -48,7 +48,7 @@ export async function updateSubjectAction(id: string, formData: FormData) {
   await updateSubject(id, {
     code,
     description,
-    units: units ? parseFloat(units) : null,
+    units: units || null,
   });
   revalidatePath("/registrar/subjects");
   return { success: true };

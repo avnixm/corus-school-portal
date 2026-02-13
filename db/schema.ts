@@ -41,6 +41,11 @@ export const userProfile = pgTable(
     email: varchar("email", { length: 255 }),
     fullName: varchar("full_name", { length: 255 }),
     role: roleEnum("role").notNull(),
+    /**
+     * When true, treat user as verified (e.g. admin-created test accounts).
+     * Only set for users created via admin panel.
+     */
+    emailVerificationBypassed: boolean("email_verification_bypassed").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },

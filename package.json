@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx scripts/seed-dev.ts"
+    "db:seed": "tsx scripts/seed-dev.ts",
+    "promote-admin": "tsx scripts/promote-admin.ts"
   },
   "dependencies": {
     "@neondatabase/auth": "^0.1.0-beta.21",

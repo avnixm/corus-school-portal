@@ -4,8 +4,12 @@ import { auth } from "@/lib/auth/server";
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Protect /student and /registrar routes
-  if (pathname.startsWith("/student") || pathname.startsWith("/registrar")) {
+  // Protect /student, /registrar, /admin routes
+  if (
+    pathname.startsWith("/student") ||
+    pathname.startsWith("/registrar") ||
+    pathname.startsWith("/admin")
+  ) {
     const sessionResponse = await auth.getSession();
     const session = sessionResponse?.data;
 
@@ -22,6 +26,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/student/:path*", "/registrar/:path*"],
+  matcher: ["/student/:path*", "/registrar/:path*", "/admin/:path*"],
 };
 

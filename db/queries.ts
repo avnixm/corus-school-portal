@@ -38,8 +38,19 @@ export async function createUserProfile(values: {
   email?: string | null;
   fullName?: string | null;
   role: Role;
+  emailVerificationBypassed?: boolean;
 }) {
-  return db.insert(userProfile).values(values);
+  return db.insert(userProfile).values({
+    ...values,
+    emailVerificationBypassed: values.emailVerificationBypassed ?? false,
+  });
+}
+
+export async function getUsersList() {
+  return db
+    .select()
+    .from(userProfile)
+    .orderBy(desc(userProfile.createdAt));
 }
 
 export async function getProfileAndStudentByUserId(userId: string) {
@@ -706,12 +717,14 @@ export async function getSubjectsList() {
 export async function createSubject(values: {
   code: string;
   description: string;
-  units?: string | number | null;
+  units?: string | null;
   active?: boolean;
 }) {
+  const { units, active, ...rest } = values;
   return db.insert(subjects).values({
-    ...values,
-    active: values.active ?? true,
+    ...rest,
+    units: units ?? "0",
+    active: active ?? true,
   });
 }
 
@@ -720,7 +733,7 @@ export async function updateSubject(
   values: {
     code?: string;
     description?: string;
-    units?: string | number | null;
+    units?: string | null;
     active?: boolean;
   }
 ) {
@@ -760,7 +773,6 @@ export async function updateSection(
 }
 
 export async function getRequirementsList(activeOnly = true) {
-  const q = db.select().from(requirements).orderBy(requirements.name);
   if (activeOnly) {
     return db
       .select()
@@ -768,7 +780,7 @@ export async function getRequirementsList(activeOnly = true) {
       .where(eq(requirements.active, true))
       .orderBy(requirements.name);
   }
-  return q;
+  return db.select().from(requirements).orderBy(requirements.name);
 }
 
 export async function getAnnouncementsList(limit = 50) {
@@ -919,26 +931,32 @@ export async function rejectRequirement(id: string, notes: string) {
     .where(eq(requirementVerifications.id, id));
 }
 
+type AnnouncementAudience = "all" | "students" | "teachers" | "registrar" | "finance" | "program_head" | "dean";
+
 export async function createAnnouncement(values: {
   title: string;
   body: string;
-  audience?: string;
+  audience?: AnnouncementAudience;
   createdByUserId: string;
 }) {
   return db.insert(announcements).values({
     ...values,
-    audience: (values.audience as "all" | "students" | "teachers" | "registrar" | "finance" | "program_head" | "dean") ?? "all",
+    audience: values.audience ?? "all",
   });
 }
 
 export async function updateAnnouncement(
   id: string,
-  values: { title?: string; body?: string; audience?: string }
+  values: { title?: string; body?: string; audience?: AnnouncementAudience }
 ) {
-  return db
-    .update(announcements)
-    .set({ ...values, updatedAt: new Date() })
-    .where(eq(announcements.id, id));
+  const { title, body, audience } = values;
+  const set: { title?: string; body?: string; audience?: AnnouncementAudience; updatedAt: Date } = {
+    updatedAt: new Date(),
+  };
+  if (title !== undefined) set.title = title;
+  if (body !== undefined) set.body = body;
+  if (audience !== undefined) set.audience = audience;
+  return db.update(announcements).set(set).where(eq(announcements.id, id));
 }
 
 export async function deleteAnnouncement(id: string) {

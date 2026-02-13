@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateSubjectForm } from "./CreateSubjectForm";
 import { SubjectRowActions } from "./SubjectRowActions";
 
+
 export const dynamic = "force-dynamic";
 
 export default async function SubjectsPage() {
