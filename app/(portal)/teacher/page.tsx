@@ -6,6 +6,7 @@ import {
   NotebookPen,
   Send,
   Undo2,
+  BookCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ export default async function TeacherDashboardPage() {
     returnedSubmissions,
     schoolYear,
     term,
+    authorizedCourses,
   } = data;
 
   return (
@@ -180,6 +182,52 @@ export default async function TeacherDashboardPage() {
       <section className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#6A0000] flex items-center gap-2">
+              <BookCheck className="h-4 w-4" />
+              Authorized Courses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {authorizedCourses.length === 0 ? (
+              <p className="py-4 text-center text-sm text-neutral-700">
+                No courses assigned yet. Contact the Registrar to assign authorized courses.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {authorizedCourses.slice(0, 8).map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-medium text-[#6A0000]">
+                          {c.subjectCode}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={c.isGe ? "bg-blue-50 text-blue-700 text-xs" : "text-xs"}
+                        >
+                          {c.isGe ? "GE" : "Program"}
+                        </Badge>
+                      </div>
+                      <p className="text-neutral-700 mt-0.5">{c.subjectTitle}</p>
+                      <p className="text-xs text-neutral-500">{c.units || "0"} units</p>
+                    </div>
+                  </div>
+                ))}
+                {authorizedCourses.length > 8 && (
+                  <p className="text-center text-xs text-neutral-600 pt-2">
+                    +{authorizedCourses.length - 8} more courses
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-sm font-semibold text-[#6A0000]">
               My Classes
             </CardTitle>
@@ -216,7 +264,9 @@ export default async function TeacherDashboardPage() {
             </div>
           </CardContent>
         </Card>
+      </section>
 
+      <section>
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold text-[#6A0000]">
@@ -257,12 +307,6 @@ export default async function TeacherDashboardPage() {
                 </p>
               )}
             </div>
-            <Link
-              href="/teacher/submissions"
-              className="mt-3 inline-block text-xs font-medium text-[#6A0000] hover:underline"
-            >
-              View all →
-            </Link>
           </CardContent>
         </Card>
       </section>

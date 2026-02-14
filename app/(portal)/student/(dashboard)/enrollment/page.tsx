@@ -163,12 +163,15 @@ export default async function StudentEnrollmentPage() {
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-sm font-semibold text-[#6A0000]">
-              Requirements for this enrollment
+              Upload requirement documents
             </CardTitle>
             <span className="text-xs text-neutral-600">
               {verifiedCount} / {totalRequired || 1} verified
             </span>
           </div>
+          <p className="text-xs text-neutral-600 mt-1">
+            Drag and drop or click to upload a file for each requirement, then submit for verification.
+          </p>
         </CardHeader>
         <CardContent>
           <StudentEnrollmentRequirementsClient items={applicable} />
@@ -184,9 +187,9 @@ export default async function StudentEnrollmentPage() {
             </div>
           )}
           <p className="mt-4 text-sm text-neutral-600">
-            Manage all forms from your{" "}
+            You can upload and submit requirement documents here or on the{" "}
             <Link href="/student/requirements" className="font-medium text-[#6A0000] hover:underline">
-              Requirements
+              Forms &amp; Requirements
             </Link>{" "}
             page.
           </p>

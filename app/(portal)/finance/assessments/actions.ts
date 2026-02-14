@@ -159,6 +159,7 @@ export async function generateAssessmentFromFeeSetupAction(
   }
 
   const totalUnits = curriculum.totalUnits;
+  const labSubjectCount = curriculum.subjects.filter((s) => s.withLab).length;
   const lines = await getFeeSetupLinesByFeeSetupId(setupId);
   const setup = await getFeeSetupById(setupId);
   if (!setup) return { error: "Fee setup not found" };
@@ -180,22 +181,30 @@ export async function generateAssessmentFromFeeSetupAction(
 
   let sortOrder = 1;
   for (const l of lines) {
-    const amt = parseFloat(l.amount ?? "0") * (l.qty ?? 1);
+    const amountNum = parseFloat(l.amount ?? "0");
+    // Lab fee is always per lab course: amount × number of subjects with lab
+    const isLabFee = l.lineType === "lab_fee";
+    const qty = isLabFee ? labSubjectCount : (l.qty ?? 1);
+    const amt = amountNum * qty;
     const cat =
-      l.lineType === "lab_fee"
+      isLabFee
         ? ("lab" as const)
         : l.lineType === "misc_fee"
           ? ("misc" as const)
           : ("other" as const);
-    if (l.lineType === "lab_fee") labTotal += amt;
+    if (isLabFee) labTotal += amt;
     else if (l.lineType === "misc_fee") miscTotal += amt;
     else otherTotal += amt;
+    const description =
+      isLabFee && labSubjectCount > 0
+        ? `${l.label} (${labSubjectCount} lab ${labSubjectCount === 1 ? "subject" : "subjects"})`
+        : l.label;
     feeLines.push({
       sourceFeeSetupLineId: l.id,
-      description: l.label,
+      description,
       category: cat,
       amount: l.amount ?? "0",
-      qty: l.qty ?? 1,
+      qty,
       lineTotal: String(amt),
       sortOrder: sortOrder++,
     });

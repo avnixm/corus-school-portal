@@ -49,17 +49,20 @@ export function CreateFeeSetupForm({
     }
   }
 
+  const inputClass =
+    "mt-1 h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-1 focus:ring-[#6A0000] focus:border-[#6A0000]";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="programId">Program *</Label>
+          <Label htmlFor="programId" className="text-xs font-medium text-neutral-600">Program *</Label>
           <select
             id="programId"
             required
             value={programId}
             onChange={(e) => setProgramId(e.target.value)}
-            className="mt-1 w-full rounded border px-3 py-2 text-sm"
+            className={inputClass}
           >
             <option value="">Select program</option>
             {programs.map((p) => (
@@ -70,57 +73,49 @@ export function CreateFeeSetupForm({
           </select>
         </div>
         <div>
-          <Label htmlFor="yearLevel">Year Level</Label>
+          <Label htmlFor="yearLevel" className="text-xs font-medium text-neutral-600">Year level</Label>
           <select
             id="yearLevel"
             value={yearLevel}
             onChange={(e) => setYearLevel(e.target.value)}
-            className="mt-1 w-full rounded border px-3 py-2 text-sm"
+            className={inputClass}
           >
             <option value="">All</option>
-            {["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"].map(
-              (y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              )
-            )}
+            {["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"].map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
           </select>
         </div>
         <div>
-          <Label htmlFor="schoolYearId">School Year</Label>
+          <Label htmlFor="schoolYearId" className="text-xs font-medium text-neutral-600">School year</Label>
           <select
             id="schoolYearId"
             value={schoolYearId}
             onChange={(e) => setSchoolYearId(e.target.value)}
-            className="mt-1 w-full rounded border px-3 py-2 text-sm"
+            className={inputClass}
           >
             <option value="">Any</option>
             {schoolYears.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
+              <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>
         <div>
-          <Label htmlFor="termId">Term</Label>
+          <Label htmlFor="termId" className="text-xs font-medium text-neutral-600">Term</Label>
           <select
             id="termId"
             value={termId}
             onChange={(e) => setTermId(e.target.value)}
-            className="mt-1 w-full rounded border px-3 py-2 text-sm"
+            className={inputClass}
           >
             <option value="">Any</option>
             {terms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
+              <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
         </div>
         <div>
-          <Label htmlFor="tuitionPerUnit">Tuition per unit (₱)</Label>
+          <Label htmlFor="tuitionPerUnit" className="text-xs font-medium text-neutral-600">Tuition per unit (₱)</Label>
           <Input
             id="tuitionPerUnit"
             type="number"
@@ -128,14 +123,14 @@ export function CreateFeeSetupForm({
             min="0"
             value={tuitionPerUnit}
             onChange={(e) => setTuitionPerUnit(e.target.value)}
-            className="mt-1 w-40"
+            className={inputClass + " w-40"}
           />
         </div>
       </div>
       <Button
         type="submit"
         disabled={pending}
-        className="bg-[#6A0000] hover:bg-[#6A0000]/90"
+        className="bg-[#6A0000] hover:bg-[#4A0000] text-white"
       >
         {pending ? "Creating…" : "Create draft"}
       </Button>

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { createScheduleAction, getSubjectsForSectionAction } from "./actions";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { createScheduleAction, getSubjectsForSectionAction, getAuthorizedTeachersForSubjectAction } from "./actions";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -34,17 +45,25 @@ type Subject = {
   isGe?: boolean;
 };
 type Program = { id: string; code: string; name: string };
+type Teacher = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+};
 
 export function CreateScheduleForm({
   schoolYears,
   terms,
   sections,
   programs,
+  teachers,
 }: {
   schoolYears: SchoolYear[];
   terms: Term[];
   sections: Section[];
   programs: Program[];
+  teachers: Teacher[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,8 +73,13 @@ export function CreateScheduleForm({
   const [selectedProgramId, setSelectedProgramId] = useState("");
   const [selectedYearLevel, setSelectedYearLevel] = useState("");
   const [selectedSectionId, setSelectedSectionId] = useState("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState("");
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   const [subjectsForSection, setSubjectsForSection] = useState<Subject[]>([]);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [authorizedTeachers, setAuthorizedTeachers] = useState<string[]>([]);
+  const [authCheckLoading, setAuthCheckLoading] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
   useEffect(() => {
@@ -74,6 +98,18 @@ export function CreateScheduleForm({
     return () => { cancelled = true; };
   }, [selectedSectionId]);
 
+  useEffect(() => {
+    if (!selectedSubjectId) {
+      setAuthorizedTeachers([]);
+      return;
+    }
+    setAuthCheckLoading(true);
+    getAuthorizedTeachersForSubjectAction(selectedSubjectId).then((teacherIds) => {
+      setAuthorizedTeachers(teacherIds);
+      setAuthCheckLoading(false);
+    });
+  }, [selectedSubjectId]);
+
   const filteredTerms = selectedSyId ? terms.filter((t) => t.schoolYearId === selectedSyId) : [];
   const filteredSections = sections.filter((s) => {
     if (selectedProgramId && s.programId !== selectedProgramId) return false;
@@ -84,6 +120,10 @@ export function CreateScheduleForm({
   function toggleDay(day: string) {
     setSelectedDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   }
+
+  const isAuthorized = selectedTeacherId ? authorizedTeachers.includes(selectedTeacherId) : true;
+  const authorizedTeacherList = teachers.filter(t => authorizedTeachers.includes(t.id));
+  const unauthorizedTeacherList = teachers.filter(t => !authorizedTeachers.includes(t.id));
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -102,6 +142,10 @@ export function CreateScheduleForm({
     setSelectedSyId("");
     setSelectedProgramId("");
     setSelectedYearLevel("");
+    setSelectedSectionId("");
+    setSelectedSubjectId("");
+    setSelectedTeacherId("");
+    setOverrideReason("");
     setSelectedDays([]);
     router.refresh();
   }
@@ -203,6 +247,8 @@ export function CreateScheduleForm({
                   id="subjectId"
                   name="subjectId"
                   required
+                  value={selectedSubjectId}
+                  onChange={(e) => setSelectedSubjectId(e.target.value)}
                   disabled={!selectedSectionId || subjectsLoading}
                   className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900"
                 >
@@ -215,8 +261,43 @@ export function CreateScheduleForm({
                 </select>
               </div>
               <div>
-                <Label htmlFor="teacherName">Teacher Name</Label>
-                <Input id="teacherName" name="teacherName" className="mt-1 h-10" />
+                <Label htmlFor="teacherId">Teacher *</Label>
+                <Select
+                  name="teacherId"
+                  value={selectedTeacherId}
+                  onValueChange={setSelectedTeacherId}
+                  disabled={!selectedSubjectId || authCheckLoading}
+                  required
+                >
+                  <SelectTrigger className="mt-1 h-10">
+                    <SelectValue placeholder={authCheckLoading ? "Loading..." : "Select teacher"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {authorizedTeacherList.length > 0 && (
+                      <>
+                        <SelectGroup>
+                          <SelectLabel>Authorized Teachers</SelectLabel>
+                          {authorizedTeacherList.map(t => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.firstName} {t.lastName} {t.email ? `(${t.email})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                        {unauthorizedTeacherList.length > 0 && <SelectSeparator />}
+                      </>
+                    )}
+                    {unauthorizedTeacherList.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Other Teachers (Requires Dean Approval)</SelectLabel>
+                        {unauthorizedTeacherList.map(t => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.firstName} {t.lastName} {t.email ? `(${t.email})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="room">Room</Label>
@@ -231,6 +312,37 @@ export function CreateScheduleForm({
                 <Input id="timeOut" name="timeOut" type="time" className="mt-1 h-10" />
               </div>
             </div>
+
+            {/* Warning when teacher not authorized */}
+            {selectedTeacherId && selectedSubjectId && !isAuthorized && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="font-semibold text-amber-900">Dean approval required</p>
+                    <p className="text-sm text-amber-800">
+                      This teacher is not authorized for this subject. The schedule will require Dean approval before activation.
+                    </p>
+                    <div className="mt-2">
+                      <Label htmlFor="overrideReason" className="text-amber-900">
+                        Override Reason *
+                      </Label>
+                      <Textarea
+                        id="overrideReason"
+                        name="overrideReason"
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                        placeholder="Explain why this teacher should be assigned to this subject..."
+                        className="mt-1 border-amber-300"
+                        rows={2}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <Label>Days *</Label>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -249,7 +361,12 @@ export function CreateScheduleForm({
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>Cancel</Button>
-              <Button type="submit" disabled={pending || selectedDays.length === 0}>{pending ? "Creating…" : "Create"}</Button>
+              <Button
+                type="submit"
+                disabled={pending || selectedDays.length === 0 || !selectedTeacherId || (!isAuthorized && !overrideReason.trim())}
+              >
+                {pending ? "Creating…" : "Create & Submit for Approval"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

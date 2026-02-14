@@ -16,9 +16,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Sea
   const [subjects, programs] = await Promise.all([
     tab === "ge"
       ? getSubjectsList({ geOnly: true })
-      : programId
-        ? getSubjectsList({ programId })
-        : [],
+      : getSubjectsList(programId ? { programId } : undefined),
     getProgramsList(true),
   ]);
 
@@ -86,7 +84,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Sea
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <SubjectRowActions subject={row} />
+                      <SubjectRowActions subject={row} programs={programs} />
                     </td>
                   </tr>
                 ))}
@@ -96,9 +94,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Sea
                       colSpan={6}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
-                      {tab === "program" && !programId
-                        ? "Select a program to see program and GE subjects, or switch to GE subjects tab."
-                        : "No subjects yet."}
+                      No subjects yet.
                     </td>
                   </tr>
                 )}

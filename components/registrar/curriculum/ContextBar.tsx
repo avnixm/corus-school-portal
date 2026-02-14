@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Filter, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,71 +11,109 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CreateDraftForm } from "./CreateDraftForm";
+import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
 
 type Program = { id: string; code: string; name: string };
 type SchoolYear = { id: string; name: string };
-
-const STATUS_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "draft", label: "Draft" },
-  { value: "published", label: "Published" },
-  { value: "archived", label: "Archived" },
-];
+type Version = { id: string; name: string; status: string };
 
 export function ContextBar({
   programs,
   schoolYears,
+  versions,
+  selectedVersionId,
 }: {
   programs: Program[];
   schoolYears: SchoolYear[];
+  versions: Version[];
+  selectedVersionId: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
 
-  const ALL_VALUE = "__all__";
+  const currentSchoolYearId = searchParams.get("schoolYearId") ?? "";
+  const currentStatus = searchParams.get("status") ?? "";
 
-  const setFilter = (key: string, value: string) => {
-    const p = new URLSearchParams(searchParams?.toString() ?? "");
-    if (value && value !== ALL_VALUE) p.set(key, value);
-    else p.delete(key);
-    router.push(`/registrar/curriculum?${p.toString()}`);
+  // Radix Select doesn't allow empty string as SelectItem value; use sentinel for "All"
+  const ALL_SCHOOL_YEARS = "__all_sy__";
+  const ALL_STATUSES = "__all_status__";
+
+  const handleFilterChange = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    params.delete("versionId"); // Reset version when filters change
+    router.push(`/registrar/curriculum?${params.toString()}`);
   };
 
-  const programIdRaw = searchParams?.get("programId") ?? "";
-  const schoolYearIdRaw = searchParams?.get("schoolYearId") ?? "";
-  const programId = programIdRaw || ALL_VALUE;
-  const schoolYearId = schoolYearIdRaw || ALL_VALUE;
-  const status = searchParams?.get("status") ?? "";
-  const search = searchParams?.get("search") ?? "";
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+    if (search.trim()) {
+      params.set("search", search.trim());
+    } else {
+      params.delete("search");
+    }
+    router.push(`/registrar/curriculum?${params.toString()}`);
+  };
+
+  const handleClearFilters = () => {
+    const params = new URLSearchParams();
+    const programId = searchParams.get("programId");
+    if (programId) {
+      params.set("programId", programId);
+    }
+    router.push(`/registrar/curriculum?${params.toString()}`);
+    setSearch("");
+  };
+
+  const hasFilters = currentSchoolYearId || currentStatus || search;
 
   return (
-    <Card className="rounded-2xl border shadow-sm">
-      <CardContent className="flex flex-wrap items-end gap-4 p-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-neutral-600">Program</label>
-          <Select value={programId} onValueChange={(v) => setFilter("programId", v)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All" />
+    <Card className="rounded-xl border border-neutral-200 shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+            <Filter className="h-4 w-4" />
+            Filters
+          </div>
+
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <Input
+              placeholder="Search versions..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 pl-9 pr-9"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  handleFilterChange("search", "");
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </form>
+
+          <Select
+            value={currentSchoolYearId || ALL_SCHOOL_YEARS}
+            onValueChange={(v) => handleFilterChange("schoolYearId", v === ALL_SCHOOL_YEARS ? "" : v)}
+          >
+            <SelectTrigger className="h-9 w-[180px]">
+              <SelectValue placeholder="All School Years" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_VALUE}>All</SelectItem>
-              {programs.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-neutral-600">School year</label>
-          <Select value={schoolYearId} onValueChange={(v) => setFilter("schoolYearId", v)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_VALUE}>All</SelectItem>
+              <SelectItem value={ALL_SCHOOL_YEARS}>All School Years</SelectItem>
               {schoolYears.map((sy) => (
                 <SelectItem key={sy.id} value={sy.id}>
                   {sy.name}
@@ -83,36 +121,29 @@ export function ContextBar({
               ))}
             </SelectContent>
           </Select>
+
+          <Select
+            value={currentStatus || ALL_STATUSES}
+            onValueChange={(v) => handleFilterChange("status", v === ALL_STATUSES ? "" : v)}
+          >
+            <SelectTrigger className="h-9 w-[150px]">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUSES}>All Statuses</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-9">
+              <X className="mr-1.5 h-4 w-4" />
+              Clear
+            </Button>
+          )}
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-neutral-600">Status</label>
-          <div className="flex rounded-md border border-neutral-200 bg-neutral-50/50 p-0.5">
-            {STATUS_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setFilter("status", opt.value)}
-                className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                  status === opt.value
-                    ? "bg-white text-neutral-900 shadow-sm"
-                    : "text-neutral-600 hover:text-neutral-900"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-neutral-600">Search versions</label>
-          <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setFilter("search", e.target.value)}
-            className="h-9 w-40"
-          />
-        </div>
-        <CreateDraftForm programs={programs} schoolYears={schoolYears} />
       </CardContent>
     </Card>
   );

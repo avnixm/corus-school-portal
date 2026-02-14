@@ -3,20 +3,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 import {
-  createFeeSetupDraft,
   addFeeSetupLineAction,
   updateFeeSetupLineAction,
   deleteFeeSetupLineAction,
   submitFeeSetupForApproval,
   seedDefaultMiscLines,
-  cloneFeeSetup,
+  updateFeeSetupDraft,
 } from "./fee-setups/actions";
 
 type Setup = {
@@ -37,6 +35,7 @@ type Line = {
   label: string;
   amount: string;
   qty: number;
+  perUnit: boolean;
   sortOrder: number;
 };
 
@@ -55,6 +54,11 @@ type Totals = {
   total: number;
 };
 
+const inputClass =
+  "h-9 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-[#6A0000] focus:border-[#6A0000] disabled:opacity-60";
+const selectClass =
+  "mt-1 h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-1 focus:ring-[#6A0000] disabled:opacity-60";
+
 function FeeLineRow({
   line,
   canEdit,
@@ -68,44 +72,51 @@ function FeeLineRow({
   onUpdate: (updates: { label?: string; amount?: string }) => void;
   onDeleteRequest: () => void;
 }) {
+  const isLab = line.lineType === "lab_fee";
   if (!canEdit) {
     return (
-      <li className="flex items-center gap-2 text-sm">
-        {line.label} – ₱{parseFloat(line.amount || "0").toFixed(2)}
+      <li className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50/50 px-3 py-2 text-sm">
+        <span className="font-medium text-neutral-900">{line.label}</span>
+        <span className="text-[#6A0000]">₱{parseFloat(line.amount || "0").toFixed(2)}</span>
       </li>
     );
   }
   return (
-    <li className="flex flex-wrap items-center gap-2">
+    <li className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-100 bg-white p-2">
       <Input
         defaultValue={line.label}
         onBlur={(e) => {
           const v = e.target.value.trim();
           if (v && v !== line.label) onUpdate({ label: v });
         }}
-        className="h-8 max-w-[180px] text-sm"
+        className={`${inputClass} max-w-[200px]`}
         disabled={pending}
         placeholder="Label"
       />
-      <span className="text-neutral-500">–</span>
-      <Input
-        type="number"
-        step="0.01"
-        min="0"
-        defaultValue={line.amount || "0"}
-        onBlur={(e) => {
-          const v = e.target.value.trim() || "0";
-          if (v !== (line.amount || "0")) onUpdate({ amount: v });
-        }}
-        className="h-8 w-24 text-sm"
-        disabled={pending}
-      />
-      <span className="text-sm text-neutral-500">₱</span>
+      <span className="text-neutral-400">·</span>
+      <div className="flex items-center gap-1">
+        <span className="text-sm text-neutral-500">₱</span>
+        <Input
+          type="number"
+          step="0.01"
+          min="0"
+          defaultValue={line.amount || "0"}
+          onBlur={(e) => {
+            const v = e.target.value.trim() || "0";
+            if (v !== (line.amount || "0")) onUpdate({ amount: v });
+          }}
+          className={`${inputClass} w-24`}
+          disabled={pending}
+        />
+      </div>
+      {isLab && (
+        <span className="text-xs text-neutral-500">per lab course</span>
+      )}
       <button
         type="button"
         onClick={onDeleteRequest}
         disabled={pending}
-        className="rounded p-1 text-red-600 hover:bg-red-50"
+        className="rounded-lg p-1.5 text-red-600 transition-colors hover:bg-red-50"
         aria-label="Delete"
       >
         <Trash2 className="h-4 w-4" />
@@ -124,6 +135,7 @@ export function FeeSetupEditor({
   terms,
   totals,
   totalUnits,
+  totalUnitsFromCurriculum = false,
 }: {
   feeSetupId: string;
   setup: Setup;
@@ -134,6 +146,7 @@ export function FeeSetupEditor({
   terms: { id: string; name: string }[];
   totals: Totals;
   totalUnits: number;
+  totalUnitsFromCurriculum?: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -194,25 +207,42 @@ export function FeeSetupEditor({
     router.refresh();
   }
 
+  async function handleScopeChange(updates: {
+    programId?: string;
+    yearLevel?: string | null;
+    schoolYearId?: string | null;
+    termId?: string | null;
+  }) {
+    if (!canEdit) return;
+    setPending(true);
+    const r = await updateFeeSetupDraft(feeSetupId, updates);
+    setPending(false);
+    if (r?.error) alert(r.error);
+    else router.refresh();
+  }
+
   const labLines = lines.filter((l) => l.lineType === "lab_fee");
   const miscLines = lines.filter((l) => l.lineType === "misc_fee");
   const otherLines = lines.filter((l) => l.lineType === "other_fee");
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#6A0000]">
-            Header
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="border-b border-neutral-100 bg-neutral-50/80 px-4 py-3">
+          <h2 className="text-sm font-semibold text-[#6A0000]">Scope</h2>
+          <p className="mt-0.5 text-xs text-neutral-600">Program, year, school year, and term determine which curriculum units are used for tuition.</p>
+        </div>
+        <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Label>Program</Label>
+            <Label className="text-xs font-medium text-neutral-600">Program</Label>
             <select
-              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              className={selectClass}
               defaultValue={setup.programId ?? ""}
-              disabled={!canEdit}
+              disabled={!canEdit || pending}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                handleScopeChange({ programId: v ?? undefined });
+              }}
             >
               {programs.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -222,65 +252,67 @@ export function FeeSetupEditor({
             </select>
           </div>
           <div>
-            <Label>Year Level</Label>
+            <Label className="text-xs font-medium text-neutral-600">Year level</Label>
             <select
-              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              className={selectClass}
               defaultValue={setup.yearLevel ?? ""}
-              disabled={!canEdit}
+              disabled={!canEdit || pending}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                handleScopeChange({ yearLevel: v });
+              }}
             >
               <option value="">All</option>
-              {["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"].map(
-                (y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                )
-              )}
+              {["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
             </select>
           </div>
           <div>
-            <Label>School Year</Label>
+            <Label className="text-xs font-medium text-neutral-600">School year</Label>
             <select
-              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              className={selectClass}
               defaultValue={setup.schoolYearId ?? ""}
-              disabled={!canEdit}
+              disabled={!canEdit || pending}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                handleScopeChange({ schoolYearId: v, termId: null });
+              }}
             >
               <option value="">Any</option>
               {schoolYears.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>
           <div>
-            <Label>Term</Label>
+            <Label className="text-xs font-medium text-neutral-600">Term</Label>
             <select
-              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              className={selectClass}
               defaultValue={setup.termId ?? ""}
-              disabled={!canEdit}
+              disabled={!canEdit || pending}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                handleScopeChange({ termId: v });
+              }}
             >
               <option value="">Any</option>
               {terms.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#6A0000]">
-            Tuition
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-end gap-4">
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="border-b border-neutral-100 bg-neutral-50/80 px-4 py-3">
+          <h2 className="text-sm font-semibold text-[#6A0000]">Tuition</h2>
+        </div>
+        <div className="p-4">
+          <div className="flex flex-wrap items-end gap-6">
             <div>
-              <Label>Tuition per unit (₱)</Label>
+              <Label className="text-xs font-medium text-neutral-600">Tuition per unit (₱)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -288,37 +320,44 @@ export function FeeSetupEditor({
                 value={tuitionPerUnit}
                 onChange={(e) => setTuitionPerUnit(e.target.value)}
                 disabled={!canEdit}
-                className="mt-1 w-40"
+                className={`${inputClass} mt-1 w-40`}
               />
             </div>
             <p className="text-sm text-neutral-600">
-              Total units: {totalUnits} (from schedule or manual)
+              Total units: <span className="font-medium text-neutral-900">{totalUnits}</span>{" "}
+              {totalUnitsFromCurriculum
+                ? "(from published curriculum — tuition = units × per unit)"
+                : "(set scope above to pull from published curriculum)"}
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold text-[#6A0000]">
-            Lab Fees
-          </CardTitle>
+        <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="flex flex-row items-center justify-between border-b border-neutral-100 bg-neutral-50/80 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#6A0000]">Lab fees</h2>
+            <p className="mt-0.5 text-xs text-neutral-500">Amount is charged per lab course (× number of subjects with lab in curriculum).</p>
+          </div>
           {canEdit && (
             <Button
               size="sm"
               variant="outline"
+              className="border-[#6A0000]/40 text-[#6A0000] hover:bg-[#6A0000]/10"
               onClick={() => handleAddLine("lab_fee", "Laboratory Fee", "0")}
               disabled={pending}
             >
-              Add
+              Add line
             </Button>
           )}
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {labLines.length === 0 ? (
-            <p className="text-sm text-neutral-500">No lab fee lines.</p>
+            <p className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50/50 py-6 text-center text-sm text-neutral-500">
+              No lab fee lines.
+            </p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {labLines.map((l) => (
                 <FeeLineRow
                   key={l.id}
@@ -331,19 +370,18 @@ export function FeeSetupEditor({
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold text-[#6A0000]">
-            Miscellaneous & Other Fees
-          </CardTitle>
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="flex flex-row flex-wrap items-center justify-between gap-2 border-b border-neutral-100 bg-neutral-50/80 px-4 py-3">
+          <h2 className="text-sm font-semibold text-[#6A0000]">Miscellaneous & other fees</h2>
           {canEdit && (
             <div className="flex gap-2">
               <Button
                 size="sm"
                 variant="outline"
+                className="border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                 onClick={handleSeedDefaults}
                 disabled={pending}
               >
@@ -352,6 +390,7 @@ export function FeeSetupEditor({
               <Button
                 size="sm"
                 variant="outline"
+                className="border-[#6A0000]/40 text-[#6A0000] hover:bg-[#6A0000]/10"
                 onClick={() => handleAddLine("misc_fee", "Misc Fee", "0")}
                 disabled={pending}
               >
@@ -360,6 +399,7 @@ export function FeeSetupEditor({
               <Button
                 size="sm"
                 variant="outline"
+                className="border-[#6A0000]/40 text-[#6A0000] hover:bg-[#6A0000]/10"
                 onClick={() => handleAddLine("other_fee", "Other Fee", "0")}
                 disabled={pending}
               >
@@ -367,115 +407,112 @@ export function FeeSetupEditor({
               </Button>
             </div>
           )}
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="py-2 text-left">Label</th>
-                  <th className="py-2 text-left">Type</th>
-                  <th className="py-2 text-right">Amount</th>
-                  {canEdit && <th className="w-10 py-2" />}
-                </tr>
-              </thead>
-              <tbody>
-                {[...miscLines, ...otherLines].map((l) => (
-                  <tr key={l.id} className="border-b">
-                    <td className="py-2">
-                      {canEdit ? (
-                        <Input
-                          defaultValue={l.label}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v && v !== l.label) handleUpdateLine(l.id, { label: v });
-                          }}
-                          className="h-8 max-w-[220px] text-sm"
-                          disabled={pending}
-                        />
-                      ) : (
-                        l.label
-                      )}
-                    </td>
-                    <td className="py-2 capitalize">{l.lineType.replace("_", " ")}</td>
-                    <td className="py-2 text-right">
-                      {canEdit ? (
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          defaultValue={l.amount || "0"}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim() || "0";
-                            if (v !== (l.amount || "0")) handleUpdateLine(l.id, { amount: v });
-                          }}
-                          className="ml-auto h-8 w-24 text-right text-sm"
-                          disabled={pending}
-                        />
-                      ) : (
-                        `₱${parseFloat(l.amount || "0").toFixed(2)}`
-                      )}
-                    </td>
-                    {canEdit && (
-                      <td className="py-2">
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget({ id: l.id, label: l.label })}
-                          disabled={pending}
-                          className="rounded p-1 text-red-600 hover:bg-red-50"
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
+        </div>
+        <div className="overflow-x-auto p-4">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-neutral-200">
+                <th className="pb-2 text-left text-xs font-medium uppercase tracking-wider text-neutral-500">Label</th>
+                <th className="pb-2 text-left text-xs font-medium uppercase tracking-wider text-neutral-500">Type</th>
+                <th className="pb-2 text-right text-xs font-medium uppercase tracking-wider text-neutral-500">Amount</th>
+                {canEdit && <th className="w-10 pb-2" />}
+              </tr>
+            </thead>
+            <tbody>
+              {[...miscLines, ...otherLines].map((l) => (
+                <tr key={l.id} className="border-b border-neutral-100">
+                  <td className="py-2.5">
+                    {canEdit ? (
+                      <Input
+                        defaultValue={l.label}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v && v !== l.label) handleUpdateLine(l.id, { label: v });
+                        }}
+                        className={`${inputClass} max-w-[220px]`}
+                        disabled={pending}
+                      />
+                    ) : (
+                      <span className="font-medium text-neutral-900">{l.label}</span>
                     )}
-                  </tr>
-                ))}
-                {miscLines.length === 0 && otherLines.length === 0 && (
-                  <tr>
-                    <td colSpan={canEdit ? 4 : 3} className="py-4 text-center text-neutral-500">
-                      No misc/other fee lines.
+                  </td>
+                  <td className="py-2.5 capitalize text-neutral-600">{l.lineType.replace("_", " ")}</td>
+                  <td className="py-2.5 text-right">
+                    {canEdit ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={l.amount || "0"}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim() || "0";
+                          if (v !== (l.amount || "0")) handleUpdateLine(l.id, { amount: v });
+                        }}
+                        className={`${inputClass} ml-auto w-24 text-right`}
+                        disabled={pending}
+                      />
+                    ) : (
+                      <span className="font-medium text-[#6A0000]">₱{parseFloat(l.amount || "0").toFixed(2)}</span>
+                    )}
+                  </td>
+                  {canEdit && (
+                    <td className="py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget({ id: l.id, label: l.label })}
+                        disabled={pending}
+                        className="rounded-lg p-1.5 text-red-600 transition-colors hover:bg-red-50"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  )}
+                </tr>
+              ))}
+              {miscLines.length === 0 && otherLines.length === 0 && (
+                <tr>
+                  <td colSpan={canEdit ? 4 : 3} className="py-8 text-center text-sm text-neutral-500">
+                    No misc/other fee lines.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold text-[#6A0000]">
-            Summary (preview)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1">
-          <div className="flex justify-between text-sm">
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="border-b border-neutral-100 bg-neutral-50/80 px-4 py-3">
+          <h2 className="text-sm font-semibold text-[#6A0000]">Summary</h2>
+          <p className="mt-0.5 text-xs text-neutral-600">Preview of totals used when generating assessments.</p>
+        </div>
+        <div className="space-y-2 p-4">
+          <div className="flex justify-between text-sm text-neutral-700">
             <span>Tuition ({totalUnits} × ₱{tuitionPerUnit})</span>
-            <span>₱{totals.tuitionAmount.toFixed(2)}</span>
+            <span className="font-medium text-neutral-900">₱{totals.tuitionAmount.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-sm text-neutral-700">
             <span>Lab total</span>
-            <span>₱{totals.labTotal.toFixed(2)}</span>
+            <span className="font-medium text-neutral-900">₱{totals.labTotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-sm text-neutral-700">
             <span>Misc & other total</span>
-            <span>₱{(totals.miscTotal + totals.otherTotal).toFixed(2)}</span>
+            <span className="font-medium text-neutral-900">₱{(totals.miscTotal + totals.otherTotal).toFixed(2)}</span>
           </div>
-          <div className="flex justify-between border-t pt-2 font-semibold">
-            <span>Total Fees</span>
+          <div className="flex justify-between border-t border-neutral-200 pt-3 text-base font-semibold text-[#6A0000]">
+            <span>Total fees</span>
             <span>₱{totals.total.toFixed(2)}</span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {canEdit && setup.status === "draft" && (
         <div className="flex gap-3">
           <Button
             onClick={handleSubmitForApproval}
             disabled={pending}
-            className="bg-[#6A0000] hover:bg-[#6A0000]/90"
+            className="bg-[#6A0000] hover:bg-[#4A0000] text-white"
           >
             Submit for approval
           </Button>

@@ -8,6 +8,7 @@ import {
   Megaphone,
   ShieldAlert,
   Settings,
+  CalendarCheck,
 } from "lucide-react";
 import type { SidebarItem } from "../Sidebar";
 
@@ -17,6 +18,7 @@ export const getDeanNavItems = (): SidebarItem[] => [
   { label: "Academic Outcomes", href: "/dean/academics", icon: GraduationCap },
   { label: "Finance Overview", href: "/dean/finance", icon: BadgeDollarSign },
   { label: "Fee Approvals", href: "/dean/fees", icon: FileCheck },
+  { label: "Schedule Approvals", href: "/dean/schedules", icon: CalendarCheck },
   { label: "Operations Monitor", href: "/dean/operations", icon: Radar },
   { label: "Announcements", href: "/dean/announcements", icon: Megaphone },
   { label: "Governance / Holds", href: "/dean/governance", icon: ShieldAlert },

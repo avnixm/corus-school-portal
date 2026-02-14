@@ -149,10 +149,12 @@ export default async function StudentDashboardPage() {
                 </div>
                 <p className="mt-1 text-xs text-neutral-700">
                   {data.requirementsProgress.blocking.length > 0
-                    ? "Action needed — submit or resubmit forms"
+                    ? "Upload missing forms and submit for verification"
                     : "All required forms verified"}
                 </p>
-                <p className="mt-1 text-xs font-medium text-[#6A0000]">View requirements →</p>
+                <p className="mt-1 text-xs font-medium text-[#6A0000]">
+                  {data.requirementsProgress.blocking.length > 0 ? "Upload forms →" : "View requirements →"}
+                </p>
               </CardContent>
             </Card>
           </Link>

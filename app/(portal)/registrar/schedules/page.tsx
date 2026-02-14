@@ -4,6 +4,7 @@ import {
   getTermsList,
   getSectionsList,
   getProgramsList,
+  getTeachersListForRegistrar,
 } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateScheduleForm } from "./CreateScheduleForm";
@@ -23,13 +24,14 @@ export default async function SchedulesPage({
   }>;
 }) {
   const params = await searchParams;
-  const [schedules, schoolYears, terms, sections, programs] =
+  const [schedules, schoolYears, terms, sections, programs, teachers] =
     await Promise.all([
       getSchedulesList(params),
       getSchoolYearsList(),
       getTermsList(),
       getSectionsList(),
       getProgramsList(),
+      getTeachersListForRegistrar(),
     ]);
 
   return (
@@ -55,6 +57,7 @@ export default async function SchedulesPage({
         terms={terms}
         sections={sections}
         programs={programs}
+        teachers={teachers}
       />
 
       <Card>

@@ -241,6 +241,30 @@ export const teacherAssignments = pgTable(
   })
 );
 
+export const teacherSubjectPermissions = pgTable(
+  "teacher_subject_permissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teacherId: uuid("teacher_id")
+      .notNull()
+      .references(() => teachers.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    canTeach: boolean("can_teach").notNull().default(true),
+    notes: text("notes"),
+    createdByUserId: text("created_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    teacherSubjectUnique: uniqueIndex("teacher_subject_permissions_teacher_subject_unique").on(
+      table.teacherId,
+      table.subjectId
+    ),
+  })
+);
+
 export const gradingPeriods = pgTable(
   "grading_periods",
   {
@@ -405,6 +429,7 @@ export const classSchedules = pgTable("class_schedules", {
   timeIn: varchar("time_in", { length: 16 }), // e.g. 08:00
   timeOut: varchar("time_out", { length: 16 }),
   room: varchar("room", { length: 64 }),
+  status: varchar("status", { length: 32 }).notNull().default("draft"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -417,6 +442,132 @@ export const scheduleDays = pgTable("schedule_days", {
   day: varchar("day", { length: 16 }).notNull(), // Mon, Tue, etc.
   isActive: boolean("is_active").notNull().default(true),
 });
+
+export const scheduleApprovals = pgTable("schedule_approvals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scheduleId: uuid("schedule_id")
+    .notNull()
+    .references(() => classSchedules.id, { onDelete: "cascade" }),
+  schoolYearId: uuid("school_year_id")
+    .notNull()
+    .references(() => schoolYears.id),
+  termId: uuid("term_id")
+    .notNull()
+    .references(() => terms.id),
+  status: varchar("status", { length: 32 }).notNull().default("pending"),
+  submittedByUserId: text("submitted_by_user_id").notNull(),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull(),
+  deanUserId: text("dean_user_id"),
+  deanRemarks: text("dean_remarks"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  hasTeacherOverride: boolean("has_teacher_override").notNull().default(false),
+  overrideReason: text("override_reason"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+/**
+ * Class offerings – per scheduled class/section/term instance students enroll into.
+ */
+export const classOfferings = pgTable(
+  "class_offerings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scheduleId: uuid("schedule_id")
+      .notNull()
+      .references(() => classSchedules.id),
+    schoolYearId: uuid("school_year_id")
+      .notNull()
+      .references(() => schoolYears.id),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => sections.id),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id),
+    teacherId: uuid("teacher_id").references(() => teachers.id),
+    teacherName: varchar("teacher_name", { length: 128 }),
+    room: varchar("room", { length: 64 }),
+    timeStart: varchar("time_start", { length: 16 }),
+    timeEnd: varchar("time_end", { length: 16 }),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    scheduleSyTermUnique: uniqueIndex("class_offerings_schedule_sy_term_unique").on(
+      table.scheduleId,
+      table.schoolYearId,
+      table.termId
+    ),
+  })
+);
+
+export const studentClassEnrollmentStatusEnum = pgEnum(
+  "student_class_enrollment_status",
+  ["enrolled", "dropped", "completed"]
+);
+
+/**
+ * Student -> class offering join (class enrollment).
+ */
+export const studentClassEnrollments = pgTable(
+  "student_class_enrollments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id),
+    classOfferingId: uuid("class_offering_id")
+      .notNull()
+      .references(() => classOfferings.id),
+    status: studentClassEnrollmentStatusEnum("status").notNull().default("enrolled"),
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    studentEnrollmentOfferingUnique: uniqueIndex(
+      "student_class_enrollments_student_enrollment_offering_unique"
+    ).on(table.studentId, table.enrollmentId, table.classOfferingId),
+  })
+);
+
+export const enrollmentSubjectSourceEnum = pgEnum("enrollment_subject_source", [
+  "curriculum",
+  "schedule",
+  "manual",
+]);
+
+/**
+ * Snapshot of subjects enrolled (for printing / when schedule not yet ready).
+ */
+export const enrollmentSubjects = pgTable(
+  "enrollment_subjects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id),
+    source: enrollmentSubjectSourceEnum("source").notNull().default("curriculum"),
+    units: integer("units").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    enrollmentSubjectUnique: uniqueIndex("enrollment_subjects_enrollment_subject_unique").on(
+      table.enrollmentId,
+      table.subjectId
+    ),
+  })
+);
 
 /**
  * Curriculum (program/year/term subject plans, versioned per school year)

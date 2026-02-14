@@ -6,6 +6,7 @@ import {
   getStudentsList,
   getProgramsList,
   getSectionsList,
+  getEnrollmentClassSummaries,
 } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateEnrollmentForm } from "./CreateEnrollmentForm";
@@ -41,6 +42,9 @@ export default async function EnrollmentsPage({
       getProgramsList(),
       getSectionsList(),
     ]);
+
+  const approvedIds = enrollmentsList.filter((r) => r.status === "approved").map((r) => r.id);
+  const classSummaries = await getEnrollmentClassSummaries(approvedIds);
 
   return (
     <div className="space-y-4">
@@ -80,6 +84,7 @@ export default async function EnrollmentsPage({
                   <th className="px-4 py-2">Year Level</th>
                   <th className="px-4 py-2">Section</th>
                   <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Classes</th>
                   <th className="px-4 py-2">Finance Status</th>
                   <th className="px-4 py-2">Balance</th>
                   <th className="px-4 py-2">Date</th>
@@ -131,6 +136,27 @@ export default async function EnrollmentsPage({
                       </span>
                     </td>
                     <td className="px-4 py-2">
+                      {row.status === "approved" ? (
+                        (() => {
+                          const summary = classSummaries.get(row.id);
+                          return summary ? (
+                            <span className="flex flex-col gap-0.5">
+                              <span className="text-neutral-800">Classes: {summary.classesAssigned}</span>
+                              {summary.schedulePending && (
+                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
+                                  Schedule pending
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            "—"
+                          );
+                        })()
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
                       <span
                         className={`rounded px-2 py-0.5 text-xs ${
                           row.financeStatus === "cleared"
@@ -173,7 +199,7 @@ export default async function EnrollmentsPage({
                 {enrollmentsList.length === 0 && (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={11}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No enrollments found.

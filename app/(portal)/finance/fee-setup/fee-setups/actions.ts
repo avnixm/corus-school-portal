@@ -106,7 +106,7 @@ export async function addFeeSetupLineAction(payload: {
 
 export async function updateFeeSetupLineAction(
   lineId: string,
-  payload: { label?: string; amount?: string; qty?: number; sortOrder?: number },
+  payload: { label?: string; amount?: string; qty?: number; perUnit?: boolean; sortOrder?: number },
   feeSetupId?: string
 ) {
   const { error } = await requireFinance();

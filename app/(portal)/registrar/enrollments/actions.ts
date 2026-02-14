@@ -7,8 +7,10 @@ import {
   getProgramById,
   approveEnrollmentById,
   rejectEnrollmentById,
+  updateEnrollmentSection,
 } from "@/db/queries";
 import { requireRole } from "@/lib/rbac";
+import { finalizeEnrollmentClasses } from "@/lib/enrollment/finalizeEnrollmentClasses";
 
 export async function createEnrollmentAction(formData: FormData) {
   const auth = await requireRole(["registrar", "admin"]);
@@ -81,5 +83,26 @@ export async function updateEnrollmentStatus(
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
   revalidatePath("/finance/assessments");
+  return { success: true };
+}
+
+/** Assign section to an enrollment (e.g. already approved). Finalizes class enrollments when section has schedules. */
+export async function assignSectionToEnrollmentAction(
+  enrollmentId: string,
+  sectionId: string | null
+) {
+  const auth = await requireRole(["registrar", "admin"]);
+  if ("error" in auth) return { error: auth.error };
+
+  const enrollment = await getEnrollmentById(enrollmentId);
+  if (!enrollment) return { error: "Enrollment not found" };
+
+  await updateEnrollmentSection(enrollmentId, sectionId);
+  if (enrollment.status === "approved" || enrollment.status === "enrolled") {
+    await finalizeEnrollmentClasses(enrollmentId);
+  }
+
+  revalidatePath("/registrar/enrollments");
+  revalidatePath(`/registrar/students/${enrollment.studentId}`);
   return { success: true };
 }

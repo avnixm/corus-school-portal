@@ -18,7 +18,7 @@ export const getStudentNavItems = (): SidebarItem[] => [
     icon: LayoutDashboard,
   },
   {
-    label: "Requirements",
+    label: "Forms & requirements",
     href: "/student/requirements",
     icon: FileCheck,
   },

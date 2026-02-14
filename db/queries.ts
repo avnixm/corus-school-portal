@@ -15,6 +15,7 @@ import {
   terms,
   classSchedules,
   scheduleDays,
+  scheduleApprovals,
   requirements,
   requirementRules,
   requirementVerifications,
@@ -25,6 +26,7 @@ import {
   enrollmentFinanceStatus,
   teachers,
   teacherAssignments,
+  teacherSubjectPermissions,
   gradingPeriods,
   gradeSubmissions,
   gradeEntries,
@@ -41,6 +43,9 @@ import {
   curriculumVersions,
   curriculumBlocks,
   curriculumBlockSubjects,
+  classOfferings,
+  studentClassEnrollments,
+  enrollmentSubjects,
 } from "@/db/schema";
 import { eq, and, desc, asc, sql, or, like, isNull, gte, lte, inArray, isNotNull } from "drizzle-orm";
 
@@ -660,7 +665,7 @@ export async function getScheduleWithDetailsByStudentId(
     .limit(limit);
 }
 
-/** Schedule details for one enrollment (e.g. current term). */
+/** Schedule details for one enrollment (e.g. current term). Uses student_schedule_view (enrollment -> section -> class_schedules). */
 export async function getScheduleWithDetailsByEnrollmentId(
   enrollmentId: string,
   limit = 50
@@ -680,6 +685,110 @@ export async function getScheduleWithDetailsByEnrollmentId(
     .leftJoin(sections, eq(studentScheduleView.sectionId, sections.id))
     .where(eq(studentScheduleView.enrollmentId, enrollmentId))
     .limit(limit);
+}
+
+/** Schedule from class enrollments (student_class_enrollments -> class_offerings -> schedule + days). Use when classes are finalized. */
+export async function getScheduleFromClassEnrollmentsByEnrollmentId(
+  enrollmentId: string,
+  limit = 50
+) {
+  return db
+    .select({
+      day: scheduleDays.day,
+      timeIn: classOfferings.timeStart,
+      timeOut: classOfferings.timeEnd,
+      room: classOfferings.room,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+    })
+    .from(studentClassEnrollments)
+    .innerJoin(classOfferings, eq(studentClassEnrollments.classOfferingId, classOfferings.id))
+    .innerJoin(classSchedules, eq(classOfferings.scheduleId, classSchedules.id))
+    .innerJoin(scheduleDays, eq(scheduleDays.scheduleId, classSchedules.id))
+    .leftJoin(subjects, eq(classOfferings.subjectId, subjects.id))
+    .leftJoin(sections, eq(classOfferings.sectionId, sections.id))
+    .where(
+      and(
+        eq(studentClassEnrollments.enrollmentId, enrollmentId),
+        eq(studentClassEnrollments.status, "enrolled")
+      )
+    )
+    .limit(limit);
+}
+
+/** Planned subjects snapshot (no times) when schedule not yet ready. */
+export async function getEnrollmentSubjectsByEnrollmentId(enrollmentId: string) {
+  return db
+    .select({
+      subjectId: enrollmentSubjects.subjectId,
+      code: subjects.code,
+      title: subjects.title,
+      units: subjects.units,
+      source: enrollmentSubjects.source,
+    })
+    .from(enrollmentSubjects)
+    .innerJoin(subjects, eq(enrollmentSubjects.subjectId, subjects.id))
+    .where(eq(enrollmentSubjects.enrollmentId, enrollmentId));
+}
+
+/** Count of classes assigned and whether only curriculum snapshot exists (schedule pending). */
+export async function getEnrollmentClassSummary(enrollmentId: string): Promise<{
+  classesAssigned: number;
+  schedulePending: boolean;
+}> {
+  const [enrolled] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(studentClassEnrollments)
+    .where(
+      and(
+        eq(studentClassEnrollments.enrollmentId, enrollmentId),
+        eq(studentClassEnrollments.status, "enrolled")
+      )
+    );
+  const [subjectsCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(enrollmentSubjects)
+    .where(eq(enrollmentSubjects.enrollmentId, enrollmentId));
+  const classesAssigned = enrolled?.count ?? 0;
+  const schedulePending = (subjectsCount?.count ?? 0) > 0 && classesAssigned === 0;
+  return { classesAssigned, schedulePending };
+}
+
+/** Batch class summaries for many enrollments (e.g. list view). */
+export async function getEnrollmentClassSummaries(
+  enrollmentIds: string[]
+): Promise<Map<string, { classesAssigned: number; schedulePending: boolean }>> {
+  if (enrollmentIds.length === 0) return new Map();
+  const enrolled = await db
+    .select({
+      enrollmentId: studentClassEnrollments.enrollmentId,
+      c: sql<number>`count(*)::int`.as("c"),
+    })
+    .from(studentClassEnrollments)
+    .where(
+      and(
+        inArray(studentClassEnrollments.enrollmentId, enrollmentIds),
+        eq(studentClassEnrollments.status, "enrolled"))
+    )
+    .groupBy(studentClassEnrollments.enrollmentId);
+  const subjectsCounts = await db
+    .select({
+      enrollmentId: enrollmentSubjects.enrollmentId,
+      c: sql<number>`count(*)::int`.as("c"),
+    })
+    .from(enrollmentSubjects)
+    .where(inArray(enrollmentSubjects.enrollmentId, enrollmentIds))
+    .groupBy(enrollmentSubjects.enrollmentId);
+  const enrolledMap = new Map(enrolled.map((r) => [r.enrollmentId, r.c]));
+  const subjectsMap = new Map(subjectsCounts.map((r) => [r.enrollmentId, r.c]));
+  const out = new Map<string, { classesAssigned: number; schedulePending: boolean }>();
+  for (const id of enrollmentIds) {
+    const classesAssigned = enrolledMap.get(id) ?? 0;
+    const subCount = subjectsMap.get(id) ?? 0;
+    out.set(id, { classesAssigned, schedulePending: subCount > 0 && classesAssigned === 0 });
+  }
+  return out;
 }
 
 // ============ Registrar Dashboard ============
@@ -1160,7 +1269,10 @@ export async function approveEnrollmentById(
         balance: "0",
       });
     }
+
   });
+  const { finalizeEnrollmentClasses } = await import("@/lib/enrollment/finalizeEnrollmentClasses");
+  await finalizeEnrollmentClasses(enrollmentId);
 }
 
 export async function rejectEnrollmentById(
@@ -1296,6 +1408,17 @@ export async function setEnrollmentCancelled(enrollmentId: string) {
     .where(eq(enrollments.id, enrollmentId));
 }
 
+/** Assign section to an enrollment (e.g. approved). Call finalizeEnrollmentClasses after when status is approved. */
+export async function updateEnrollmentSection(
+  enrollmentId: string,
+  sectionId: string | null
+) {
+  await db
+    .update(enrollments)
+    .set({ sectionId, updatedAt: new Date() })
+    .where(eq(enrollments.id, enrollmentId));
+}
+
 /** Reset rejected enrollment to draft so student can fix and resubmit. */
 export async function resetRejectedEnrollmentToDraft(enrollmentId: string): Promise<boolean> {
   const [row] = await db
@@ -1321,6 +1444,15 @@ export async function getEnrollmentApprovalByEnrollmentId(enrollmentId: string) 
 
 export async function getSchoolYearsList() {
   return db.select().from(schoolYears).orderBy(desc(schoolYears.name));
+}
+
+/** School years that have at least one curriculum version (draft, published, or archived). Use for filter dropdown so years don’t show until there’s a curriculum. */
+export async function getSchoolYearsWithCurriculumVersions() {
+  return db
+    .selectDistinct({ id: schoolYears.id, name: schoolYears.name })
+    .from(schoolYears)
+    .innerJoin(curriculumVersions, eq(curriculumVersions.schoolYearId, schoolYears.id))
+    .orderBy(desc(schoolYears.name));
 }
 
 export async function getTermsBySchoolYearId(schoolYearId: string) {
@@ -1834,6 +1966,7 @@ export async function createScheduleWithDays(values: {
   termId: string;
   sectionId: string;
   subjectId: string;
+  teacherId?: string | null;
   teacherName?: string | null;
   room?: string | null;
   timeIn?: string | null;
@@ -1845,6 +1978,7 @@ export async function createScheduleWithDays(values: {
     .insert(classSchedules)
     .values({
       ...scheduleValues,
+      teacherId: scheduleValues.teacherId ?? null,
       timeIn: scheduleValues.timeIn ?? null,
       timeOut: scheduleValues.timeOut ?? null,
       room: scheduleValues.room ?? null,
@@ -2285,6 +2419,15 @@ export async function getTeacherByUserId(userId: string) {
   return row ?? null;
 }
 
+export async function getTeacherById(teacherId: string) {
+  const [row] = await db
+    .select()
+    .from(teachers)
+    .where(eq(teachers.id, teacherId))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function getTeacherByUserProfileId(userProfileId: string) {
   const [row] = await db
     .select()
@@ -2429,6 +2572,46 @@ export async function getEnrollmentsBySectionAndTerm(sectionId: string, termId: 
       )
     );
   return q.orderBy(students.lastName);
+}
+
+/** Roster for a class (schedule) from student_class_enrollments. Use for teacher gradebook when classes are finalized. */
+export async function getRosterForClassByScheduleId(scheduleId: string) {
+  const [schedule] = await db
+    .select({ schoolYearId: classSchedules.schoolYearId, termId: classSchedules.termId })
+    .from(classSchedules)
+    .where(eq(classSchedules.id, scheduleId))
+    .limit(1);
+  if (!schedule) return [];
+  const [offering] = await db
+    .select({ id: classOfferings.id })
+    .from(classOfferings)
+    .where(
+      and(
+        eq(classOfferings.scheduleId, scheduleId),
+        eq(classOfferings.schoolYearId, schedule.schoolYearId),
+        eq(classOfferings.termId, schedule.termId),
+        eq(classOfferings.active, true))
+    )
+    .limit(1);
+  if (!offering) return [];
+  return db
+    .select({
+      id: enrollments.id,
+      studentId: enrollments.studentId,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+    })
+    .from(studentClassEnrollments)
+    .innerJoin(enrollments, eq(studentClassEnrollments.enrollmentId, enrollments.id))
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .where(
+      and(
+        eq(studentClassEnrollments.classOfferingId, offering.id),
+        eq(studentClassEnrollments.status, "enrolled"))
+    )
+    .orderBy(students.lastName);
 }
 
 // ============ Grading Periods ============
@@ -3121,6 +3304,11 @@ export async function updateCurriculumVersionStatus(
     .where(eq(curriculumVersions.id, id));
 }
 
+/** Permanently delete a curriculum version. Blocks and block subjects cascade. */
+export async function deleteCurriculumVersion(id: string) {
+  await db.delete(curriculumVersions).where(eq(curriculumVersions.id, id));
+}
+
 /** True if there is another published version for the same program + school year (excluding given id). */
 export async function hasOtherPublishedCurriculumForProgramYear(
   programId: string,
@@ -3266,6 +3454,26 @@ export async function removeCurriculumBlockSubject(id: string) {
   await db
     .delete(curriculumBlockSubjects)
     .where(eq(curriculumBlockSubjects.id, id));
+}
+
+export async function getCurriculumBlockSubjectById(id: string) {
+  const [row] = await db
+    .select({
+      id: curriculumBlockSubjects.id,
+      subjectId: curriculumBlockSubjects.subjectId,
+      curriculumBlockId: curriculumBlockSubjects.curriculumBlockId,
+      withLab: curriculumBlockSubjects.withLab,
+      prereqText: curriculumBlockSubjects.prereqText,
+      sortOrder: curriculumBlockSubjects.sortOrder,
+      curriculumVersionId: curriculumBlocks.curriculumVersionId,
+      yearLevel: curriculumBlocks.yearLevel,
+      termId: curriculumBlocks.termId,
+    })
+    .from(curriculumBlockSubjects)
+    .innerJoin(curriculumBlocks, eq(curriculumBlockSubjects.curriculumBlockId, curriculumBlocks.id))
+    .where(eq(curriculumBlockSubjects.id, id))
+    .limit(1);
+  return row ?? null;
 }
 
 /** Clone a curriculum version: create new version and copy all blocks + block_subjects. */
@@ -3470,46 +3678,109 @@ export async function getAssessmentFormData(assessmentId: string) {
     prereq?: string;
     withLab?: boolean;
   }> = [];
-  const { getCurriculumSubjectsAndTotalUnitsForEnrollment } = await import(
-    "@/lib/curriculum/queries"
-  );
-  const curriculumData = await getCurriculumSubjectsAndTotalUnitsForEnrollment({
-    programId: row.programId ?? null,
-    schoolYearId: row.schoolYearId,
-    termId: row.termId,
-    yearLevel: row.yearLevel ?? null,
-  });
-  if (curriculumData) {
-    scheduleSubjects = curriculumData.subjects.map((s) => ({
-      code: s.code,
-      title: s.title,
-      units: s.units,
-      prereq: s.prereqText ?? undefined,
-      withLab: s.withLab,
-    }));
-  } else if (row.sectionId) {
-    const sched = await db
+  const enrollmentId = row.enrollmentId;
+
+  // Prefer class enrollments -> offerings -> subjects; fall back to enrollment_subjects or curriculum if query fails or returns nothing
+  let fromOfferings: Array<{ code: string; title: string | null; units: string | null }> = [];
+  try {
+    const fromOfferingsRaw = await db
       .select({
-        subjectCode: subjects.code,
-        subjectTitle: subjects.title,
+        code: subjects.code,
+        title: subjects.title,
         units: subjects.units,
       })
-      .from(classSchedules)
-      .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+      .from(studentClassEnrollments)
+      .innerJoin(classOfferings, eq(studentClassEnrollments.classOfferingId, classOfferings.id))
+      .innerJoin(subjects, eq(classOfferings.subjectId, subjects.id))
       .where(
         and(
-          eq(classSchedules.sectionId, row.sectionId),
-          eq(classSchedules.schoolYearId, row.schoolYearId),
-          eq(classSchedules.termId, row.termId)
-        )
+          eq(studentClassEnrollments.enrollmentId, enrollmentId),
+          eq(studentClassEnrollments.status, "enrolled"))
       );
-    scheduleSubjects = sched.map((s) => ({
-      code: s.subjectCode,
-      title: s.subjectTitle ?? "",
+    fromOfferings = fromOfferingsRaw.filter(
+      (s, i, arr) => arr.findIndex((x) => x.code === s.code) === i
+    );
+  } catch {
+    // student_class_enrollments may not exist or enrollment may use curriculum/snapshot only; continue to fallbacks
+  }
+  if (fromOfferings.length > 0) {
+    scheduleSubjects = fromOfferings.map((s) => ({
+      code: s.code,
+      title: s.title ?? "",
       units: String(s.units ?? 0),
       prereq: undefined,
       withLab: undefined,
     }));
+  } else {
+    let fromSnapshot: Array<{ code: string; title: string | null; units: string | null }> = [];
+    try {
+      fromSnapshot = await db
+        .select({
+          code: subjects.code,
+          title: subjects.title,
+          units: subjects.units,
+        })
+        .from(enrollmentSubjects)
+        .innerJoin(subjects, eq(enrollmentSubjects.subjectId, subjects.id))
+        .where(eq(enrollmentSubjects.enrollmentId, enrollmentId));
+    } catch {
+      // enrollment_subjects may not exist; continue to curriculum/section fallbacks
+    }
+    if (fromSnapshot.length > 0) {
+      scheduleSubjects = fromSnapshot.map((s) => ({
+        code: s.code,
+        title: s.title ?? "",
+        units: String(s.units ?? 0),
+        prereq: undefined,
+        withLab: undefined,
+      }));
+    } else {
+      const { getCurriculumSubjectsAndTotalUnitsForEnrollment } = await import(
+        "@/lib/curriculum/queries"
+      );
+      const curriculumData = await getCurriculumSubjectsAndTotalUnitsForEnrollment({
+        programId: row.programId ?? null,
+        schoolYearId: row.schoolYearId,
+        termId: row.termId,
+        yearLevel: row.yearLevel ?? null,
+      });
+      if (curriculumData) {
+        scheduleSubjects = curriculumData.subjects.map((s) => ({
+          code: s.code,
+          title: s.title,
+          units: s.units,
+          prereq: s.prereqText ?? undefined,
+          withLab: s.withLab,
+        }));
+      } else if (row.sectionId) {
+        try {
+          const sched = await db
+            .select({
+              subjectCode: subjects.code,
+              subjectTitle: subjects.title,
+              units: subjects.units,
+            })
+            .from(classSchedules)
+            .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+            .where(
+              and(
+                eq(classSchedules.sectionId, row.sectionId),
+                eq(classSchedules.schoolYearId, row.schoolYearId),
+                eq(classSchedules.termId, row.termId)
+              )
+            );
+          scheduleSubjects = sched.map((s) => ({
+            code: s.subjectCode,
+            title: s.subjectTitle ?? "",
+            units: String(s.units ?? 0),
+            prereq: undefined,
+            withLab: undefined,
+          }));
+        } catch {
+          // class_schedules query may fail; leave scheduleSubjects empty
+        }
+      }
+    }
   }
 
   return {
@@ -3606,4 +3877,231 @@ export async function getFeeSetupsPendingDean() {
       )
     )
     .orderBy(desc(feeSetups.updatedAt));
+}
+
+// ============ Teacher Subject Permissions ============
+
+export async function listTeacherSubjectPermissions(teacherId: string) {
+  return db.select({
+    id: teacherSubjectPermissions.id,
+    subjectId: teacherSubjectPermissions.subjectId,
+    subjectCode: subjects.code,
+    subjectTitle: subjects.title,
+    units: subjects.units,
+    programId: subjects.programId,
+    isGe: subjects.isGe,
+    canTeach: teacherSubjectPermissions.canTeach,
+    notes: teacherSubjectPermissions.notes,
+  })
+  .from(teacherSubjectPermissions)
+  .innerJoin(subjects, eq(teacherSubjectPermissions.subjectId, subjects.id))
+  .where(eq(teacherSubjectPermissions.teacherId, teacherId))
+  .orderBy(subjects.code);
+}
+
+export async function addTeacherSubjectPermissions(values: {
+  teacherId: string;
+  subjectIds: string[];
+  notes?: string | null;
+  createdByUserId: string;
+}) {
+  const rows = values.subjectIds.map((subjectId) => ({
+    teacherId: values.teacherId,
+    subjectId,
+    notes: values.notes,
+    createdByUserId: values.createdByUserId,
+    canTeach: true,
+  }));
+  return db.insert(teacherSubjectPermissions).values(rows).onConflictDoNothing();
+}
+
+export async function removeTeacherSubjectPermission(teacherId: string, subjectId: string) {
+  return db.delete(teacherSubjectPermissions)
+    .where(and(
+      eq(teacherSubjectPermissions.teacherId, teacherId),
+      eq(teacherSubjectPermissions.subjectId, subjectId)
+    ));
+}
+
+export async function updateTeacherSubjectPermission(teacherId: string, subjectId: string, updates: {
+  notes?: string;
+  canTeach?: boolean;
+}) {
+  return db.update(teacherSubjectPermissions)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(and(
+      eq(teacherSubjectPermissions.teacherId, teacherId),
+      eq(teacherSubjectPermissions.subjectId, subjectId)
+    ));
+}
+
+export async function validateTeacherCanTeach(teacherId: string, subjectId: string): Promise<boolean> {
+  const [perm] = await db.select()
+    .from(teacherSubjectPermissions)
+    .where(and(
+      eq(teacherSubjectPermissions.teacherId, teacherId),
+      eq(teacherSubjectPermissions.subjectId, subjectId),
+      eq(teacherSubjectPermissions.canTeach, true)
+    ))
+    .limit(1);
+  return !!perm;
+}
+
+export async function listAuthorizedTeachersForSubject(subjectId: string) {
+  return db.select({
+    teacherId: teachers.id,
+    teacherName: sql<string>`${teachers.firstName} || ' ' || ${teachers.lastName}`,
+    email: teachers.email,
+    position: teachers.position,
+    permissionId: teacherSubjectPermissions.id,
+  })
+  .from(teacherSubjectPermissions)
+  .innerJoin(teachers, eq(teacherSubjectPermissions.teacherId, teachers.id))
+  .where(and(
+    eq(teacherSubjectPermissions.subjectId, subjectId),
+    eq(teacherSubjectPermissions.canTeach, true),
+    eq(teachers.active, true)
+  ))
+  .orderBy(teachers.lastName, teachers.firstName);
+}
+
+export async function getTeachersListForRegistrar() {
+  return db.select({
+    id: teachers.id,
+    firstName: teachers.firstName,
+    lastName: teachers.lastName,
+    email: teachers.email,
+    position: teachers.position,
+    active: teachers.active,
+    permissionCount: sql<number>`count(${teacherSubjectPermissions.id})::int`,
+  })
+  .from(teachers)
+  .leftJoin(teacherSubjectPermissions, eq(teachers.id, teacherSubjectPermissions.teacherId))
+  .groupBy(teachers.id)
+  .orderBy(teachers.lastName, teachers.firstName);
+}
+
+// ============ Schedule Approvals ============
+
+export async function createScheduleApproval(values: {
+  scheduleId: string;
+  schoolYearId: string;
+  termId: string;
+  submittedByUserId: string;
+  hasTeacherOverride: boolean;
+  overrideReason?: string | null;
+}) {
+  return db.insert(scheduleApprovals).values({
+    ...values,
+    submittedAt: new Date(),
+    status: "pending",
+  }).returning();
+}
+
+export async function listPendingScheduleApprovalsForDean(schoolYearId?: string, termId?: string) {
+  const conditions = [eq(scheduleApprovals.status, "pending")];
+  if (schoolYearId) conditions.push(eq(scheduleApprovals.schoolYearId, schoolYearId));
+  if (termId) conditions.push(eq(scheduleApprovals.termId, termId));
+  
+  return db.select({
+    approvalId: scheduleApprovals.id,
+    scheduleId: classSchedules.id,
+    subjectCode: subjects.code,
+    subjectTitle: subjects.title,
+    sectionName: sections.name,
+    teacherName: sql<string>`${teachers.firstName} || ' ' || ${teachers.lastName}`,
+    timeIn: classSchedules.timeIn,
+    timeOut: classSchedules.timeOut,
+    room: classSchedules.room,
+    hasTeacherOverride: scheduleApprovals.hasTeacherOverride,
+    overrideReason: scheduleApprovals.overrideReason,
+    submittedAt: scheduleApprovals.submittedAt,
+  })
+  .from(scheduleApprovals)
+  .innerJoin(classSchedules, eq(scheduleApprovals.scheduleId, classSchedules.id))
+  .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+  .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+  .leftJoin(teachers, eq(classSchedules.teacherId, teachers.id))
+  .where(and(...conditions))
+  .orderBy(scheduleApprovals.submittedAt);
+}
+
+export async function getScheduleApprovalDetails(approvalId: string) {
+  const [row] = await db.select({
+    approvalId: scheduleApprovals.id,
+    scheduleId: classSchedules.id,
+    subjectCode: subjects.code,
+    subjectTitle: subjects.title,
+    sectionName: sections.name,
+    teacherId: teachers.id,
+    teacherName: sql<string>`${teachers.firstName} || ' ' || ${teachers.lastName}`,
+    timeIn: classSchedules.timeIn,
+    timeOut: classSchedules.timeOut,
+    room: classSchedules.room,
+    hasTeacherOverride: scheduleApprovals.hasTeacherOverride,
+    overrideReason: scheduleApprovals.overrideReason,
+    status: scheduleApprovals.status,
+    deanRemarks: scheduleApprovals.deanRemarks,
+    submittedAt: scheduleApprovals.submittedAt,
+  })
+  .from(scheduleApprovals)
+  .innerJoin(classSchedules, eq(scheduleApprovals.scheduleId, classSchedules.id))
+  .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+  .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+  .leftJoin(teachers, eq(classSchedules.teacherId, teachers.id))
+  .where(eq(scheduleApprovals.id, approvalId))
+  .limit(1);
+  
+  if (!row) return null;
+  
+  // Get days for the schedule
+  const days = await db.select({ day: scheduleDays.day })
+    .from(scheduleDays)
+    .where(eq(scheduleDays.scheduleId, row.scheduleId));
+  
+  return { ...row, days: days.map(d => d.day) };
+}
+
+export async function approveSchedule(approvalId: string, deanUserId: string, remarks?: string) {
+  await db.update(scheduleApprovals)
+    .set({
+      status: "approved",
+      deanUserId,
+      deanRemarks: remarks,
+      reviewedAt: new Date(),
+    })
+    .where(eq(scheduleApprovals.id, approvalId));
+    
+  const [approval] = await db.select({ scheduleId: scheduleApprovals.scheduleId })
+    .from(scheduleApprovals)
+    .where(eq(scheduleApprovals.id, approvalId))
+    .limit(1);
+    
+  if (approval) {
+    await db.update(classSchedules)
+      .set({ status: "approved" })
+      .where(eq(classSchedules.id, approval.scheduleId));
+  }
+}
+
+export async function rejectSchedule(approvalId: string, deanUserId: string, remarks: string) {
+  await db.update(scheduleApprovals)
+    .set({
+      status: "rejected",
+      deanUserId,
+      deanRemarks: remarks,
+      reviewedAt: new Date(),
+    })
+    .where(eq(scheduleApprovals.id, approvalId));
+    
+  const [approval] = await db.select({ scheduleId: scheduleApprovals.scheduleId })
+    .from(scheduleApprovals)
+    .where(eq(scheduleApprovals.id, approvalId))
+    .limit(1);
+    
+  if (approval) {
+    await db.update(classSchedules)
+      .set({ status: "rejected" })
+      .where(eq(classSchedules.id, approval.scheduleId));
+  }
 }

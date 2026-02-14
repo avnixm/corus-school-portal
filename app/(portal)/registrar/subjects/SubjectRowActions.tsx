@@ -24,9 +24,12 @@ type Subject = {
   active: boolean;
   isGe?: boolean;
   programId?: string | null;
+  programCode?: string | null;
 };
 
-export function SubjectRowActions({ subject }: { subject: Subject }) {
+type Program = { id: string; code: string; name: string };
+
+export function SubjectRowActions({ subject, programs }: { subject: Subject; programs: Program[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -39,8 +42,13 @@ export function SubjectRowActions({ subject }: { subject: Subject }) {
     setError(null);
     setPending(true);
     const formData = new FormData(e.currentTarget);
-    formData.set("type", subject.isGe ? "GE" : "PROGRAM");
-    if (subject.programId) formData.set("programId", subject.programId);
+    const programId = formData.get("programId") as string;
+    if (programId === "__ge__") {
+      formData.set("type", "GE");
+      formData.set("programId", "");
+    } else {
+      formData.set("type", "PROGRAM");
+    }
     const result = await updateSubjectAction(subject.id, formData);
     setPending(false);
     if (result?.error) {
@@ -76,6 +84,24 @@ export function SubjectRowActions({ subject }: { subject: Subject }) {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 text-neutral-900">
             {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <Label htmlFor="programId" className="text-neutral-900">Program / GE *</Label>
+              <select
+                id="programId"
+                name="programId"
+                required
+                defaultValue={subject.isGe ? "__ge__" : (subject.programId ?? "")}
+                className="mt-1 flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
+              >
+                <option value="">Select program or GE</option>
+                <option value="__ge__">GE – General Education</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code} – {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <Label htmlFor="code" className="text-neutral-900">Code *</Label>
               <Input id="code" name="code" defaultValue={subject.code} className="mt-1 h-10 text-neutral-900 placeholder:text-neutral-500" required />

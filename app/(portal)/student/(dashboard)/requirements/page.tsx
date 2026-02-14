@@ -88,7 +88,7 @@ export default async function StudentRequirementsPage() {
           <Progress value={progress} className="h-2" />
           {blocking.length > 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-              <p className="font-medium text-amber-800">Blocking items:</p>
+              <p className="font-medium text-amber-800">Upload and submit these forms:</p>
               <ul className="mt-1 list-inside list-disc text-amber-700">
                 {blocking.map((b) => (
                   <li key={b.submission.id}>{b.requirement.name}</li>
@@ -99,10 +99,29 @@ export default async function StudentRequirementsPage() {
         </CardContent>
       </Card>
 
-      <StudentRequirementsClient
-        items={applicable}
-        enrollmentId={enrollmentId}
-      />
+      {applicable.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="font-medium text-neutral-800">No document requirements are set for your program and term.</p>
+            <p className="mt-2 text-sm text-neutral-600">
+              If you were asked to submit forms (e.g. clearance, consent, ID), contact the Registrar&apos;s office.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div>
+            <h3 className="text-lg font-semibold text-[#6A0000]">Upload your documents</h3>
+            <p className="mt-1 text-sm text-neutral-600">
+              Upload a file for each requirement below. When ready, click <strong>Submit for verification</strong> on each item.
+            </p>
+          </div>
+          <StudentRequirementsClient
+            items={applicable}
+            enrollmentId={enrollmentId}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   submitGradesForApproval,
   getScheduleById,
   getEnrollmentsBySectionAndTerm,
+  getRosterForClassByScheduleId,
   getGradingPeriodsBySchoolYearTerm,
   getGradingPeriodById,
   isTeacherAssignedToSchedule,
@@ -212,6 +213,11 @@ export async function getTeacherDashboardData() {
   const sy = await getActiveSchoolYear();
   const term = await getActiveTerm();
   const todayShort = new Date().toLocaleDateString("en-US", { weekday: "short" });
+  
+  // Get authorized courses
+  const { listTeacherSubjectPermissions } = await import("@/db/queries");
+  const authorizedCourses = await listTeacherSubjectPermissions(ctx.teacherId);
+  
   if (!sy || !term) {
     return {
       classesCount: 0,
@@ -225,6 +231,7 @@ export async function getTeacherDashboardData() {
       returnedSubmissions: [],
       schoolYear: null,
       term: null,
+      authorizedCourses,
     };
   }
   const [
@@ -281,10 +288,11 @@ export async function getTeacherDashboardData() {
     returnedSubmissions: returnedSubs,
     schoolYear: sy,
     term,
+    authorizedCourses,
   };
 }
 
-/** Returns roster for a class; verifies teacher is assigned via teacher_assignments. */
+/** Returns roster for a class; uses student_class_enrollments when available, else section-based. */
 export async function getClassRoster(scheduleId: string) {
   const ctx = await ensureTeacherForCurrentUser();
   if (!ctx) return null;
@@ -292,6 +300,8 @@ export async function getClassRoster(scheduleId: string) {
   if (!isAssigned) return null;
   const schedule = await getScheduleById(scheduleId);
   if (!schedule) return null;
+  const fromClasses = await getRosterForClassByScheduleId(scheduleId);
+  if (fromClasses.length > 0) return fromClasses;
   return getEnrollmentsBySectionAndTerm(
     schedule.sectionId,
     schedule.termId,
@@ -310,11 +320,15 @@ export async function getClassDetailData(scheduleId: string) {
     schedule.schoolYearId,
     schedule.termId
   );
-  const roster = await getEnrollmentsBySectionAndTerm(
-    schedule.sectionId,
-    schedule.termId,
-    schedule.schoolYearId
-  );
+  const fromClasses = await getRosterForClassByScheduleId(scheduleId);
+  const roster =
+    fromClasses.length > 0
+      ? fromClasses
+      : await getEnrollmentsBySectionAndTerm(
+          schedule.sectionId,
+          schedule.termId,
+          schedule.schoolYearId
+        );
   const submissionsByPeriod: { periodId: string; periodName: string; status: string }[] = [];
   for (const p of periods) {
     const sub = await getGradeSubmissionByScheduleAndPeriod(scheduleId, p.id);
@@ -333,11 +347,15 @@ export async function getGradebookData(scheduleId: string, periodId: string) {
   const schedule = await getScheduleById(scheduleId);
   const period = await getGradingPeriodById(periodId);
   const entries = await getGradeEntriesBySubmissionId(result.submission.id);
-  const roster = await getEnrollmentsBySectionAndTerm(
-    schedule!.sectionId,
-    schedule!.termId,
-    schedule!.schoolYearId
-  );
+  const fromClasses = await getRosterForClassByScheduleId(scheduleId);
+  const roster =
+    fromClasses.length > 0
+      ? fromClasses
+      : await getEnrollmentsBySectionAndTerm(
+          schedule!.sectionId,
+          schedule!.termId,
+          schedule!.schoolYearId
+        );
   const entryMap = new Map(entries.map((e) => [e.studentId, e]));
   const rows = roster.map((r) => {
     const entry = entryMap.get(r.studentId);

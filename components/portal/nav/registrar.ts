@@ -13,6 +13,7 @@ import {
   Megaphone,
   CheckCheck,
   BookMarked,
+  UserCog,
 } from "lucide-react";
 import type { SidebarItem } from "../Sidebar";
 
@@ -27,6 +28,7 @@ export const getRegistrarNavItems = (): SidebarItem[] => [
   { label: "Subjects", href: "/registrar/subjects", icon: BookOpen },
   { label: "Sections", href: "/registrar/sections", icon: Layers },
   { label: "Schedules", href: "/registrar/schedules", icon: CalendarClock },
+  { label: "Teachers", href: "/registrar/teachers", icon: UserCog },
   { label: "Requirements", href: "/registrar/requirements", icon: FileCheck },
   { label: "Announcements", href: "/registrar/announcements", icon: Megaphone },
 ];

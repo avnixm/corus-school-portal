@@ -1,135 +1,87 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FileText, Check, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CreateDraftForm } from "./CreateDraftForm";
-import { CloneVersionForm } from "./CloneVersionForm";
-import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 type Version = {
   id: string;
   name: string;
+  programCode?: string;
+  schoolYearName?: string;
   status: string;
-  programCode: string | null;
-  schoolYearName: string | null;
-  updatedAt?: Date | null;
 };
-
-type Program = { id: string; code: string; name: string };
-type SchoolYear = { id: string; name: string };
-
-function formatUpdatedAt(date: Date | null | undefined): string {
-  if (!date) return "";
-  const d = new Date(date);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
 
 export function VersionStrip({
   versions,
-  programs,
-  schoolYears,
   selectedVersionId,
   searchQuery,
 }: {
   versions: Version[];
-  programs: Program[];
-  schoolYears: SchoolYear[];
   selectedVersionId: string | null;
   searchQuery?: string;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const baseParams = Object.fromEntries(searchParams?.entries() ?? []);
 
-  const filtered = searchQuery?.trim()
-    ? versions.filter(
-        (v) =>
-          v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (v.programCode?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (v.schoolYearName?.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : versions;
+  const handleVersionSelect = (versionId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("versionId", versionId);
+    router.push(`/registrar/curriculum?${params.toString()}`);
+  };
+
+  if (versions.length === 0) {
+    return null;
+  }
 
   return (
-    <Card className="rounded-2xl border shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-semibold text-neutral-900">
-          Curriculum Versions
-        </CardTitle>
-        <div className="flex gap-2">
-          <CreateDraftForm programs={programs} schoolYears={schoolYears} />
-          <CloneVersionForm
-            versions={versions.filter((v) => v.status === "draft" || v.status === "published")}
-            programs={programs}
-            schoolYears={schoolYears}
-          />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto pb-2">
-          <div className="flex min-w-0 gap-2">
-            {filtered.length === 0 ? (
-              <div className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-neutral-300 bg-neutral-50/50 py-12 text-center text-sm text-neutral-600">
-                {versions.length === 0
-                  ? "Create your first draft"
-                  : "No versions match your search"}
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold text-neutral-900">Available Versions</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {versions.map((version) => {
+          const isSelected = version.id === selectedVersionId;
+          const isDraft = version.status === "draft";
+          const isPublished = version.status === "published";
+          const isArchived = version.status === "archived";
+
+          return (
+            <Card
+              key={version.id}
+              onClick={() => handleVersionSelect(version.id)}
+              className={`cursor-pointer rounded-xl border-2 p-4 transition-all hover:shadow-md ${
+                isSelected
+                  ? "border-[#6A0000] bg-[#6A0000]/5 ring-2 ring-[#6A0000]/20"
+                  : "border-neutral-200 bg-white hover:border-neutral-300"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-neutral-900 line-clamp-1">{version.name}</h4>
+                  {version.schoolYearName && (
+                    <p className="mt-1 text-xs text-neutral-600">{version.schoolYearName}</p>
+                  )}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`flex-shrink-0 text-xs ${
+                    isDraft
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : isPublished
+                        ? "border-green-500 bg-green-50 text-green-700"
+                        : "border-neutral-500 bg-neutral-50 text-neutral-700"
+                  }`}
+                >
+                  {isDraft && <FileText className="mr-1 h-3 w-3" />}
+                  {isPublished && <Check className="mr-1 h-3 w-3" />}
+                  {isArchived && <Archive className="mr-1 h-3 w-3" />}
+                  {version.status.charAt(0).toUpperCase() + version.status.slice(1)}
+                </Badge>
               </div>
-            ) : (
-              filtered.map((v) => {
-                const isSelected = selectedVersionId === v.id;
-                const href = `/registrar/curriculum?${new URLSearchParams({
-                  ...baseParams,
-                  versionId: v.id,
-                }).toString()}`;
-                return (
-                  <Link
-                    key={v.id}
-                    href={href}
-                    className={cn(
-                      "flex shrink-0 flex-col gap-1 rounded-xl border px-4 py-3 transition-colors hover:bg-neutral-50/80",
-                      isSelected
-                        ? "border-[#6A0000]/30 bg-[#6A0000]/10 ring-1 ring-[#6A0000]/30"
-                        : "border-neutral-200 bg-white"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "font-medium",
-                        isSelected ? "text-[#6A0000]" : "text-neutral-900"
-                      )}
-                    >
-                      {v.name}
-                    </span>
-                    <span className="text-xs text-neutral-600">
-                      {v.programCode ?? "—"} · {v.schoolYearName ?? "—"}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "text-xs",
-                          v.status === "published" && "bg-green-100 text-green-900",
-                          v.status === "archived" && "bg-neutral-200 text-neutral-700",
-                          v.status === "draft" && "bg-amber-100 text-amber-900"
-                        )}
-                      >
-                        {v.status}
-                      </Badge>
-                      {v.updatedAt && (
-                        <span className="text-[10px] text-neutral-500">
-                          {formatUpdatedAt(v.updatedAt)}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }

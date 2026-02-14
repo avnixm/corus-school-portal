@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/rbac";
-import { createSubject, updateSubject, toggleSubjectActive, getSubjectsList } from "@/db/queries";
+import { createSubject, updateSubject, toggleSubjectActive, getSubjectsList, getSubjectById } from "@/db/queries";
 import { validateCreateSubject, validateUpdateSubject } from "@/lib/subjects/validation";
 
 export async function createSubjectAction(formData: FormData) {
@@ -38,13 +38,17 @@ export async function updateSubjectAction(id: string, formData: FormData) {
   const auth = await requireRole(["registrar", "admin"]);
   if ("error" in auth) return { error: auth.error };
 
+  const existing = await getSubjectById(id);
+  if (!existing) return { error: "Subject not found" };
+
   const code = (formData.get("code") as string)?.trim();
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const unitsRaw = (formData.get("units") as string)?.trim();
   const units = unitsRaw !== "" ? parseInt(unitsRaw, 10) : undefined;
   const type = (formData.get("type") as string) === "GE" ? "GE" : "PROGRAM";
-  const programId = (formData.get("programId") as string)?.trim() || null;
+  let programId = (formData.get("programId") as string)?.trim() || null;
+  if (type === "PROGRAM" && !programId) programId = existing.programId;
 
   const validation = validateUpdateSubject({ code, title, units, type, programId });
   if (!validation.ok) return { error: validation.error };

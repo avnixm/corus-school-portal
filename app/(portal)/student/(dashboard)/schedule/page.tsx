@@ -1,6 +1,10 @@
 import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
-import { getEnrollmentForStudentActiveTerm } from "@/db/queries";
-import { getScheduleWithDetailsByEnrollmentId } from "@/db/queries";
+import {
+  getEnrollmentForStudentActiveTerm,
+  getScheduleFromClassEnrollmentsByEnrollmentId,
+  getEnrollmentSubjectsByEnrollmentId,
+  getScheduleWithDetailsByEnrollmentId,
+} from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
 
@@ -40,7 +44,15 @@ export default async function StudentSchedulePage() {
     );
   }
 
-  const rows = await getScheduleWithDetailsByEnrollmentId(enrollment.id);
+  // Prefer class enrollments (finalized schedule); else planned subjects; else legacy view
+  const classScheduleRows = await getScheduleFromClassEnrollmentsByEnrollmentId(enrollment.id);
+  const plannedSubjects = await getEnrollmentSubjectsByEnrollmentId(enrollment.id);
+  const hasClassSchedule = classScheduleRows.length > 0;
+  const hasPlannedOnly = !hasClassSchedule && plannedSubjects.length > 0;
+
+  const rows = hasClassSchedule
+    ? classScheduleRows
+    : await getScheduleWithDetailsByEnrollmentId(enrollment.id);
 
   const byDay = DAYS_ORDER.reduce(
     (acc, day) => {
@@ -55,44 +67,66 @@ export default async function StudentSchedulePage() {
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">Schedule</h2>
         <p className="text-sm text-neutral-700">
-          {enrollment.schoolYearName} · {enrollment.termName}. Your classes by day.
+          {enrollment.schoolYearName} · {enrollment.termName}.
+          {hasPlannedOnly
+            ? " Planned subjects (schedule times will appear when your section schedule is set)."
+            : " Your classes by day."}
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {DAYS_ORDER.map((day) => (
-          <Card key={day}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-[#6A0000]">{day}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {(!byDay[day] || byDay[day].length === 0) ? (
-                <p className="text-xs text-neutral-600">No classes</p>
-              ) : (
-                byDay[day].map((cls, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-lg border bg-neutral-50 px-3 py-2 text-sm"
-                  >
-                    <div className="font-medium text-[#6A0000]">
-                      {cls.subjectCode ?? "—"}
-                      {cls.sectionName ? ` · ${cls.sectionName}` : ""}
-                    </div>
-                    <div className="mt-0.5 text-xs text-neutral-700">
-                      {cls.timeIn} – {cls.timeOut} · {cls.room ?? "—"}
-                    </div>
-                    {cls.subjectDescription && (
-                      <div className="mt-0.5 text-xs text-neutral-600">
-                        {cls.subjectDescription}
+      {hasPlannedOnly ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-[#6A0000]">Planned subjects</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {plannedSubjects.map((s) => (
+                <li key={s.subjectId} className="rounded-lg border bg-neutral-50 px-3 py-2 text-sm">
+                  <span className="font-medium text-[#6A0000]">{s.code}</span>
+                  {s.title ? ` – ${s.title}` : ""}
+                  {s.units != null ? ` (${s.units} units)` : ""}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {DAYS_ORDER.map((day) => (
+            <Card key={day}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-[#6A0000]">{day}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {(!byDay[day] || byDay[day].length === 0) ? (
+                  <p className="text-xs text-neutral-600">No classes</p>
+                ) : (
+                  byDay[day].map((cls, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-lg border bg-neutral-50 px-3 py-2 text-sm"
+                    >
+                      <div className="font-medium text-[#6A0000]">
+                        {cls.subjectCode ?? "—"}
+                        {cls.sectionName ? ` · ${cls.sectionName}` : ""}
                       </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                      <div className="mt-0.5 text-xs text-neutral-700">
+                        {cls.timeIn} – {cls.timeOut} · {cls.room ?? "—"}
+                      </div>
+                      {cls.subjectDescription && (
+                        <div className="mt-0.5 text-xs text-neutral-600">
+                          {cls.subjectDescription}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
