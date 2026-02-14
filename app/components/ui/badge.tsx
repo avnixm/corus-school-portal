@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-type BadgeVariant = "default" | "outline";
+type BadgeVariant = "default" | "secondary" | "outline" | "destructive";
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLSpanElement> {
@@ -19,8 +19,12 @@ export function Badge({
   const variants: Record<BadgeVariant, string> = {
     default:
       "border-transparent bg-[--color-corus-maroon]/10 text-[--color-corus-maroon]",
+    secondary:
+      "border-transparent bg-neutral-100 text-neutral-900",
     outline:
       "border-[--color-corus-maroon]/40 text-[--color-corus-maroon] bg-transparent",
+    destructive:
+      "border-transparent bg-red-500 text-neutral-50",
   };
 
   return (

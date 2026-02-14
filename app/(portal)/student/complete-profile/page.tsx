@@ -1,20 +1,17 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";
-import CompleteProfileForm from "./CompleteProfileForm";
+import { getProfileInitial } from "./actions";
+import { StudentSetupWizard } from "@/components/student/setup/StudentSetupWizard";
 
 export const dynamic = "force-dynamic";
 
 export default async function CompleteProfilePage() {
-  const user = await getCurrentUserWithRole();
+  const initial = await getProfileInitial();
 
-  if (!user || user.role !== "student" || !user.emailVerified) {
-    redirect("/verify-email" + (user?.email ? "?email=" + encodeURIComponent(user.email) : ""));
+  if (!initial.ok) {
+    if (initial.redirect === "login") redirect("/login");
+    if (initial.redirect === "dashboard") redirect("/student");
+    redirect("/login");
   }
 
-  return (
-    <CompleteProfileForm
-      defaultName={user.name || ""}
-      defaultEmail={user.email || ""}
-    />
-  );
+  return <StudentSetupWizard initialData={initial} />;
 }

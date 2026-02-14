@@ -4,12 +4,15 @@ import { auth } from "@/lib/auth/server";
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Protect /student, /registrar, /admin, /finance routes
+  // Protect portal routes (auth only; role checks in layout)
   if (
     pathname.startsWith("/student") ||
     pathname.startsWith("/registrar") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/finance")
+    pathname.startsWith("/finance") ||
+    pathname.startsWith("/teacher") ||
+    pathname.startsWith("/program-head") ||
+    pathname.startsWith("/dean")
   ) {
     const sessionResponse = await auth.getSession();
     const session = sessionResponse?.data;
@@ -27,6 +30,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/student/:path*", "/registrar/:path*", "/admin/:path*", "/finance/:path*"],
+  matcher: [
+    "/student/:path*",
+    "/registrar/:path*",
+    "/admin/:path*",
+    "/finance/:path*",
+    "/teacher/:path*",
+    "/program-head/:path*",
+    "/dean/:path*",
+  ],
 };
 

@@ -13,7 +13,7 @@ import {
 
 type ProgramFeeRule = {
   id: string;
-  program: string;
+  program: string | null;
   yearLevel: string | null;
   schoolYearId: string | null;
   termId: string | null;
@@ -78,7 +78,7 @@ export function ProgramFeeRuleRowActions({
           <Input
             id="program"
             name="program"
-            defaultValue={rule.program}
+              defaultValue={rule.program ?? ""}
             className="h-8 text-sm"
             required
           />

@@ -13,55 +13,63 @@ import {
   paymentAllocations,
   enrollmentFinanceStatus,
 } from "@/db/schema";
-import { eq, and, desc, sql, or, like, gte, lte, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, or, like, gte, lte, isNull, isNotNull } from "drizzle-orm";
 
 export async function getApprovedEnrollmentsNeedingAssessment() {
-  const withAssessments = await db
-    .select({ enrollmentId: assessments.enrollmentId })
-    .from(assessments);
-  const excludedIds = new Set(withAssessments.map((a) => a.enrollmentId));
+  try {
+    const withAssessments = await db
+      .select({ enrollmentId: assessments.enrollmentId })
+      .from(assessments);
+    const excludedIds = new Set(withAssessments.map((a) => a.enrollmentId));
 
-  const rows = await db
-    .select({
-      id: enrollments.id,
-      studentId: enrollments.studentId,
-      schoolYearName: schoolYears.name,
-      termName: terms.name,
-      program: enrollments.program,
-      yearLevel: enrollments.yearLevel,
-      firstName: students.firstName,
-      middleName: students.middleName,
-      lastName: students.lastName,
-      studentCode: students.studentCode,
-    })
-    .from(enrollments)
-    .innerJoin(students, eq(enrollments.studentId, students.id))
-    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
-    .innerJoin(terms, eq(enrollments.termId, terms.id))
-    .innerJoin(
-      enrollmentFinanceStatus,
-      eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
-    )
-    .where(
-      and(
-        eq(enrollments.status, "approved"),
-        eq(enrollmentFinanceStatus.status, "unassessed")
+    const rows = await db
+      .select({
+        id: enrollments.id,
+        studentId: enrollments.studentId,
+        schoolYearName: schoolYears.name,
+        termName: terms.name,
+        program: enrollments.program,
+        yearLevel: enrollments.yearLevel,
+        firstName: students.firstName,
+        middleName: students.middleName,
+        lastName: students.lastName,
+        studentCode: students.studentCode,
+      })
+      .from(enrollments)
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .innerJoin(
+        enrollmentFinanceStatus,
+        eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
       )
-    )
-    .orderBy(desc(enrollments.createdAt));
+      .where(
+        and(
+          eq(enrollments.status, "approved"),
+          eq(enrollmentFinanceStatus.status, "unassessed")
+        ) ?? sql`true`
+      )
+      .orderBy(desc(enrollments.createdAt));
 
-  return rows.filter((r) => !excludedIds.has(r.id));
+    return rows.filter((r) => !excludedIds.has(r.id));
+  } catch {
+    return [];
+  }
 }
 
 export async function getFeeItems(activeOnly = true) {
-  if (activeOnly) {
-    return db
-      .select()
-      .from(feeItems)
-      .where(eq(feeItems.active, true))
-      .orderBy(feeItems.code);
+  try {
+    if (activeOnly) {
+      return await db
+        .select()
+        .from(feeItems)
+        .where(eq(feeItems.active, true))
+        .orderBy(feeItems.code);
+    }
+    return await db.select().from(feeItems).orderBy(feeItems.code);
+  } catch {
+    return [];
   }
-  return db.select().from(feeItems).orderBy(feeItems.code);
 }
 
 export async function getProgramFeeRules(filters?: {
@@ -70,36 +78,40 @@ export async function getProgramFeeRules(filters?: {
   schoolYearId?: string;
   termId?: string;
 }) {
-  const conds: ReturnType<typeof eq>[] = [];
-  if (filters?.program) conds.push(eq(programFeeRules.program, filters.program));
-  if (filters?.yearLevel)
-    conds.push(eq(programFeeRules.yearLevel, filters.yearLevel));
-  if (filters?.schoolYearId)
-    conds.push(eq(programFeeRules.schoolYearId, filters.schoolYearId));
-  if (filters?.termId)
-    conds.push(eq(programFeeRules.termId, filters.termId));
+  try {
+    const conds: ReturnType<typeof eq>[] = [];
+    if (filters?.program) conds.push(eq(programFeeRules.program, filters.program));
+    if (filters?.yearLevel)
+      conds.push(eq(programFeeRules.yearLevel, filters.yearLevel));
+    if (filters?.schoolYearId)
+      conds.push(eq(programFeeRules.schoolYearId, filters.schoolYearId));
+    if (filters?.termId)
+      conds.push(eq(programFeeRules.termId, filters.termId));
 
-  const base = db
-    .select({
-      id: programFeeRules.id,
-      program: programFeeRules.program,
-      yearLevel: programFeeRules.yearLevel,
-      schoolYearId: programFeeRules.schoolYearId,
-      termId: programFeeRules.termId,
-      feeItemId: programFeeRules.feeItemId,
-      amount: programFeeRules.amount,
-      feeCode: feeItems.code,
-      feeName: feeItems.name,
-      feeCategory: feeItems.category,
-    })
-    .from(programFeeRules)
-    .innerJoin(feeItems, eq(programFeeRules.feeItemId, feeItems.id))
-    .orderBy(programFeeRules.program, programFeeRules.yearLevel);
+    const base = db
+      .select({
+        id: programFeeRules.id,
+        program: programFeeRules.program,
+        yearLevel: programFeeRules.yearLevel,
+        schoolYearId: programFeeRules.schoolYearId,
+        termId: programFeeRules.termId,
+        feeItemId: programFeeRules.feeItemId,
+        amount: programFeeRules.amount,
+        feeCode: feeItems.code,
+        feeName: feeItems.name,
+        feeCategory: feeItems.category,
+      })
+      .from(programFeeRules)
+      .innerJoin(feeItems, eq(programFeeRules.feeItemId, feeItems.id))
+      .orderBy(programFeeRules.program, programFeeRules.yearLevel);
 
-  if (conds.length > 0) {
-    return base.where(and(...conds));
+    if (conds.length > 0) {
+      return await base.where(and(...conds));
+    }
+    return await base;
+  } catch {
+    return [];
   }
-  return base;
 }
 
 export async function getAssessmentsByEnrollment(enrollmentId: string) {
@@ -206,66 +218,74 @@ export async function getEnrollmentsForClearance(
   schoolYearId?: string,
   termId?: string
 ) {
-  const conds: ReturnType<typeof eq>[] = [
-    eq(enrollments.status, "approved"),
-    eq(enrollmentFinanceStatus.status, "paid"),
-  ];
-  if (schoolYearId) conds.push(eq(enrollments.schoolYearId, schoolYearId));
-  if (termId) conds.push(eq(enrollments.termId, termId));
+  try {
+    const conds: ReturnType<typeof eq>[] = [
+      eq(enrollments.status, "approved"),
+      eq(enrollmentFinanceStatus.status, "paid"),
+    ];
+    if (schoolYearId) conds.push(eq(enrollments.schoolYearId, schoolYearId));
+    if (termId) conds.push(eq(enrollments.termId, termId));
 
-  return db
-    .select({
-      id: enrollments.id,
-      studentId: enrollments.studentId,
-      schoolYearName: schoolYears.name,
-      termName: terms.name,
-      program: enrollments.program,
-      yearLevel: enrollments.yearLevel,
-      balance: enrollmentFinanceStatus.balance,
-      financeStatus: enrollmentFinanceStatus.status,
-      firstName: students.firstName,
-      middleName: students.middleName,
-      lastName: students.lastName,
-      studentCode: students.studentCode,
-    })
-    .from(enrollments)
-    .innerJoin(students, eq(enrollments.studentId, students.id))
-    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
-    .innerJoin(terms, eq(enrollments.termId, terms.id))
-    .innerJoin(
-      enrollmentFinanceStatus,
-      eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
-    )
-    .where(and(...conds))
-    .orderBy(desc(enrollments.updatedAt));
+    return await db
+      .select({
+        id: enrollments.id,
+        studentId: enrollments.studentId,
+        schoolYearName: schoolYears.name,
+        termName: terms.name,
+        program: enrollments.program,
+        yearLevel: enrollments.yearLevel,
+        balance: enrollmentFinanceStatus.balance,
+        financeStatus: enrollmentFinanceStatus.status,
+        firstName: students.firstName,
+        middleName: students.middleName,
+        lastName: students.lastName,
+        studentCode: students.studentCode,
+      })
+      .from(enrollments)
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .innerJoin(
+        enrollmentFinanceStatus,
+        eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
+      )
+      .where(and(...conds))
+      .orderBy(desc(enrollments.updatedAt));
+  } catch {
+    return [];
+  }
 }
 
 export async function getCollectionsReport(startDate: Date, endDate: Date) {
-  const paymentsResult = await db
-    .select({
-      method: payments.method,
-      amount: payments.amount,
-    })
-    .from(payments)
-    .where(
-      and(
-        eq(payments.status, "posted"),
-        gte(payments.receivedAt, startDate),
-        lte(payments.receivedAt, endDate)
-      )
+  try {
+    const paymentsResult = await db
+      .select({
+        method: payments.method,
+        amount: payments.amount,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.status, "posted"),
+          gte(payments.receivedAt, startDate),
+          lte(payments.receivedAt, endDate)
+        )
+      );
+
+    const total = paymentsResult.reduce(
+      (acc, p) => acc + parseFloat(p.amount ?? "0"),
+      0
     );
+    const byMethod: Record<string, number> = {};
+    for (const p of paymentsResult) {
+      const m = p.method ?? "other";
+      byMethod[m] = (byMethod[m] ?? 0) + parseFloat(p.amount ?? "0");
+    }
 
-  const total = paymentsResult.reduce(
-    (acc, p) => acc + parseFloat(p.amount ?? "0"),
-    0
-  );
-  const byMethod: Record<string, number> = {};
-  for (const p of paymentsResult) {
-    const m = p.method ?? "other";
-    byMethod[m] = (byMethod[m] ?? 0) + parseFloat(p.amount ?? "0");
+    return { total, byMethod, count: paymentsResult.length };
+  } catch {
+    return { total: 0, byMethod: {}, count: 0 };
   }
-
-  return { total, byMethod, count: paymentsResult.length };
 }
 
 export async function getStudentsWithBalances(filters?: {
@@ -273,41 +293,45 @@ export async function getStudentsWithBalances(filters?: {
   termId?: string;
   balanceMin?: number;
 }) {
-  const conds: Parameters<typeof and>[0][] = [
-    eq(enrollments.status, "approved"),
-    sql`${enrollmentFinanceStatus.balance}::numeric > 0`,
-  ];
-  if (filters?.schoolYearId)
-    conds.push(eq(enrollments.schoolYearId, filters.schoolYearId));
-  if (filters?.termId) conds.push(eq(enrollments.termId, filters.termId));
-  if (filters?.balanceMin !== undefined)
-    conds.push(sql`${enrollmentFinanceStatus.balance}::numeric > ${filters.balanceMin}`);
+  try {
+    const conds: Parameters<typeof and>[0][] = [
+      eq(enrollments.status, "approved"),
+      sql`${enrollmentFinanceStatus.balance}::numeric > 0`,
+    ];
+    if (filters?.schoolYearId)
+      conds.push(eq(enrollments.schoolYearId, filters.schoolYearId));
+    if (filters?.termId) conds.push(eq(enrollments.termId, filters.termId));
+    if (filters?.balanceMin !== undefined)
+      conds.push(sql`${enrollmentFinanceStatus.balance}::numeric > ${filters.balanceMin}`);
 
-  return db
-    .select({
-      id: students.id,
-      studentCode: students.studentCode,
-      firstName: students.firstName,
-      middleName: students.middleName,
-      lastName: students.lastName,
-      enrollmentId: enrollments.id,
-      schoolYearName: schoolYears.name,
-      termName: terms.name,
-      program: enrollments.program,
-      yearLevel: enrollments.yearLevel,
-      balance: enrollmentFinanceStatus.balance,
-      financeStatus: enrollmentFinanceStatus.status,
-    })
-    .from(students)
-    .innerJoin(enrollments, eq(students.id, enrollments.studentId))
-    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
-    .innerJoin(terms, eq(enrollments.termId, terms.id))
-    .innerJoin(
-      enrollmentFinanceStatus,
-      eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
-    )
-    .where(and(...conds))
-    .orderBy(desc(enrollmentFinanceStatus.balance));
+    return await db
+      .select({
+        id: students.id,
+        studentCode: students.studentCode,
+        firstName: students.firstName,
+        middleName: students.middleName,
+        lastName: students.lastName,
+        enrollmentId: enrollments.id,
+        schoolYearName: schoolYears.name,
+        termName: terms.name,
+        program: enrollments.program,
+        yearLevel: enrollments.yearLevel,
+        balance: enrollmentFinanceStatus.balance,
+        financeStatus: enrollmentFinanceStatus.status,
+      })
+      .from(students)
+      .innerJoin(enrollments, eq(students.id, enrollments.studentId))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .innerJoin(
+        enrollmentFinanceStatus,
+        eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
+      )
+      .where(and(...conds))
+      .orderBy(desc(enrollmentFinanceStatus.balance));
+  } catch {
+    return [];
+  }
 }
 
 export async function createFeeItem(values: {
@@ -374,9 +398,10 @@ export async function deleteProgramFeeRule(id: string) {
 export type AssessmentLineInput = {
   feeItemId?: string | null;
   description: string;
-  category: "tuition" | "misc" | "other";
+  category: "tuition" | "lab" | "misc" | "other";
   amount: string;
   qty?: number;
+  sourceFeeSetupLineId?: string | null;
 };
 
 export async function getProgramFeeRulesForEnrollment(enrollmentId: string) {
@@ -386,6 +411,13 @@ export async function getProgramFeeRulesForEnrollment(enrollmentId: string) {
     .where(eq(enrollments.id, enrollmentId))
     .limit(1);
   if (!enrollment) return [];
+
+  const programMatch = enrollment.programId
+    ? or(
+        and(isNotNull(programFeeRules.programId), eq(programFeeRules.programId, enrollment.programId)),
+        and(isNull(programFeeRules.programId), eq(programFeeRules.program, enrollment.program ?? ""))
+      )
+    : eq(programFeeRules.program, enrollment.program ?? "");
 
   return db
     .select({
@@ -399,7 +431,7 @@ export async function getProgramFeeRulesForEnrollment(enrollmentId: string) {
     .innerJoin(feeItems, eq(programFeeRules.feeItemId, feeItems.id))
     .where(
       and(
-        eq(programFeeRules.program, enrollment.program ?? ""),
+        programMatch,
         or(
           isNull(programFeeRules.yearLevel),
           eq(programFeeRules.yearLevel, enrollment.yearLevel ?? "")
@@ -506,6 +538,7 @@ export async function postAssessment(
     .where(eq(enrollments.id, assessment.enrollmentId))
     .limit(1);
   if (!enrollment) return null;
+  if (enrollment.status !== "approved") return null;
 
   const { recomputeEnrollmentBalance } = await import("./recomputeEnrollmentBalance");
 

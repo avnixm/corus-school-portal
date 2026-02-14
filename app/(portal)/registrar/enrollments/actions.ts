@@ -1,39 +1,40 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId } from "@/db/queries";
-import { createEnrollment, getEnrollmentById } from "@/db/queries";
-import { db } from "@/lib/db";
-import { enrollments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  createEnrollment,
+  getEnrollmentById,
+  getProgramById,
+  approveEnrollmentById,
+  rejectEnrollmentById,
+} from "@/db/queries";
+import { requireRole } from "@/lib/rbac";
 
 export async function createEnrollmentAction(formData: FormData) {
-  const session = (await auth.getSession())?.data;
-  if (!session?.user?.id) return { error: "Not authenticated" };
-
-  const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
-    return { error: "Unauthorized" };
-  }
+  const auth = await requireRole(["registrar", "admin"]);
+  if ("error" in auth) return { error: auth.error };
 
   const studentId = (formData.get("studentId") as string)?.trim();
   const schoolYearId = (formData.get("schoolYearId") as string)?.trim();
   const termId = (formData.get("termId") as string)?.trim();
-  const program = (formData.get("program") as string)?.trim() || null;
+  const programId = (formData.get("programId") as string)?.trim();
   const yearLevel = (formData.get("yearLevel") as string)?.trim() || null;
   const sectionId = (formData.get("sectionId") as string)?.trim() || null;
 
-  if (!studentId || !schoolYearId || !termId) {
-    return { error: "Student, school year, and term are required" };
+  if (!studentId || !schoolYearId || !termId || !programId) {
+    return { error: "Student, school year, term, and program are required" };
   }
+
+  const programRow = await getProgramById(programId);
+  if (!programRow) return { error: "Invalid program" };
 
   try {
     await createEnrollment({
       studentId,
       schoolYearId,
       termId,
-      program,
+      programId,
+      program: programRow.code,
       yearLevel,
       sectionId: sectionId || null,
     });
@@ -51,28 +52,34 @@ export async function createEnrollmentAction(formData: FormData) {
   return { success: true };
 }
 
+/**
+ * Updates enrollment status. For approved/rejected, delegates to the canonical
+ * flow (approveEnrollmentById / rejectEnrollmentById) so enrollment_approvals
+ * and enrollment_finance_status stay in sync. Prefer the approvals page and
+ * approveEnrollment / rejectEnrollment actions when possible.
+ */
 export async function updateEnrollmentStatus(
   enrollmentId: string,
   status: "approved" | "rejected"
 ) {
-  const session = (await auth.getSession())?.data;
-  if (!session?.user?.id) return { error: "Not authenticated" };
-
-  const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
-    return { error: "Unauthorized" };
-  }
+  const auth = await requireRole(["registrar", "admin"]);
+  if ("error" in auth) return { error: auth.error };
 
   const enrollment = await getEnrollmentById(enrollmentId);
   if (!enrollment) return { error: "Enrollment not found" };
+  if (enrollment.status !== "pending_approval") {
+    return { error: "Enrollment not found or already processed" };
+  }
 
-  await db
-    .update(enrollments)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(enrollments.id, enrollmentId));
+  if (status === "approved") {
+    await approveEnrollmentById(enrollmentId, auth.userId);
+  } else {
+    await rejectEnrollmentById(enrollmentId, auth.userId);
+  }
 
   revalidatePath("/registrar/enrollments");
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
+  revalidatePath("/finance/assessments");
   return { success: true };
 }

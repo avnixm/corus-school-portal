@@ -1,22 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId } from "@/db/queries";
 import {
   postPayment,
   voidPayment,
   searchStudentsByCodeOrName,
   getApprovedEnrollmentsByStudent,
 } from "@/lib/finance/queries";
+import { requireRole } from "@/lib/rbac";
 
 async function checkAuth() {
-  const s = (await auth.getSession())?.data;
-  if (!s?.user?.id) return { error: "Not authenticated" as const, userId: null };
-  const p = await getUserProfileByUserId(s.user.id);
-  if (!p || (p.role !== "finance" && p.role !== "admin"))
-    return { error: "Unauthorized" as const, userId: null };
-  return { error: null, userId: s.user.id };
+  const result = await requireRole(["finance", "admin"]);
+  if ("error" in result) return { error: result.error as "Unauthorized", userId: null };
+  return { error: null, userId: result.userId };
 }
 
 export async function searchStudentsAction(search: string) {

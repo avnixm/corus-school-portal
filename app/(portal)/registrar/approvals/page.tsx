@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { getPendingEnrollmentApprovalsList } from "@/db/queries";
+import { getEnrollmentRequirementsSummary } from "@/lib/requirements/enrollmentSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnrollmentApprovalActions } from "./EnrollmentApprovalActions";
 import { EnrollmentApprovalsSearch } from "./EnrollmentApprovalsSearch";
+import { RequirementsBadge } from "./RequirementsBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,19 @@ export default async function EnrollmentApprovalsPage({
 }) {
   const { search } = await searchParams;
   const enrollments = await getPendingEnrollmentApprovalsList(search);
+  const summaries = await Promise.all(
+    enrollments.map((row) =>
+      getEnrollmentRequirementsSummary({
+        studentId: row.studentId,
+        enrollmentId: row.id,
+        program: row.programCode ?? row.program ?? null,
+        yearLevel: row.yearLevel ?? null,
+        schoolYearId: row.schoolYearId,
+        termId: row.termId,
+      })
+    )
+  );
+  const summaryByEnrollmentId = new Map(enrollments.map((r, i) => [r.id, summaries[i]]));
 
   return (
     <div className="space-y-4">
@@ -53,6 +68,9 @@ export default async function EnrollmentApprovalsPage({
                   <th className="px-4 py-2">School Year / Term</th>
                   <th className="px-4 py-2">Program</th>
                   <th className="px-4 py-2">Year Level</th>
+                  <th className="px-4 py-2">Section</th>
+                  <th className="px-4 py-2">Requirements</th>
+                  <th className="px-4 py-2">Finance</th>
                   <th className="px-4 py-2">Date</th>
                   <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
@@ -79,8 +97,40 @@ export default async function EnrollmentApprovalsPage({
                     <td className="px-4 py-2">
                       {row.schoolYearName} • {row.termName}
                     </td>
-                    <td className="px-4 py-2">{row.program ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      <span className="rounded bg-[#6A0000]/10 px-2 py-0.5 font-mono text-xs text-[#6A0000]">
+                        {row.programCode ?? row.program ?? "—"}
+                      </span>
+                    </td>
                     <td className="px-4 py-2">{row.yearLevel ?? "—"}</td>
+                    <td className="px-4 py-2">{row.sectionName ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex flex-col gap-1">
+                        <RequirementsBadge summary={summaryByEnrollmentId.get(row.id)} />
+                        <Link
+                          href={`/registrar/approvals/${row.id}/review`}
+                          className="text-xs text-[#6A0000] hover:underline"
+                        >
+                          Review files
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs ${
+                          row.financeStatus === "cleared"
+                            ? "bg-green-100 text-green-800"
+                            : row.financeStatus === "paid"
+                            ? "bg-green-100 text-green-800"
+                            : row.financeStatus === "assessed"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-neutral-100 text-neutral-700"
+                        }`}
+                        title="Read-only"
+                      >
+                        {row.financeStatus ?? "—"}
+                      </span>
+                    </td>
                     <td className="px-4 py-2 text-neutral-800">
                       {row.createdAt
                         ? new Date(row.createdAt).toLocaleDateString()
@@ -94,7 +144,7 @@ export default async function EnrollmentApprovalsPage({
                 {enrollments.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={9}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No pending enrollment approvals.

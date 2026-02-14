@@ -36,7 +36,7 @@ export function Sidebar({ items }: SidebarProps) {
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {items.map((item) => {
-          const isBasePath = ["/student", "/registrar", "/admin", "/finance"].includes(
+          const isBasePath = ["/student", "/registrar", "/admin", "/finance", "/teacher", "/program-head", "/dean"].includes(
             item.href
           );
           const isActive = isBasePath

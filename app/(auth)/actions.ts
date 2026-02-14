@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/server";
 import { getUserProfileByUserId, createUserProfile } from "@/db/queries";
+import { roleHomePath } from "@/lib/roles";
 
 export interface AuthState {
   error?: string;
@@ -66,7 +67,20 @@ export async function login(
     return { error: result.error.message || "Invalid email or password" };
   }
 
-  redirect("/student");
+  const session = (await auth.getSession())?.data;
+  if (session?.user?.id) {
+    try {
+      const profile = await getUserProfileByUserId(session.user.id);
+      const role = profile?.role ?? "student";
+      redirect(roleHomePath(role));
+    } catch {
+      // Profile query can fail if schema is outdated (e.g. missing program/department columns).
+      // Fall back to student so login still succeeds. Run: npx tsx scripts/run-apply-schema.ts
+      redirect(roleHomePath("student"));
+    }
+  }
+
+  redirect(roleHomePath("student"));
 }
 
 export async function signOutAction(
@@ -127,7 +141,7 @@ export async function verifyEmailWithOTP(
     }
   }
 
-  redirect("/student");
+  redirect(roleHomePath("student"));
 }
 
 export async function resendVerificationEmail(

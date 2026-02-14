@@ -1,12 +1,22 @@
-import { getSectionsList } from "@/db/queries";
+import { getSectionsList, getProgramsList } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateSectionForm } from "./CreateSectionForm";
 import { SectionRowActions } from "./SectionRowActions";
+import { SectionFilters } from "./SectionFilters";
+
 
 export const dynamic = "force-dynamic";
 
-export default async function SectionsPage() {
-  const sections = await getSectionsList();
+export default async function SectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ programId?: string; yearLevel?: string }>;
+}) {
+  const params = await searchParams;
+  const [sections, programs] = await Promise.all([
+    getSectionsList(params),
+    getProgramsList(),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -15,11 +25,13 @@ export default async function SectionsPage() {
           Sections
         </h2>
         <p className="text-sm text-neutral-800">
-          Manage class sections.
+          Manage class sections by program.
         </p>
       </div>
 
-      <CreateSectionForm />
+      <SectionFilters programs={programs} />
+
+      <CreateSectionForm programs={programs} />
 
       <Card>
         <CardHeader>
@@ -32,9 +44,9 @@ export default async function SectionsPage() {
             <table className="min-w-full text-left text-sm text-neutral-900">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
-                  <th className="px-4 py-2">Name</th>
-                  <th className="px-4 py-2">Year Level</th>
                   <th className="px-4 py-2">Program</th>
+                  <th className="px-4 py-2">Year Level</th>
+                  <th className="px-4 py-2">Section Name</th>
                   <th className="px-4 py-2">Active</th>
                   <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
@@ -45,9 +57,11 @@ export default async function SectionsPage() {
                     key={row.id}
                     className="border-b last:border-0 hover:bg-neutral-50/80"
                   >
-                    <td className="px-4 py-2 font-medium">{row.name}</td>
+                    <td className="px-4 py-2 font-mono text-[#6A0000]">
+                      {row.programCode ?? row.program ?? "—"}
+                    </td>
                     <td className="px-4 py-2">{row.yearLevel ?? row.gradeLevel ?? "—"}</td>
-                    <td className="px-4 py-2">{row.program ?? "—"}</td>
+                    <td className="px-4 py-2 font-medium">{row.name}</td>
                     <td className="px-4 py-2">
                       <span
                         className={`rounded px-2 py-0.5 text-xs ${
@@ -58,7 +72,7 @@ export default async function SectionsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <SectionRowActions section={row} />
+                      <SectionRowActions section={row} programs={programs} />
                     </td>
                   </tr>
                 ))}

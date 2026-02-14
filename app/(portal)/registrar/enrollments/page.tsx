@@ -4,9 +4,12 @@ import {
   getSchoolYearsList,
   getTermsList,
   getStudentsList,
+  getProgramsList,
+  getSectionsList,
 } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateEnrollmentForm } from "./CreateEnrollmentForm";
+import { EnrollmentFilters } from "./EnrollmentFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +24,23 @@ function fullName(row: {
 export default async function EnrollmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ studentId?: string; schoolYearId?: string; termId?: string }>;
+  searchParams: Promise<{
+    studentId?: string;
+    schoolYearId?: string;
+    termId?: string;
+    programId?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const [enrollmentsList, schoolYears, terms, students] = await Promise.all([
-    getEnrollmentsListWithFinanceStatus(params),
-    getSchoolYearsList(),
-    getTermsList(),
-    getStudentsList(),
-  ]);
+  const [enrollmentsList, schoolYears, terms, students, programs, sections] =
+    await Promise.all([
+      getEnrollmentsListWithFinanceStatus(params),
+      getSchoolYearsList(),
+      getTermsList(),
+      getStudentsList(),
+      getProgramsList(),
+      getSectionsList(),
+    ]);
 
   return (
     <div className="space-y-4">
@@ -42,10 +53,14 @@ export default async function EnrollmentsPage({
         </p>
       </div>
 
+      <EnrollmentFilters programs={programs} />
+
       <CreateEnrollmentForm
         schoolYears={schoolYears}
         terms={terms}
         students={students}
+        programs={programs}
+        sections={sections}
       />
 
       <Card>
@@ -63,6 +78,7 @@ export default async function EnrollmentsPage({
                   <th className="px-4 py-2">School Year / Term</th>
                   <th className="px-4 py-2">Program</th>
                   <th className="px-4 py-2">Year Level</th>
+                  <th className="px-4 py-2">Section</th>
                   <th className="px-4 py-2">Status</th>
                   <th className="px-4 py-2">Finance Status</th>
                   <th className="px-4 py-2">Balance</th>
@@ -92,8 +108,15 @@ export default async function EnrollmentsPage({
                     <td className="px-4 py-2">
                       {row.schoolYearName} • {row.termName}
                     </td>
-                    <td className="px-4 py-2">{row.program ?? "—"}</td>
+                    <td className="px-4 py-2 font-mono text-[#6A0000]">
+                      {row.programCode ?? row.program ?? "—"}
+                    </td>
                     <td className="px-4 py-2">{row.yearLevel ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      {row.sectionId
+                        ? sections.find((s) => s.id === row.sectionId)?.name ?? "—"
+                        : "—"}
+                    </td>
                     <td className="px-4 py-2">
                       <span
                         className={`rounded px-2 py-0.5 text-xs ${
@@ -150,7 +173,7 @@ export default async function EnrollmentsPage({
                 {enrollmentsList.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No enrollments found.

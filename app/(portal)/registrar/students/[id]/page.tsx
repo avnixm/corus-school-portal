@@ -53,30 +53,30 @@ export default async function StudentDetailPage({
             Student Information
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
+        <CardContent className="space-y-2 text-sm text-neutral-900">
           <p>
-            <span className="text-neutral-800">Student No:</span>{" "}
-            {student.studentCode ?? "—"}
+            <span className="text-neutral-700">Student No:</span>{" "}
+            <span className="text-neutral-900">{student.studentCode ?? "—"}</span>
           </p>
           <p>
-            <span className="text-neutral-800">Name:</span>{" "}
-            {fullName(student)}
+            <span className="text-neutral-700">Name:</span>{" "}
+            <span className="text-neutral-900">{fullName(student)}</span>
           </p>
           <p>
-            <span className="text-neutral-800">Email:</span>{" "}
-            {student.email ?? "—"}
+            <span className="text-neutral-700">Email:</span>{" "}
+            <span className="text-neutral-900">{student.email ?? "—"}</span>
           </p>
           <p>
-            <span className="text-neutral-800">Contact:</span>{" "}
-            {student.contactNo ?? "—"}
+            <span className="text-neutral-700">Contact:</span>{" "}
+            <span className="text-neutral-900">{student.contactNo ?? "—"}</span>
           </p>
           <p>
-            <span className="text-neutral-800">Program:</span>{" "}
-            {student.program ?? "—"}
+            <span className="text-neutral-700">Program:</span>{" "}
+            <span className="text-neutral-900">{student.program ?? "—"}</span>
           </p>
           <p>
-            <span className="text-neutral-800">Year Level:</span>{" "}
-            {student.yearLevel ?? "—"}
+            <span className="text-neutral-700">Year Level:</span>{" "}
+            <span className="text-neutral-900">{student.yearLevel ?? "—"}</span>
           </p>
         </CardContent>
       </Card>

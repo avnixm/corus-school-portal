@@ -6,6 +6,7 @@ import {
   getUserProfileByUserId,
   insertPendingApplication,
   getPendingApplicationByIdForAction,
+  generateNextStudentCode,
   insertStudent,
   insertStudentAddress,
   updatePendingApplicationStatus,
@@ -84,8 +85,10 @@ export async function approvePendingApplication(
     return { error: "Application not found or already processed" };
   }
 
+  const studentCode = await generateNextStudentCode();
   const student = await insertStudent({
     userProfileId: app.userProfileId,
+    studentCode,
     firstName: app.firstName,
     middleName: app.middleName ?? null,
     lastName: app.lastName,

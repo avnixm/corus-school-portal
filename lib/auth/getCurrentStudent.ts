@@ -49,7 +49,7 @@ export type CurrentUserWithStudent = {
  */
 export async function getCurrentStudent(): Promise<CurrentStudent | null> {
   const data = await getCurrentUserWithStudent();
-  if (!data?.student) return null;
+  if (!data?.student?.id || String(data.student.id).trim() === "") return null;
   return {
     studentId: data.student.id,
     userProfileId: data.profile.id,

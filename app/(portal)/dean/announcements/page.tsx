@@ -1,0 +1,24 @@
+import { getDeanRecentAnnouncements } from "@/lib/dean/queries";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeanAnnouncementsList } from "./DeanAnnouncementsList";
+
+export const dynamic = "force-dynamic";
+
+export default async function DeanAnnouncementsPage() {
+  const announcements = await getDeanRecentAnnouncements(100);
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
+          Announcements
+        </h2>
+        <p className="mt-1 text-sm text-neutral-800">
+          Create and manage institution-wide announcements. Set audience and optional program.
+        </p>
+      </section>
+
+      <DeanAnnouncementsList initialAnnouncements={announcements} />
+    </div>
+  );
+}

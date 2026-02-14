@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { KeyRound } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { updateUserPasswordAction } from "./actions";
 
 export function UpdatePasswordButton({
@@ -23,7 +32,6 @@ export function UpdatePasswordButton({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
       return;
@@ -32,24 +40,21 @@ export function UpdatePasswordButton({
       setError("Passwords do not match");
       return;
     }
-
     setPending(true);
     const result = await updateUserPasswordAction(authUserId, password);
     setPending(false);
-
     if (result?.error) {
       setError(result.error);
       return;
     }
-
     setOpen(false);
     setPassword("");
     setConfirm("");
     router.refresh();
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <Button
         variant="ghost"
         size="sm"
@@ -60,51 +65,47 @@ export function UpdatePasswordButton({
         <KeyRound className="h-3 w-3" />
         Update password
       </Button>
-    );
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-2 rounded border border-neutral-200 bg-white p-2 shadow-sm"
-    >
-      <input
-        type="password"
-        placeholder="New password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 placeholder:text-neutral-700"
-        autoFocus
-        minLength={8}
-      />
-      <input
-        type="password"
-        placeholder="Confirm password"
-        value={confirm}
-        onChange={(e) => setConfirm(e.target.value)}
-        className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 placeholder:text-neutral-700"
-        minLength={8}
-      />
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={pending} className="h-7 text-xs">
-          {pending ? "Saving..." : "Save"}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setOpen(false);
-            setPassword("");
-            setConfirm("");
-            setError(null);
-          }}
-          className="h-7 text-xs"
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setPassword(""); setConfirm(""); setError(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update password</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <Label htmlFor="new-password">New password *</Label>
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="Min 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 h-10"
+                minLength={8}
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirm password *</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                placeholder="Confirm password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className="mt-1 h-10"
+                minLength={8}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setOpen(false); setPassword(""); setConfirm(""); setError(null); }} disabled={pending}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

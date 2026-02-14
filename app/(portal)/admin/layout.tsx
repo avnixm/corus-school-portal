@@ -26,12 +26,13 @@ export default async function AdminLayout({
   return (
     <AppShell
       title="Admin"
+      navVariant="admin"
       userDisplay={userDisplay}
       userId={user.userId}
       role={user.role}
       signOutAction={signOutAction}
     >
-      {children}
+      <div className="text-neutral-900">{children}</div>
     </AppShell>
   );
 }

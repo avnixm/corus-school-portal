@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId } from "@/db/queries";
-import { createScheduleWithDays, deleteSchedule } from "@/db/queries";
+import { getUserProfileByUserId, createScheduleWithDays, deleteSchedule, isSubjectAllowedForSection, getSectionById } from "@/db/queries";
+import { getSubjectsAvailableForSection } from "@/lib/subjects/queries";
 
 export async function createScheduleAction(formData: FormData) {
   const session = (await auth.getSession())?.data;
@@ -37,6 +37,11 @@ export async function createScheduleAction(formData: FormData) {
     return { error: "At least one day is required" };
   }
 
+  const allowed = await isSubjectAllowedForSection(subjectId, sectionId);
+  if (!allowed.allowed) {
+    return { error: allowed.error ?? "This subject cannot be scheduled for the selected section" };
+  }
+
   await createScheduleWithDays({
     schoolYearId,
     termId,
@@ -52,6 +57,13 @@ export async function createScheduleAction(formData: FormData) {
   revalidatePath("/registrar/schedules");
   revalidatePath("/registrar");
   return { success: true };
+}
+
+/** Returns subjects allowed for the section (GE + section's program). */
+export async function getSubjectsForSectionAction(sectionId: string) {
+  const section = await getSectionById(sectionId);
+  if (!section) return [];
+  return getSubjectsAvailableForSection(section.programId);
 }
 
 export async function deleteScheduleAction(id: string) {

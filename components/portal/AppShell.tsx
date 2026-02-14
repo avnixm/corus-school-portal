@@ -10,10 +10,13 @@ import { getStudentNavItems } from "./nav/student";
 import { getAdminNavItems } from "./nav/admin";
 import { getRegistrarNavItems } from "./nav/registrar";
 import { getFinanceNavItems } from "./nav/finance";
+import { getTeacherNavItems } from "./nav/teacher";
+import { getProgramHeadNavItems } from "./nav/programHead";
+import { getDeanNavItems } from "./nav/dean";
 
 interface AppShellProps {
   sidebarItems?: SidebarItem[];
-  navVariant?: "student" | "registrar" | "admin" | "finance";
+  navVariant?: "student" | "registrar" | "admin" | "finance" | "teacher" | "program_head" | "dean";
   title?: string;
   userDisplay?: string;
   userId?: string;
@@ -42,6 +45,12 @@ export function AppShell({
       ? getRegistrarNavItems()
       : navVariant === "finance"
       ? getFinanceNavItems()
+      : navVariant === "teacher"
+      ? getTeacherNavItems()
+      : navVariant === "program_head"
+      ? getProgramHeadNavItems()
+      : navVariant === "dean"
+      ? getDeanNavItems()
       : navVariant === "admin" || role === "admin"
       ? getAdminNavItems()
       : getStudentNavItems());
@@ -113,7 +122,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 px-6 py-6">
+        <main className="flex-1 px-6 py-6 text-neutral-900">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>

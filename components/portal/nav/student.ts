@@ -1,5 +1,3 @@
-"use client";
-
 import {
   LayoutDashboard,
   NotebookText,
@@ -7,6 +5,8 @@ import {
   Megaphone,
   CreditCard,
   User,
+  FileCheck,
+  ClipboardList,
 } from "lucide-react";
 
 import type { SidebarItem } from "../Sidebar";
@@ -16,6 +16,16 @@ export const getStudentNavItems = (): SidebarItem[] => [
     label: "Dashboard",
     href: "/student",
     icon: LayoutDashboard,
+  },
+  {
+    label: "Requirements",
+    href: "/student/requirements",
+    icon: FileCheck,
+  },
+  {
+    label: "Enrollment",
+    href: "/student/enrollment",
+    icon: ClipboardList,
   },
   {
     label: "Grades",

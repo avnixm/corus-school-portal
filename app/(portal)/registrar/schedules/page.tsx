@@ -3,7 +3,7 @@ import {
   getSchoolYearsList,
   getTermsList,
   getSectionsList,
-  getSubjectsList,
+  getProgramsList,
 } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateScheduleForm } from "./CreateScheduleForm";
@@ -11,21 +11,26 @@ import { ScheduleFilters } from "./ScheduleFilters";
 
 export const dynamic = "force-dynamic";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 export default async function SchedulesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ schoolYearId?: string; termId?: string; sectionId?: string }>;
+  searchParams: Promise<{
+    schoolYearId?: string;
+    termId?: string;
+    sectionId?: string;
+    programId?: string;
+    yearLevel?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const [schedules, schoolYears, terms, sections, subjects] = await Promise.all([
-    getSchedulesList(params),
-    getSchoolYearsList(),
-    getTermsList(),
-    getSectionsList(),
-    getSubjectsList(),
-  ]);
+  const [schedules, schoolYears, terms, sections, programs] =
+    await Promise.all([
+      getSchedulesList(params),
+      getSchoolYearsList(),
+      getTermsList(),
+      getSectionsList(),
+      getProgramsList(),
+    ]);
 
   return (
     <div className="space-y-4">
@@ -34,7 +39,7 @@ export default async function SchedulesPage({
           Schedules
         </h2>
         <p className="text-sm text-neutral-800">
-          Manage class schedules.
+          Manage class schedules by program and section.
         </p>
       </div>
 
@@ -42,13 +47,14 @@ export default async function SchedulesPage({
         schoolYears={schoolYears}
         terms={terms}
         sections={sections}
+        programs={programs}
       />
 
       <CreateScheduleForm
         schoolYears={schoolYears}
         terms={terms}
         sections={sections}
-        subjects={subjects}
+        programs={programs}
       />
 
       <Card>
@@ -64,6 +70,7 @@ export default async function SchedulesPage({
                 <tr>
                   <th className="px-4 py-2">School Year</th>
                   <th className="px-4 py-2">Term</th>
+                  <th className="px-4 py-2">Program</th>
                   <th className="px-4 py-2">Section</th>
                   <th className="px-4 py-2">Subject</th>
                   <th className="px-4 py-2">Teacher</th>
@@ -79,6 +86,9 @@ export default async function SchedulesPage({
                   >
                     <td className="px-4 py-2">{row.schoolYearName}</td>
                     <td className="px-4 py-2">{row.termName}</td>
+                    <td className="px-4 py-2 font-mono text-[#6A0000]">
+                      {row.programCode ?? row.sectionProgram ?? "—"}
+                    </td>
                     <td className="px-4 py-2">{row.sectionName}</td>
                     <td className="px-4 py-2">
                       {row.subjectCode} – {row.subjectDescription}
@@ -93,7 +103,7 @@ export default async function SchedulesPage({
                 {schedules.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No schedules found.

@@ -1,13 +1,26 @@
-import { getSubjectsList } from "@/db/queries";
+import { getSubjectsList, getProgramsList } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateSubjectForm } from "./CreateSubjectForm";
 import { SubjectRowActions } from "./SubjectRowActions";
-
+import { SubjectsFilters } from "./SubjectsFilters";
 
 export const dynamic = "force-dynamic";
 
-export default async function SubjectsPage() {
-  const subjects = await getSubjectsList();
+type SearchParams = Promise<{ programId?: string; tab?: string }>;
+
+export default async function SubjectsPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const programId = params.programId ?? null;
+  const tab = params.tab === "ge" ? "ge" : "program";
+
+  const [subjects, programs] = await Promise.all([
+    tab === "ge"
+      ? getSubjectsList({ geOnly: true })
+      : programId
+        ? getSubjectsList({ programId })
+        : [],
+    getProgramsList(true),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -16,16 +29,18 @@ export default async function SubjectsPage() {
           Subjects
         </h2>
         <p className="text-sm text-neutral-800">
-          Manage subject catalog.
+          Manage subject catalog. Program subjects are scoped to a program; GE subjects are shared.
         </p>
       </div>
 
-      <CreateSubjectForm />
+      <SubjectsFilters programs={programs} />
+
+      <CreateSubjectForm programs={programs} />
 
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-neutral-900">
-            All subjects ({subjects.length})
+            {tab === "ge" ? "GE subjects" : programId ? `Program + GE subjects (${subjects.length})` : "All subjects"} ({subjects.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -34,7 +49,8 @@ export default async function SubjectsPage() {
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
                   <th className="px-4 py-2">Code</th>
-                  <th className="px-4 py-2">Description</th>
+                  <th className="px-4 py-2">Title</th>
+                  <th className="px-4 py-2">Program</th>
                   <th className="px-4 py-2">Units</th>
                   <th className="px-4 py-2">Active</th>
                   <th className="px-4 py-2 text-right">Actions</th>
@@ -49,7 +65,16 @@ export default async function SubjectsPage() {
                     <td className="px-4 py-2 font-mono font-medium">
                       {row.code}
                     </td>
-                    <td className="px-4 py-2">{row.description}</td>
+                    <td className="px-4 py-2">
+                      {((row as { title?: string }).title || row.description) ?? "—"}
+                    </td>
+                    <td className="px-4 py-2">
+                      {(row as { isGe?: boolean }).isGe ? (
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">GE</span>
+                      ) : (
+                        (row as { programCode?: string | null }).programCode ?? "—"
+                      )}
+                    </td>
                     <td className="px-4 py-2">{row.units ?? "—"}</td>
                     <td className="px-4 py-2">
                       <span
@@ -68,10 +93,12 @@ export default async function SubjectsPage() {
                 {subjects.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
-                      No subjects yet.
+                      {tab === "program" && !programId
+                        ? "Select a program to see program and GE subjects, or switch to GE subjects tab."
+                        : "No subjects yet."}
                     </td>
                   </tr>
                 )}

@@ -6,11 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { markClearedAction } from "./actions";
 
-export function MarkClearedButton({ enrollmentId }: { enrollmentId: string }) {
+export function MarkClearedButton({
+  enrollmentId,
+  disabled,
+}: {
+  enrollmentId: string;
+  disabled?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   function handleClick() {
+    if (disabled) return;
     if (!confirm("Mark this enrollment as cleared?")) return;
     startTransition(async () => {
       const result = await markClearedAction(enrollmentId);
@@ -27,7 +34,7 @@ export function MarkClearedButton({ enrollmentId }: { enrollmentId: string }) {
       variant="outline"
       size="sm"
       onClick={handleClick}
-      disabled={pending}
+      disabled={pending || disabled}
     >
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       Mark Cleared

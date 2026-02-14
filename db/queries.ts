@@ -16,12 +16,33 @@ import {
   classSchedules,
   scheduleDays,
   requirements,
+  requirementRules,
   requirementVerifications,
+  studentRequirementSubmissions,
+  requirementFiles,
   announcements,
   enrollmentApprovals,
   enrollmentFinanceStatus,
+  teachers,
+  teacherAssignments,
+  gradingPeriods,
+  gradeSubmissions,
+  gradeEntries,
+  programs,
+  programHeadAssignments,
+  systemSettings,
+  auditLog,
+  governanceFlags,
+  feeSetups,
+  feeSetupLines,
+  feeSetupApprovals,
+  assessments,
+  assessmentLines,
+  curriculumVersions,
+  curriculumBlocks,
+  curriculumBlockSubjects,
 } from "@/db/schema";
-import { eq, and, desc, sql, or, like, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql, or, like, isNull, gte, lte, inArray, isNotNull } from "drizzle-orm";
 
 // ============ Auth / User ============
 
@@ -77,6 +98,297 @@ export async function updateUserProfileRole(profileId: string, role: Role) {
     .update(userProfile)
     .set({ role, updatedAt: new Date() })
     .where(eq(userProfile.id, profileId));
+}
+
+export async function updateUserProfileProgramScope(
+  profileId: string,
+  program: string | null
+) {
+  await db
+    .update(userProfile)
+    .set({ program, updatedAt: new Date() })
+    .where(eq(userProfile.id, profileId));
+}
+
+export async function updateUserProfileRoleByUserId(userId: string, role: Role) {
+  await db
+    .update(userProfile)
+    .set({ role, updatedAt: new Date() })
+    .where(eq(userProfile.userId, userId));
+}
+
+export async function setUserProfileActive(userId: string, active: boolean) {
+  await db
+    .update(userProfile)
+    .set({ active, updatedAt: new Date() })
+    .where(eq(userProfile.userId, userId));
+}
+
+export async function getUsersListSearch(params?: {
+  q?: string;
+  role?: string;
+}) {
+  const q = params?.q?.trim()?.toLowerCase();
+  const roleFilter = params?.role;
+  const rows = await db
+    .select()
+    .from(userProfile)
+    .orderBy(desc(userProfile.createdAt));
+  let result = rows;
+  if (q) {
+    result = result.filter(
+      (r) =>
+        r.userId.toLowerCase().includes(q) ||
+        (r.fullName?.toLowerCase().includes(q) ?? false) ||
+        (r.email?.toLowerCase().includes(q) ?? false)
+    );
+  }
+  if (roleFilter) {
+    result = result.filter((r) => r.role === roleFilter);
+  }
+  return result;
+}
+
+// ============ Audit log ============
+
+export async function insertAuditLog(entry: {
+  actorUserId: string | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  before?: unknown;
+  after?: unknown;
+}) {
+  await db.insert(auditLog).values({
+    actorUserId: entry.actorUserId ?? null,
+    action: entry.action,
+    entityType: entry.entityType,
+    entityId: entry.entityId ?? null,
+    before: entry.before ? (entry.before as Record<string, unknown>) : null,
+    after: entry.after ? (entry.after as Record<string, unknown>) : null,
+  });
+}
+
+export async function getAuditLogPage(params: {
+  fromDate?: Date;
+  toDate?: Date;
+  actorUserId?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const conditions = [];
+  if (params.fromDate) {
+    conditions.push(gte(auditLog.createdAt, params.fromDate));
+  }
+  if (params.toDate) {
+    conditions.push(lte(auditLog.createdAt, params.toDate));
+  }
+  if (params.actorUserId) {
+    conditions.push(eq(auditLog.actorUserId, params.actorUserId));
+  }
+  if (params.action) {
+    conditions.push(eq(auditLog.action, params.action));
+  }
+  if (params.entityType) {
+    conditions.push(eq(auditLog.entityType, params.entityType));
+  }
+  if (params.entityId) {
+    conditions.push(eq(auditLog.entityId, params.entityId));
+  }
+  const where = conditions.length ? and(...conditions) : undefined;
+  const limit = params.limit ?? 50;
+  const offset = params.offset ?? 0;
+  const rows = await db
+    .select()
+    .from(auditLog)
+    .where(where)
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limit)
+    .offset(offset);
+  return rows;
+}
+
+export async function getAuditLogCountLast24h() {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const [r] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(auditLog)
+    .where(gte(auditLog.createdAt, since));
+  return r?.count ?? 0;
+}
+
+export async function getRecentRoleChanges(limit = 10) {
+  return db
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.action, "ROLE_CHANGE"))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limit);
+}
+
+// ============ System settings ============
+
+export async function getSystemSetting(key: string) {
+  const [row] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, key))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function upsertSystemSetting(params: {
+  key: string;
+  value: unknown;
+  updatedByUserId?: string | null;
+}) {
+  const now = new Date();
+  const existing = await getSystemSetting(params.key);
+  if (existing) {
+    await db
+      .update(systemSettings)
+      .set({
+        value: params.value as Record<string, unknown>,
+        updatedByUserId: params.updatedByUserId ?? null,
+        updatedAt: now,
+      })
+      .where(eq(systemSettings.key, params.key));
+  } else {
+    await db.insert(systemSettings).values({
+      key: params.key,
+      value: params.value as Record<string, unknown>,
+      updatedByUserId: params.updatedByUserId ?? null,
+      updatedAt: now,
+    });
+  }
+}
+
+// ============ Programs ============
+
+const programsListCols = {
+  id: programs.id,
+  code: programs.code,
+  name: programs.name,
+  active: programs.active,
+  createdAt: programs.createdAt,
+  updatedAt: programs.updatedAt,
+};
+
+/** Select programs; uses explicit columns so it works when DB has no description column yet. */
+export async function getProgramsList(activeOnly?: boolean) {
+  const rows = activeOnly
+    ? await db
+        .select(programsListCols)
+        .from(programs)
+        .where(eq(programs.active, true))
+        .orderBy(programs.code)
+    : await db.select(programsListCols).from(programs).orderBy(programs.code);
+  return rows.map((r) => ({ ...r, description: null as string | null }));
+}
+
+export async function getProgramById(id: string) {
+  const [row] = await db
+    .select(programsListCols)
+    .from(programs)
+    .where(eq(programs.id, id))
+    .limit(1);
+  return row ? { ...row, description: null as string | null } : null;
+}
+
+export async function createProgram(params: {
+  code: string;
+  name: string;
+  description?: string | null;
+  active?: boolean;
+}) {
+  await db.insert(programs).values({
+    code: params.code,
+    name: params.name,
+    description: params.description ?? null,
+    active: params.active ?? true,
+  });
+}
+
+export async function updateProgram(
+  id: string,
+  params: { code?: string; name?: string; description?: string | null; active?: boolean }
+) {
+  await db
+    .update(programs)
+    .set({
+      ...(params.code !== undefined && { code: params.code }),
+      ...(params.name !== undefined && { name: params.name }),
+      ...(params.description !== undefined && { description: params.description }),
+      ...(params.active !== undefined && { active: params.active }),
+      updatedAt: new Date(),
+    })
+    .where(eq(programs.id, id));
+}
+
+export async function toggleProgramActive(id: string, active: boolean) {
+  await db
+    .update(programs)
+    .set({ active, updatedAt: new Date() })
+    .where(eq(programs.id, id));
+}
+
+export async function deleteProgram(id: string) {
+  await db.delete(programs).where(eq(programs.id, id));
+}
+
+export async function getProgramHeadAssignmentsByProgramCode(programCode: string) {
+  return db
+    .select()
+    .from(programHeadAssignments)
+    .where(eq(programHeadAssignments.programCode, programCode));
+}
+
+// ============ Program head assignments ============
+
+export async function getProgramHeadAssignmentsList(filters?: {
+  userId?: string;
+  programCode?: string;
+}) {
+  let query = db
+    .select()
+    .from(programHeadAssignments)
+    .orderBy(desc(programHeadAssignments.createdAt));
+  if (filters?.userId) {
+    const rows = await db
+      .select()
+      .from(programHeadAssignments)
+      .where(eq(programHeadAssignments.userId, filters.userId))
+      .orderBy(desc(programHeadAssignments.createdAt));
+    return filters.programCode ? rows.filter((r) => r.programCode === filters.programCode) : rows;
+  }
+  if (filters?.programCode) {
+    return db
+      .select()
+      .from(programHeadAssignments)
+      .where(eq(programHeadAssignments.programCode, filters.programCode))
+      .orderBy(desc(programHeadAssignments.createdAt));
+  }
+  return db
+    .select()
+    .from(programHeadAssignments)
+    .orderBy(desc(programHeadAssignments.createdAt));
+}
+
+export async function assignProgramHead(userId: string, programCode: string) {
+  await db.insert(programHeadAssignments).values({
+    userId,
+    programCode,
+    active: true,
+  });
+}
+
+export async function unassignProgramHead(assignmentId: string) {
+  await db
+    .delete(programHeadAssignments)
+    .where(eq(programHeadAssignments.id, assignmentId));
 }
 
 // ============ Pending Applications ============
@@ -192,11 +504,31 @@ export async function updatePendingApplicationStatus(
 
 // ============ Students ============
 
+/** Generates next student ID in format YYYY-NNNN (e.g. 2025-0001). Uses current year by default. */
+export async function generateNextStudentCode(year?: number): Promise<string> {
+  const y = year ?? new Date().getFullYear();
+  const prefix = `${y}-`;
+  const rows = await db
+    .select({ studentCode: students.studentCode })
+    .from(students)
+    .where(like(students.studentCode, `${prefix}%`));
+  let max = 0;
+  for (const r of rows) {
+    if (!r.studentCode || !r.studentCode.startsWith(prefix)) continue;
+    const num = parseInt(r.studentCode.slice(prefix.length), 10);
+    if (!Number.isNaN(num) && num > max) max = num;
+  }
+  return `${y}-${String(max + 1).padStart(4, "0")}`;
+}
+
 export async function insertStudent(values: {
   userProfileId: string;
+  studentCode?: string | null;
   firstName: string;
   middleName?: string | null;
   lastName: string;
+  email?: string | null;
+  contactNo?: string | null;
   birthday?: string | null;
   program?: string | null;
   yearLevel?: string | null;
@@ -328,6 +660,28 @@ export async function getScheduleWithDetailsByStudentId(
     .limit(limit);
 }
 
+/** Schedule details for one enrollment (e.g. current term). */
+export async function getScheduleWithDetailsByEnrollmentId(
+  enrollmentId: string,
+  limit = 50
+) {
+  return db
+    .select({
+      day: studentScheduleView.day,
+      timeIn: studentScheduleView.timeIn,
+      timeOut: studentScheduleView.timeOut,
+      room: studentScheduleView.room,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+    })
+    .from(studentScheduleView)
+    .leftJoin(subjects, eq(studentScheduleView.subjectId, subjects.id))
+    .leftJoin(sections, eq(studentScheduleView.sectionId, sections.id))
+    .where(eq(studentScheduleView.enrollmentId, enrollmentId))
+    .limit(limit);
+}
+
 // ============ Registrar Dashboard ============
 
 export async function getPendingApplicationsCount() {
@@ -363,6 +717,43 @@ export async function getRejectedTodayCount() {
       and(
         eq(pendingStudentApplications.status, "rejected"),
         sql`${pendingStudentApplications.actionDate} >= ${today}`
+      )
+    );
+  return row?.count ?? 0;
+}
+
+/** Students who recently completed their profile (new registrations from setup wizard). */
+export async function getRecentlyCompletedProfiles(limit = 10) {
+  return db
+    .select({
+      id: students.id,
+      studentCode: students.studentCode,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      email: students.email,
+      program: students.program,
+      yearLevel: students.yearLevel,
+      profileCompletedAt: students.profileCompletedAt,
+    })
+    .from(students)
+    .where(and(isNotNull(students.profileCompletedAt), isNull(students.deletedAt)))
+    .orderBy(desc(students.profileCompletedAt))
+    .limit(limit);
+}
+
+/** Count of students who completed profile recently (last 7 days). */
+export async function getRecentlyCompletedProfilesCount() {
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(students)
+    .where(
+      and(
+        isNotNull(students.profileCompletedAt),
+        isNull(students.deletedAt),
+        gte(students.profileCompletedAt, weekAgo)
       )
     );
   return row?.count ?? 0;
@@ -436,6 +827,68 @@ export async function getLatestPendingEnrollmentApprovals(limit = 5) {
     .limit(limit);
 }
 
+/** Grade submissions with status=submitted (awaiting registrar review). */
+export async function getGradeSubmissionsAwaitingReviewCount() {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(gradeSubmissions)
+    .where(eq(gradeSubmissions.status, "submitted"));
+  return row?.count ?? 0;
+}
+
+/** Enrollments with finance status=paid but not cleared (read-only for registrar). */
+export async function getPendingClearancesCount() {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(enrollmentFinanceStatus)
+    .where(eq(enrollmentFinanceStatus.status, "paid"));
+  return row?.count ?? 0;
+}
+
+/** Recent requirement submissions (status=submitted) for dashboard. */
+export async function getRecentRequirementSubmissions(limit = 10) {
+  return db
+    .select({
+      id: studentRequirementSubmissions.id,
+      requirementName: requirements.name,
+      requirementCode: requirements.code,
+      submittedAt: studentRequirementSubmissions.submittedAt,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+    })
+    .from(studentRequirementSubmissions)
+    .innerJoin(students, eq(studentRequirementSubmissions.studentId, students.id))
+    .innerJoin(requirements, eq(studentRequirementSubmissions.requirementId, requirements.id))
+    .where(eq(studentRequirementSubmissions.status, "submitted"))
+    .orderBy(desc(studentRequirementSubmissions.submittedAt))
+    .limit(limit);
+}
+
+/** Recent grade submissions (any status) for dashboard. */
+export async function getRecentGradeSubmissions(limit = 10) {
+  const rows = await db
+    .select({
+      id: gradeSubmissions.id,
+      status: gradeSubmissions.status,
+      submittedAt: gradeSubmissions.submittedAt,
+      subjectCode: subjects.code,
+      sectionName: sections.name,
+      gradingPeriodName: gradingPeriods.name,
+      teacherFirstName: teachers.firstName,
+      teacherLastName: teachers.lastName,
+    })
+    .from(gradeSubmissions)
+    .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
+    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .orderBy(desc(gradeSubmissions.submittedAt))
+    .limit(limit);
+  return rows;
+}
+
 export async function getRecentAnnouncements(limit = 5) {
   return db
     .select({
@@ -449,61 +902,146 @@ export async function getRecentAnnouncements(limit = 5) {
     .limit(limit);
 }
 
-export async function getPendingEnrollmentApprovalsList(search?: string) {
-  const base = db
+/** Announcements for student portal: audience 'all' or 'students', optional program scope, pinned first. */
+export async function getAnnouncementsForStudent(
+  limit = 10,
+  program?: string | null
+) {
+  const conds = [
+    or(
+      eq(announcements.audience, "all"),
+      eq(announcements.audience, "students")
+    ),
+  ];
+  if (program != null && program !== "") {
+    conds.push(
+      or(isNull(announcements.program), eq(announcements.program, program))
+    );
+  }
+  return db
     .select({
-      id: enrollments.id,
-      studentId: enrollments.studentId,
-      schoolYearName: schoolYears.name,
-      termName: terms.name,
-      program: enrollments.program,
-      yearLevel: enrollments.yearLevel,
-      createdAt: enrollments.createdAt,
-      firstName: students.firstName,
-      middleName: students.middleName,
-      lastName: students.lastName,
-      studentCode: students.studentCode,
+      id: announcements.id,
+      title: announcements.title,
+      body: announcements.body,
+      pinned: announcements.pinned,
+      createdAt: announcements.createdAt,
     })
-    .from(enrollments)
-    .innerJoin(students, eq(enrollments.studentId, students.id))
-    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
-    .innerJoin(terms, eq(enrollments.termId, terms.id))
-    .where(eq(enrollments.status, "pending_approval"))
-    .orderBy(desc(enrollments.createdAt));
+    .from(announcements)
+    .where(and(...conds))
+    .orderBy(desc(announcements.pinned), desc(announcements.createdAt))
+    .limit(limit);
+}
 
-  if (search?.trim()) {
-    const s = `%${search.trim()}%`;
-    return db
+const pendingApprovalsSelect = {
+  id: enrollments.id,
+  studentId: enrollments.studentId,
+  schoolYearId: enrollments.schoolYearId,
+  termId: enrollments.termId,
+  schoolYearName: schoolYears.name,
+  termName: terms.name,
+  program: enrollments.program,
+  sectionId: enrollments.sectionId,
+  yearLevel: enrollments.yearLevel,
+  createdAt: enrollments.createdAt,
+  firstName: students.firstName,
+  middleName: students.middleName,
+  lastName: students.lastName,
+  studentCode: students.studentCode,
+  financeStatus: enrollmentFinanceStatus.status,
+  financeBalance: enrollmentFinanceStatus.balance,
+};
+
+/** Pending approvals list; works even when enrollments.program_id column does not exist yet. */
+export async function getPendingEnrollmentApprovalsList(search?: string) {
+  const withProgramJoin = () =>
+    db
       .select({
-        id: enrollments.id,
-        studentId: enrollments.studentId,
-        schoolYearName: schoolYears.name,
-        termName: terms.name,
-        program: enrollments.program,
-        yearLevel: enrollments.yearLevel,
-        createdAt: enrollments.createdAt,
-        firstName: students.firstName,
-        middleName: students.middleName,
-        lastName: students.lastName,
-        studentCode: students.studentCode,
+        ...pendingApprovalsSelect,
+        programCode: programs.code,
+        sectionName: sections.name,
       })
       .from(enrollments)
       .innerJoin(students, eq(enrollments.studentId, students.id))
       .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
       .innerJoin(terms, eq(enrollments.termId, terms.id))
-      .where(
-        and(
-          eq(enrollments.status, "pending_approval"),
-          or(
-            like(students.firstName, s),
-            like(students.lastName, s),
-            sql`${students.studentCode}::text ILIKE ${s}`
+      .leftJoin(programs, eq(enrollments.programId, programs.id))
+      .leftJoin(sections, eq(enrollments.sectionId, sections.id))
+      .leftJoin(enrollmentFinanceStatus, eq(enrollments.id, enrollmentFinanceStatus.enrollmentId))
+      .where(eq(enrollments.status, "pending_approval"))
+      .orderBy(desc(enrollments.createdAt));
+
+  const withoutProgramJoin = () =>
+    db
+      .select({
+        ...pendingApprovalsSelect,
+        programCode: enrollments.program,
+        sectionName: sections.name,
+      })
+      .from(enrollments)
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .leftJoin(sections, eq(enrollments.sectionId, sections.id))
+      .leftJoin(enrollmentFinanceStatus, eq(enrollments.id, enrollmentFinanceStatus.enrollmentId))
+      .where(eq(enrollments.status, "pending_approval"))
+      .orderBy(desc(enrollments.createdAt));
+
+  try {
+    if (search?.trim()) {
+      return await db
+        .select({
+          ...pendingApprovalsSelect,
+          programCode: programs.code,
+          sectionName: sections.name,
+        })
+        .from(enrollments)
+        .innerJoin(students, eq(enrollments.studentId, students.id))
+        .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+        .innerJoin(terms, eq(enrollments.termId, terms.id))
+        .leftJoin(programs, eq(enrollments.programId, programs.id))
+        .leftJoin(sections, eq(enrollments.sectionId, sections.id))
+        .leftJoin(enrollmentFinanceStatus, eq(enrollments.id, enrollmentFinanceStatus.enrollmentId))
+        .where(
+          and(
+            eq(enrollments.status, "pending_approval"),
+            or(
+              like(students.firstName, `%${search.trim()}%`),
+              like(students.lastName, `%${search.trim()}%`),
+              sql`${students.studentCode}::text ILIKE ${`%${search.trim()}%`}`
+            )
           )
         )
-      )
-      .orderBy(desc(enrollments.createdAt));
+        .orderBy(desc(enrollments.createdAt));
+    }
+    return await withProgramJoin();
+  } catch {
+    if (search?.trim()) {
+      return await db
+        .select({
+          ...pendingApprovalsSelect,
+          programCode: enrollments.program,
+          sectionName: sections.name,
+        })
+        .from(enrollments)
+        .innerJoin(students, eq(enrollments.studentId, students.id))
+        .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+        .innerJoin(terms, eq(enrollments.termId, terms.id))
+        .leftJoin(sections, eq(enrollments.sectionId, sections.id))
+        .leftJoin(enrollmentFinanceStatus, eq(enrollments.id, enrollmentFinanceStatus.enrollmentId))
+        .where(
+          and(
+            eq(enrollments.status, "pending_approval"),
+            or(
+              like(students.firstName, `%${search.trim()}%`),
+              like(students.lastName, `%${search.trim()}%`),
+              sql`${students.studentCode}::text ILIKE ${`%${search.trim()}%`}`
+            )
+          )
+        )
+        .orderBy(desc(enrollments.createdAt));
+    }
+    return await withoutProgramJoin();
   }
-  return base;
 }
 
 export async function getEnrollmentById(id: string) {
@@ -513,6 +1051,61 @@ export async function getEnrollmentById(id: string) {
     .where(eq(enrollments.id, id))
     .limit(1);
   return row ?? null;
+}
+
+/** Returns true if there is an active governance flag of type finance_hold on this enrollment or its student. */
+export async function hasActiveFinanceHoldForEnrollment(enrollmentId: string) {
+  const [enrollment] = await db
+    .select({ studentId: enrollments.studentId })
+    .from(enrollments)
+    .where(eq(enrollments.id, enrollmentId))
+    .limit(1);
+  if (!enrollment) return false;
+  const [flag] = await db
+    .select({ id: governanceFlags.id })
+    .from(governanceFlags)
+    .where(
+      and(
+        eq(governanceFlags.status, "active"),
+        eq(governanceFlags.flagType, "finance_hold"),
+        or(
+          eq(governanceFlags.enrollmentId, enrollmentId),
+          eq(governanceFlags.studentId, enrollment.studentId)
+        )!
+      )
+    )
+    .limit(1);
+  return !!flag;
+}
+
+/** Returns the set of enrollment IDs that have an active finance_hold (on enrollment or on student). */
+export async function getEnrollmentIdsWithActiveFinanceHold(): Promise<Set<string>> {
+  const byEnrollment = await db
+    .select({ enrollmentId: governanceFlags.enrollmentId })
+    .from(governanceFlags)
+    .where(
+      and(
+        eq(governanceFlags.status, "active"),
+        eq(governanceFlags.flagType, "finance_hold"),
+        sql`${governanceFlags.enrollmentId} IS NOT NULL`
+      )
+    );
+  const byStudent = await db
+    .select({ id: enrollments.id })
+    .from(enrollments)
+    .innerJoin(governanceFlags, eq(governanceFlags.studentId, enrollments.studentId))
+    .where(
+      and(
+        eq(governanceFlags.status, "active"),
+        eq(governanceFlags.flagType, "finance_hold")
+      )
+    );
+  const set = new Set<string>();
+  for (const r of byEnrollment) {
+    if (r.enrollmentId) set.add(r.enrollmentId);
+  }
+  for (const r of byStudent) set.add(r.id);
+  return set;
 }
 
 export async function approveEnrollmentById(
@@ -612,14 +1205,118 @@ export async function createEnrollment(values: {
   studentId: string;
   schoolYearId: string;
   termId: string;
+  programId: string;
   program?: string | null;
   yearLevel?: string | null;
   sectionId?: string | null;
 }) {
   return db.insert(enrollments).values({
-    ...values,
+    studentId: values.studentId,
+    schoolYearId: values.schoolYearId,
+    termId: values.termId,
+    programId: values.programId,
+    program: values.program ?? null,
+    yearLevel: values.yearLevel ?? null,
+    sectionId: values.sectionId ?? null,
     status: "pending_approval",
   });
+}
+
+/** Insert enrollment with status preregistered (student draft). Unique on (studentId, schoolYearId, termId). */
+export async function insertDraftEnrollment(values: {
+  studentId: string;
+  schoolYearId: string;
+  termId: string;
+  programId: string;
+  program?: string | null;
+  yearLevel?: string | null;
+  sectionId?: string | null;
+}) {
+  const [row] = await db
+    .insert(enrollments)
+    .values({
+      ...values,
+      program: values.program ?? null,
+      yearLevel: values.yearLevel ?? null,
+      sectionId: values.sectionId ?? null,
+      status: "preregistered",
+    })
+    .returning();
+  return row ?? null;
+}
+
+/** Update program/yearLevel/sectionId only when status is preregistered. */
+export async function updateDraftEnrollment(
+  enrollmentId: string,
+  studentId: string,
+  values: {
+    programId: string;
+    program?: string | null;
+    yearLevel?: string | null;
+    sectionId?: string | null;
+  }
+) {
+  const conds = [
+    eq(enrollments.id, enrollmentId),
+    eq(enrollments.studentId, studentId),
+    eq(enrollments.status, "preregistered" as const),
+  ];
+  const [enrollment] = await db
+    .select({ id: enrollments.id })
+    .from(enrollments)
+    .where(and(...conds))
+    .limit(1);
+  if (!enrollment) return null;
+  await db
+    .update(enrollments)
+    .set({
+      programId: values.programId,
+      program: values.program ?? null,
+      yearLevel: values.yearLevel ?? null,
+      sectionId: values.sectionId ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(enrollments.id, enrollmentId));
+  return enrollment.id;
+}
+
+/** Set enrollment status to pending_approval (submit). */
+export async function setEnrollmentPendingApproval(enrollmentId: string) {
+  await db
+    .update(enrollments)
+    .set({ status: "pending_approval", updatedAt: new Date() })
+    .where(eq(enrollments.id, enrollmentId));
+}
+
+/** Set enrollment status to cancelled (student cancel). */
+export async function setEnrollmentCancelled(enrollmentId: string) {
+  await db
+    .update(enrollments)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(eq(enrollments.id, enrollmentId));
+}
+
+/** Reset rejected enrollment to draft so student can fix and resubmit. */
+export async function resetRejectedEnrollmentToDraft(enrollmentId: string): Promise<boolean> {
+  const [row] = await db
+    .update(enrollments)
+    .set({ status: "preregistered", updatedAt: new Date() })
+    .where(and(eq(enrollments.id, enrollmentId), eq(enrollments.status, "rejected")))
+    .returning({ id: enrollments.id });
+  return !!row;
+}
+
+export async function getEnrollmentApprovalByEnrollmentId(enrollmentId: string) {
+  const [row] = await db
+    .select({
+      status: enrollmentApprovals.status,
+      remarks: enrollmentApprovals.remarks,
+      reviewedAt: enrollmentApprovals.reviewedAt,
+    })
+    .from(enrollmentApprovals)
+    .where(eq(enrollmentApprovals.enrollmentId, enrollmentId))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function getSchoolYearsList() {
@@ -643,6 +1340,17 @@ export async function getActiveSchoolYear() {
     .select()
     .from(schoolYears)
     .where(eq(schoolYears.isActive, true))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getActiveTerm() {
+  const sy = await getActiveSchoolYear();
+  if (!sy) return null;
+  const [row] = await db
+    .select()
+    .from(terms)
+    .where(and(eq(terms.schoolYearId, sy.id), eq(terms.isActive, true)))
     .limit(1);
   return row ?? null;
 }
@@ -719,43 +1427,68 @@ export async function getEnrollmentsListWithFinanceStatus(filters?: {
   studentId?: string;
   schoolYearId?: string;
   termId?: string;
+  programId?: string;
 }) {
   const conds: ReturnType<typeof eq>[] = [];
   if (filters?.studentId) conds.push(eq(enrollments.studentId, filters.studentId));
   if (filters?.schoolYearId) conds.push(eq(enrollments.schoolYearId, filters.schoolYearId));
   if (filters?.termId) conds.push(eq(enrollments.termId, filters.termId));
+  if (filters?.programId) conds.push(eq(enrollments.programId, filters.programId));
 
-  const base = db
-    .select({
-      id: enrollments.id,
-      studentId: enrollments.studentId,
-      schoolYearName: schoolYears.name,
-      termName: terms.name,
-      program: enrollments.program,
-      yearLevel: enrollments.yearLevel,
-      status: enrollments.status,
-      createdAt: enrollments.createdAt,
-      firstName: students.firstName,
-      middleName: students.middleName,
-      lastName: students.lastName,
-      studentCode: students.studentCode,
-      financeStatus: enrollmentFinanceStatus.status,
-      financeBalance: enrollmentFinanceStatus.balance,
-    })
-    .from(enrollments)
-    .innerJoin(students, eq(enrollments.studentId, students.id))
-    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
-    .innerJoin(terms, eq(enrollments.termId, terms.id))
-    .leftJoin(
-      enrollmentFinanceStatus,
-      eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
-    )
-    .orderBy(desc(enrollments.createdAt));
+  const baseSelect = {
+    id: enrollments.id,
+    studentId: enrollments.studentId,
+    schoolYearName: schoolYears.name,
+    termName: terms.name,
+    program: enrollments.program,
+    yearLevel: enrollments.yearLevel,
+    sectionId: enrollments.sectionId,
+    status: enrollments.status,
+    createdAt: enrollments.createdAt,
+    firstName: students.firstName,
+    middleName: students.middleName,
+    lastName: students.lastName,
+    studentCode: students.studentCode,
+  };
 
-  if (conds.length > 0) {
-    return base.where(and(...conds));
+  try {
+    const base = db
+      .select({
+        ...baseSelect,
+        programCode: programs.code,
+        financeStatus: enrollmentFinanceStatus.status,
+        financeBalance: enrollmentFinanceStatus.balance,
+      })
+      .from(enrollments)
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .leftJoin(programs, eq(enrollments.programId, programs.id))
+      .leftJoin(
+        enrollmentFinanceStatus,
+        eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
+      )
+      .orderBy(desc(enrollments.createdAt));
+    return conds.length > 0 ? await base.where(and(...conds)) : await base;
+  } catch {
+    const condsFallback: ReturnType<typeof eq>[] = [];
+    if (filters?.studentId) condsFallback.push(eq(enrollments.studentId, filters.studentId));
+    if (filters?.schoolYearId) condsFallback.push(eq(enrollments.schoolYearId, filters.schoolYearId));
+    if (filters?.termId) condsFallback.push(eq(enrollments.termId, filters.termId));
+    const withoutProgramJoin = db
+      .select({
+        ...baseSelect,
+        programCode: enrollments.program,
+      })
+      .from(enrollments)
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .orderBy(desc(enrollments.createdAt));
+    const applied = condsFallback.length > 0 ? withoutProgramJoin.where(and(...condsFallback)) : withoutProgramJoin;
+    const rows = await applied;
+    return rows.map((r) => ({ ...r, financeStatus: null, financeBalance: null }));
   }
-  return base;
 }
 
 export async function getEnrollmentsByStudentId(studentId: string) {
@@ -776,21 +1509,97 @@ export async function getEnrollmentsByStudentId(studentId: string) {
     .orderBy(desc(enrollments.createdAt));
 }
 
-export async function getSubjectsList() {
-  return db.select().from(subjects).orderBy(subjects.code);
+/** Fallback when DB lacks is_ge/program_id/title (pre-migration). Returns all subjects with isGe=false, programId=null. */
+async function getSubjectsListLegacy(): Promise<
+  { id: string; code: string; title: string; description: string | null; units: string | null; programId: string | null; isGe: boolean; active: boolean; programCode: string | null }[]
+> {
+  const rows = await db
+    .select({
+      id: subjects.id,
+      code: subjects.code,
+      description: subjects.description,
+      units: subjects.units,
+      active: subjects.active,
+    })
+    .from(subjects)
+    .orderBy(subjects.code);
+  return rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    title: (r as { title?: string }).title ?? (r.description ?? "") as string,
+    description: r.description,
+    units: r.units,
+    programId: null as string | null,
+    isGe: false,
+    active: r.active,
+    programCode: null as string | null,
+  }));
+}
+
+export async function getSubjectsList(filters?: { programId?: string | null; geOnly?: boolean }) {
+  try {
+    if (filters?.geOnly) {
+      const rows = await db
+        .select({
+          id: subjects.id,
+          code: subjects.code,
+          title: subjects.title,
+          description: subjects.description,
+          units: subjects.units,
+          programId: subjects.programId,
+          isGe: subjects.isGe,
+          active: subjects.active,
+        })
+        .from(subjects)
+        .where(eq(subjects.isGe, true))
+        .orderBy(subjects.code);
+      return rows.map((r) => ({ ...r, programCode: null as string | null }));
+    }
+    const base = db
+      .select({
+        id: subjects.id,
+        code: subjects.code,
+        title: subjects.title,
+        description: subjects.description,
+        units: subjects.units,
+        programId: subjects.programId,
+        isGe: subjects.isGe,
+        active: subjects.active,
+        programCode: programs.code,
+      })
+      .from(subjects)
+      .leftJoin(programs, eq(subjects.programId, programs.id))
+      .orderBy(subjects.code);
+    if (filters?.programId) {
+      return base.where(or(eq(subjects.isGe, true), eq(subjects.programId, filters.programId)));
+    }
+    return base;
+  } catch {
+    return getSubjectsListLegacy();
+  }
 }
 
 export async function createSubject(values: {
+  type: "GE" | "PROGRAM";
+  programId?: string | null;
   code: string;
-  description: string;
-  units?: string | null;
+  title: string;
+  description?: string | null;
+  units: number;
   active?: boolean;
 }) {
-  const { units, active, ...rest } = values;
+  const isGe = values.type === "GE";
+  const programId = isGe ? null : (values.programId ?? null);
+  const scopeCode = isGe ? `GE:${values.code.trim()}` : `${programId}:${values.code.trim()}`;
   return db.insert(subjects).values({
-    ...rest,
-    units: units ?? "0",
-    active: active ?? true,
+    code: values.code.trim(),
+    title: values.title.trim(),
+    description: values.description ?? null,
+    units: String(values.units ?? 0),
+    programId,
+    isGe,
+    scopeCode,
+    active: values.active ?? true,
   });
 }
 
@@ -798,30 +1607,124 @@ export async function updateSubject(
   id: string,
   values: {
     code?: string;
-    description?: string;
-    units?: string | null;
+    title?: string;
+    description?: string | null;
+    units?: number;
     active?: boolean;
+    type?: "GE" | "PROGRAM";
+    programId?: string | null;
   }
 ) {
-  return db.update(subjects).set({ ...values, updatedAt: new Date() }).where(eq(subjects.id, id));
+  const [row] = await db.select().from(subjects).where(eq(subjects.id, id)).limit(1);
+  if (!row) return;
+  const isGe = values.type !== undefined ? values.type === "GE" : row.isGe;
+  const programId = values.programId !== undefined ? (isGe ? null : values.programId) : row.programId;
+  const code = values.code !== undefined ? values.code.trim() : row.code;
+  const scopeCode = isGe ? `GE:${code}` : `${programId}:${code}`;
+  const payload: {
+    code?: string;
+    title?: string;
+    description?: string | null;
+    units?: string;
+    active?: boolean;
+    scopeCode?: string;
+    isGe?: boolean;
+    programId?: string | null;
+    updatedAt: Date;
+  } = { updatedAt: new Date() };
+  if (values.code !== undefined) payload.code = code;
+  if (values.title !== undefined) payload.title = values.title.trim();
+  if (values.description !== undefined) payload.description = values.description;
+  if (values.units !== undefined) payload.units = String(values.units);
+  if (values.active !== undefined) payload.active = values.active;
+  if (values.type !== undefined || values.programId !== undefined || values.code !== undefined) {
+    payload.scopeCode = scopeCode;
+    payload.isGe = isGe;
+    payload.programId = programId;
+  }
+  await db.update(subjects).set(payload).where(eq(subjects.id, id));
 }
 
 export async function toggleSubjectActive(id: string, active: boolean) {
   return db.update(subjects).set({ active, updatedAt: new Date() }).where(eq(subjects.id, id));
 }
 
-export async function getSectionsList() {
-  return db.select().from(sections).orderBy(sections.name);
+export async function deleteSubject(id: string) {
+  return db.delete(subjects).where(eq(subjects.id, id));
+}
+
+export async function getSubjectById(id: string) {
+  const [row] = await db.select().from(subjects).where(eq(subjects.id, id)).limit(1);
+  return row ?? null;
+}
+
+/** Returns true if the subject can be scheduled for the section (GE or same program). */
+export async function isSubjectAllowedForSection(subjectId: string, sectionId: string): Promise<{ allowed: boolean; error?: string }> {
+  const [sub, sec] = await Promise.all([getSubjectById(subjectId), getSectionById(sectionId)]);
+  if (!sub) return { allowed: false, error: "Subject not found" };
+  if (!sec) return { allowed: false, error: "Section not found" };
+  if (sub.isGe) return { allowed: true };
+  if (!sec.programId) return { allowed: false, error: "Section has no program assigned" };
+  if (sub.programId !== sec.programId) {
+    return { allowed: false, error: "This subject is not available for the selected section's program" };
+  }
+  return { allowed: true };
+}
+
+const sectionsListSelect = {
+  id: sections.id,
+  name: sections.name,
+  gradeLevel: sections.gradeLevel,
+  yearLevel: sections.yearLevel,
+  program: sections.program,
+  status: sections.status,
+  active: sections.active,
+  createdAt: sections.createdAt,
+  updatedAt: sections.updatedAt,
+};
+
+/** Sections list; works even when sections.program_id column does not exist yet. */
+export async function getSectionsList(filters?: { programId?: string; yearLevel?: string }) {
+  const conds: ReturnType<typeof eq>[] = [];
+  if (filters?.programId) conds.push(eq(sections.programId, filters.programId));
+  if (filters?.yearLevel) conds.push(eq(sections.yearLevel, filters.yearLevel));
+
+  try {
+    const base = db
+      .select({
+        ...sectionsListSelect,
+        programId: sections.programId,
+        programCode: programs.code,
+      })
+      .from(sections)
+      .leftJoin(programs, eq(sections.programId, programs.id))
+      .orderBy(sections.name);
+    return conds.length > 0 ? await base.where(and(...conds)) : await base;
+  } catch {
+    const condsFallback: ReturnType<typeof eq>[] = [];
+    if (filters?.yearLevel) condsFallback.push(eq(sections.yearLevel, filters.yearLevel));
+    const base = db
+      .select({
+        ...sectionsListSelect,
+        programCode: sections.program,
+      })
+      .from(sections)
+      .orderBy(sections.name);
+    const rows = condsFallback.length > 0 ? await base.where(and(...condsFallback)) : await base;
+    return rows.map((r) => ({ ...r, programId: null as string | null }));
+  }
 }
 
 export async function createSection(values: {
+  programId: string;
   name: string;
   yearLevel?: string | null;
-  program?: string | null;
   active?: boolean;
 }) {
   return db.insert(sections).values({
-    ...values,
+    programId: values.programId,
+    name: values.name,
+    yearLevel: values.yearLevel ?? null,
     active: values.active ?? true,
   });
 }
@@ -829,13 +1732,22 @@ export async function createSection(values: {
 export async function updateSection(
   id: string,
   values: {
+    programId?: string;
     name?: string;
     yearLevel?: string | null;
-    program?: string | null;
     active?: boolean;
   }
 ) {
   return db.update(sections).set({ ...values, updatedAt: new Date() }).where(eq(sections.id, id));
+}
+
+export async function toggleSectionActive(id: string, active: boolean) {
+  return db.update(sections).set({ active, updatedAt: new Date() }).where(eq(sections.id, id));
+}
+
+export async function getSectionById(id: string) {
+  const [row] = await db.select().from(sections).where(eq(sections.id, id)).limit(1);
+  return row ?? null;
 }
 
 export async function getRequirementsList(activeOnly = true) {
@@ -843,7 +1755,7 @@ export async function getRequirementsList(activeOnly = true) {
     return db
       .select()
       .from(requirements)
-      .where(eq(requirements.active, true))
+      .where(eq(requirements.isActive, true))
       .orderBy(requirements.name);
   }
   return db.select().from(requirements).orderBy(requirements.name);
@@ -880,11 +1792,13 @@ export async function getSchedulesList(filters?: {
   schoolYearId?: string;
   termId?: string;
   sectionId?: string;
+  programId?: string;
 }) {
   const conds: ReturnType<typeof eq>[] = [];
   if (filters?.schoolYearId) conds.push(eq(classSchedules.schoolYearId, filters.schoolYearId));
   if (filters?.termId) conds.push(eq(classSchedules.termId, filters.termId));
   if (filters?.sectionId) conds.push(eq(classSchedules.sectionId, filters.sectionId));
+  if (filters?.programId) conds.push(eq(sections.programId, filters.programId));
 
   const base = db
     .select({
@@ -892,6 +1806,9 @@ export async function getSchedulesList(filters?: {
       schoolYearName: schoolYears.name,
       termName: terms.name,
       sectionName: sections.name,
+      sectionId: classSchedules.sectionId,
+      programCode: programs.code,
+      sectionProgram: sections.program,
       subjectCode: subjects.code,
       subjectDescription: subjects.description,
       teacherName: classSchedules.teacherName,
@@ -903,6 +1820,7 @@ export async function getSchedulesList(filters?: {
     .innerJoin(schoolYears, eq(classSchedules.schoolYearId, schoolYears.id))
     .innerJoin(terms, eq(classSchedules.termId, terms.id))
     .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .leftJoin(programs, eq(sections.programId, programs.id))
     .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id));
 
   if (conds.length > 0) {
@@ -951,24 +1869,64 @@ export async function deleteSchedule(id: string) {
 }
 
 export async function createRequirement(values: {
+  code: string;
   name: string;
   description?: string | null;
-  active?: boolean;
+  instructions?: string | null;
+  allowedFileTypes?: string[];
+  maxFiles?: number;
+  isActive?: boolean;
 }) {
   return db.insert(requirements).values({
-    ...values,
-    active: values.active ?? true,
+    code: values.code,
+    name: values.name,
+    description: values.description ?? null,
+    instructions: values.instructions ?? null,
+    allowedFileTypes: values.allowedFileTypes ?? [],
+    maxFiles: values.maxFiles ?? 1,
+    isActive: values.isActive ?? true,
   });
 }
 
 export async function updateRequirement(
   id: string,
-  values: { name?: string; description?: string | null; active?: boolean }
+  values: {
+    code?: string;
+    name?: string;
+    description?: string | null;
+    instructions?: string | null;
+    allowedFileTypes?: string[];
+    maxFiles?: number;
+    isActive?: boolean;
+  }
 ) {
   return db
     .update(requirements)
     .set({ ...values, updatedAt: new Date() })
     .where(eq(requirements.id, id));
+}
+
+export async function deleteRequirement(id: string) {
+  return db.delete(requirements).where(eq(requirements.id, id));
+}
+
+/** Deletes all data referencing this requirement so the requirement can be removed. Call before deleteRequirement. */
+export async function deleteRequirementCascade(requirementId: string) {
+  const submissionIds = await db
+    .select({ id: studentRequirementSubmissions.id })
+    .from(studentRequirementSubmissions)
+    .where(eq(studentRequirementSubmissions.requirementId, requirementId));
+  const ids = submissionIds.map((s) => s.id);
+  if (ids.length > 0) {
+    await db.delete(requirementFiles).where(inArray(requirementFiles.submissionId, ids));
+  }
+  await db
+    .delete(studentRequirementSubmissions)
+    .where(eq(studentRequirementSubmissions.requirementId, requirementId));
+  await db
+    .delete(requirementVerifications)
+    .where(eq(requirementVerifications.requirementId, requirementId));
+  await db.delete(requirementRules).where(eq(requirementRules.requirementId, requirementId));
 }
 
 export async function verifyRequirement(
@@ -997,34 +1955,1655 @@ export async function rejectRequirement(id: string, notes: string) {
     .where(eq(requirementVerifications.id, id));
 }
 
+// ---------- Requirement rules (new) ----------
+export async function getRequirementRulesForRequirement(requirementId: string) {
+  return db
+    .select()
+    .from(requirementRules)
+    .where(eq(requirementRules.requirementId, requirementId))
+    .orderBy(requirementRules.sortOrder);
+}
+
+export async function getRequirementRulesList() {
+  return db
+    .select({
+      id: requirementRules.id,
+      requirementId: requirementRules.requirementId,
+      requirementCode: requirements.code,
+      requirementName: requirements.name,
+      appliesTo: requirementRules.appliesTo,
+      program: requirementRules.program,
+      yearLevel: requirementRules.yearLevel,
+      schoolYearId: requirementRules.schoolYearId,
+      termId: requirementRules.termId,
+      isRequired: requirementRules.isRequired,
+      sortOrder: requirementRules.sortOrder,
+    })
+    .from(requirementRules)
+    .innerJoin(requirements, eq(requirementRules.requirementId, requirements.id))
+    .orderBy(requirementRules.sortOrder, requirementRules.id);
+}
+
+export async function getRequirementRulesForContext(filters: {
+  appliesTo: "enrollment" | "clearance" | "graduation";
+  program?: string | null;
+  yearLevel?: string | null;
+  schoolYearId?: string | null;
+  termId?: string | null;
+}) {
+  try {
+    const q = db
+      .select()
+      .from(requirementRules)
+      .where(eq(requirementRules.appliesTo, filters.appliesTo))
+      .orderBy(requirementRules.sortOrder);
+    const rows = await q;
+    return rows.filter((r) => {
+      if (filters.program != null && r.program != null && r.program !== filters.program) return false;
+      if (filters.yearLevel != null && r.yearLevel != null && r.yearLevel !== filters.yearLevel) return false;
+      if (filters.schoolYearId != null && r.schoolYearId != null && r.schoolYearId !== filters.schoolYearId) return false;
+      if (filters.termId != null && r.termId != null && r.termId !== filters.termId) return false;
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function insertRequirementRule(values: {
+  requirementId: string;
+  appliesTo?: "enrollment" | "clearance" | "graduation";
+  program?: string | null;
+  yearLevel?: string | null;
+  schoolYearId?: string | null;
+  termId?: string | null;
+  isRequired?: boolean;
+  sortOrder?: number;
+}) {
+  const [row] = await db.insert(requirementRules).values({
+    requirementId: values.requirementId,
+    appliesTo: values.appliesTo ?? "enrollment",
+    program: values.program ?? null,
+    yearLevel: values.yearLevel ?? null,
+    schoolYearId: values.schoolYearId ?? null,
+    termId: values.termId ?? null,
+    isRequired: values.isRequired ?? true,
+    sortOrder: values.sortOrder ?? 0,
+  }).returning();
+  return row;
+}
+
+export async function updateRequirementRule(
+  id: string,
+  values: Partial<{
+    appliesTo: "enrollment" | "clearance" | "graduation";
+    program: string | null;
+    yearLevel: string | null;
+    schoolYearId: string | null;
+    termId: string | null;
+    isRequired: boolean;
+    sortOrder: number;
+  }>
+) {
+  return db.update(requirementRules).set({ ...values, updatedAt: new Date() }).where(eq(requirementRules.id, id));
+}
+
+export async function deleteRequirementRule(id: string) {
+  return db.delete(requirementRules).where(eq(requirementRules.id, id));
+}
+
+export async function deleteRequirementRulesByRequirementId(requirementId: string) {
+  return db.delete(requirementRules).where(eq(requirementRules.requirementId, requirementId));
+}
+
+// ---------- Student requirement submissions (new) ----------
+export async function getStudentRequirementSubmission(
+  studentId: string,
+  enrollmentId: string | null,
+  requirementId: string
+) {
+  const subs = await db
+    .select()
+    .from(studentRequirementSubmissions)
+    .where(
+      and(
+        eq(studentRequirementSubmissions.studentId, studentId),
+        enrollmentId ? eq(studentRequirementSubmissions.enrollmentId, enrollmentId) : isNull(studentRequirementSubmissions.enrollmentId),
+        eq(studentRequirementSubmissions.requirementId, requirementId)
+      )
+    )
+    .limit(1);
+  return subs[0] ?? null;
+}
+
+export async function getOrCreateStudentRequirementSubmission(
+  studentId: string,
+  enrollmentId: string | null,
+  requirementId: string
+) {
+  let sub = await getStudentRequirementSubmission(studentId, enrollmentId, requirementId);
+  if (sub) return sub;
+  const [created] = await db
+    .insert(studentRequirementSubmissions)
+    .values({
+      studentId,
+      enrollmentId,
+      requirementId,
+      status: "missing",
+    })
+    .returning();
+  return created!;
+}
+
+export async function getSubmissionsByEnrollment(enrollmentId: string) {
+  return db
+    .select()
+    .from(studentRequirementSubmissions)
+    .where(eq(studentRequirementSubmissions.enrollmentId, enrollmentId));
+}
+
+export async function updateStudentRequirementSubmission(
+  id: string,
+  values: Partial<{
+    status: "missing" | "submitted" | "verified" | "rejected";
+    submittedAt: Date | null;
+    verifiedByUserId: string | null;
+    verifiedAt: Date | null;
+    registrarRemarks: string | null;
+  }>
+) {
+  return db
+    .update(studentRequirementSubmissions)
+    .set({ ...values, lastUpdatedAt: new Date() })
+    .where(eq(studentRequirementSubmissions.id, id));
+}
+
+export async function verifySubmission(
+  submissionId: string,
+  verifiedByUserId: string,
+  messageToStudent?: string | null
+) {
+  return db
+    .update(studentRequirementSubmissions)
+    .set({
+      status: "verified",
+      verifiedByUserId,
+      verifiedAt: new Date(),
+      registrarRemarks: messageToStudent ?? null,
+      lastUpdatedAt: new Date(),
+    })
+    .where(eq(studentRequirementSubmissions.id, submissionId));
+}
+
+export async function rejectSubmission(submissionId: string, remarks: string) {
+  return db
+    .update(studentRequirementSubmissions)
+    .set({
+      status: "rejected",
+      registrarRemarks: remarks,
+      lastUpdatedAt: new Date(),
+    })
+    .where(eq(studentRequirementSubmissions.id, submissionId));
+}
+
+export async function getRequirementFilesBySubmissionId(submissionId: string) {
+  return db
+    .select()
+    .from(requirementFiles)
+    .where(eq(requirementFiles.submissionId, submissionId));
+}
+
+export async function insertRequirementFile(values: {
+  submissionId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  storageKey: string;
+  url?: string | null;
+}) {
+  const [row] = await db.insert(requirementFiles).values(values).returning();
+  return row!;
+}
+
+export async function deleteRequirementFile(id: string) {
+  return db.delete(requirementFiles).where(eq(requirementFiles.id, id));
+}
+
+export async function getRequirementSubmissionById(id: string) {
+  const [row] = await db
+    .select()
+    .from(studentRequirementSubmissions)
+    .where(eq(studentRequirementSubmissions.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getQueueSubmissions(filters?: {
+  schoolYearId?: string;
+  termId?: string;
+  program?: string;
+  search?: string;
+}) {
+  const base = db
+    .select({
+      id: studentRequirementSubmissions.id,
+      studentId: students.id,
+      requirementId: requirements.id,
+      requirementName: requirements.name,
+      requirementCode: requirements.code,
+      submittedAt: studentRequirementSubmissions.submittedAt,
+      status: studentRequirementSubmissions.status,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+    })
+    .from(studentRequirementSubmissions)
+    .innerJoin(students, eq(studentRequirementSubmissions.studentId, students.id))
+    .innerJoin(requirements, eq(studentRequirementSubmissions.requirementId, requirements.id))
+    .leftJoin(enrollments, eq(studentRequirementSubmissions.enrollmentId, enrollments.id))
+    .where(eq(studentRequirementSubmissions.status, "submitted"))
+    .orderBy(desc(studentRequirementSubmissions.submittedAt));
+  let rows = await base;
+  if (filters?.schoolYearId) rows = rows.filter((r) => r.schoolYearId === filters.schoolYearId);
+  if (filters?.termId) rows = rows.filter((r) => r.termId === filters.termId);
+  if (filters?.program) rows = rows.filter((r) => r.program === filters.program);
+  if (filters?.search?.trim()) {
+    const s = filters.search.trim().toLowerCase();
+    rows = rows.filter(
+      (r) =>
+        (r.firstName?.toLowerCase().includes(s) ||
+          r.lastName?.toLowerCase().includes(s) ||
+          r.studentCode?.toLowerCase().includes(s)) ?? false
+    );
+  }
+  return rows;
+}
+
 type AnnouncementAudience = "all" | "students" | "teachers" | "registrar" | "finance" | "program_head" | "dean";
 
 export async function createAnnouncement(values: {
   title: string;
   body: string;
   audience?: AnnouncementAudience;
+  program?: string | null;
+  pinned?: boolean;
   createdByUserId: string;
 }) {
   return db.insert(announcements).values({
-    ...values,
+    title: values.title,
+    body: values.body,
     audience: values.audience ?? "all",
+    program: values.program ?? null,
+    pinned: values.pinned ?? false,
+    createdByUserId: values.createdByUserId,
   });
 }
 
 export async function updateAnnouncement(
   id: string,
-  values: { title?: string; body?: string; audience?: AnnouncementAudience }
+  values: {
+    title?: string;
+    body?: string;
+    audience?: AnnouncementAudience;
+    program?: string | null;
+    pinned?: boolean;
+  }
 ) {
-  const { title, body, audience } = values;
-  const set: { title?: string; body?: string; audience?: AnnouncementAudience; updatedAt: Date } = {
-    updatedAt: new Date(),
-  };
+  const { title, body, audience, program, pinned } = values;
+  const set: {
+    updatedAt: Date;
+    title?: string;
+    body?: string;
+    audience?: AnnouncementAudience;
+    program?: string | null;
+    pinned?: boolean;
+  } = { updatedAt: new Date() };
   if (title !== undefined) set.title = title;
   if (body !== undefined) set.body = body;
   if (audience !== undefined) set.audience = audience;
+  if (program !== undefined) set.program = program;
+  if (pinned !== undefined) set.pinned = pinned;
   return db.update(announcements).set(set).where(eq(announcements.id, id));
 }
 
 export async function deleteAnnouncement(id: string) {
   return db.delete(announcements).where(eq(announcements.id, id));
+}
+
+// ============ Teachers & Assignments ============
+
+export async function getTeacherByUserId(userId: string) {
+  const [row] = await db
+    .select()
+    .from(teachers)
+    .where(eq(teachers.userId, userId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getTeacherByUserProfileId(userProfileId: string) {
+  const [row] = await db
+    .select()
+    .from(teachers)
+    .where(eq(teachers.userProfileId, userProfileId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function createTeacher(values: {
+  userId?: string | null;
+  userProfileId?: string | null;
+  employeeNo?: string | null;
+  firstName: string;
+  lastName: string;
+  email?: string | null;
+  active?: boolean;
+}) {
+  const [row] = await db
+    .insert(teachers)
+    .values({
+      ...values,
+      active: values.active ?? true,
+    })
+    .returning();
+  return row ?? null;
+}
+
+export async function updateTeacherUserId(teacherId: string, userId: string) {
+  await db
+    .update(teachers)
+    .set({ userId, updatedAt: new Date() })
+    .where(eq(teachers.id, teacherId));
+}
+
+export async function listTeacherAssignmentsForTeacher(
+  teacherId: string,
+  filters: { schoolYearId?: string; termId?: string }
+) {
+  const conds = [eq(teacherAssignments.teacherId, teacherId)];
+  if (filters.schoolYearId) conds.push(eq(teacherAssignments.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(teacherAssignments.termId, filters.termId));
+  return db
+    .select({
+      id: teacherAssignments.id,
+      scheduleId: teacherAssignments.scheduleId,
+      schoolYearId: teacherAssignments.schoolYearId,
+      termId: teacherAssignments.termId,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      timeIn: classSchedules.timeIn,
+      timeOut: classSchedules.timeOut,
+      room: classSchedules.room,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(teacherAssignments)
+    .innerJoin(classSchedules, eq(teacherAssignments.scheduleId, classSchedules.id))
+    .innerJoin(schoolYears, eq(teacherAssignments.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(teacherAssignments.termId, terms.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .where(and(...conds))
+    .orderBy(classSchedules.timeIn);
+}
+
+/** Schedules assigned to teacher that meet on the given day (e.g. "Mon", "Tue"). */
+export async function getTodaysClassesForTeacher(
+  teacherId: string,
+  dayShort: string,
+  filters: { schoolYearId?: string; termId?: string }
+) {
+  const conds = [
+    eq(teacherAssignments.teacherId, teacherId),
+    eq(scheduleDays.day, dayShort),
+    eq(scheduleDays.isActive, true),
+  ];
+  if (filters.schoolYearId) conds.push(eq(teacherAssignments.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(teacherAssignments.termId, filters.termId));
+  return db
+    .select({
+      scheduleId: teacherAssignments.scheduleId,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      timeIn: classSchedules.timeIn,
+      timeOut: classSchedules.timeOut,
+      room: classSchedules.room,
+    })
+    .from(teacherAssignments)
+    .innerJoin(classSchedules, eq(teacherAssignments.scheduleId, classSchedules.id))
+    .innerJoin(scheduleDays, eq(scheduleDays.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .where(and(...conds))
+    .orderBy(classSchedules.timeIn);
+}
+
+export async function getScheduleById(scheduleId: string) {
+  const [row] = await db
+    .select({
+      id: classSchedules.id,
+      schoolYearId: classSchedules.schoolYearId,
+      termId: classSchedules.termId,
+      sectionId: classSchedules.sectionId,
+      subjectId: classSchedules.subjectId,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      timeIn: classSchedules.timeIn,
+      timeOut: classSchedules.timeOut,
+      room: classSchedules.room,
+      teacherName: classSchedules.teacherName,
+    })
+    .from(classSchedules)
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .where(eq(classSchedules.id, scheduleId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getEnrollmentsBySectionAndTerm(sectionId: string, termId: string, schoolYearId: string) {
+  const q = db
+    .select({
+      id: enrollments.id,
+      studentId: enrollments.studentId,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+    })
+    .from(enrollments)
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .where(
+      and(
+        eq(enrollments.sectionId, sectionId),
+        eq(enrollments.termId, termId),
+        eq(enrollments.schoolYearId, schoolYearId),
+        eq(enrollments.status, "approved")
+      )
+    );
+  return q.orderBy(students.lastName);
+}
+
+// ============ Grading Periods ============
+
+export async function getGradingPeriodsBySchoolYearTerm(schoolYearId: string, termId: string) {
+  return db
+    .select()
+    .from(gradingPeriods)
+    .where(
+      and(
+        eq(gradingPeriods.schoolYearId, schoolYearId),
+        eq(gradingPeriods.termId, termId),
+        eq(gradingPeriods.isActive, true)
+      )
+    )
+    .orderBy(gradingPeriods.sortOrder, gradingPeriods.name);
+}
+
+export async function getGradingPeriodById(id: string) {
+  const [row] = await db.select().from(gradingPeriods).where(eq(gradingPeriods.id, id)).limit(1);
+  return row ?? null;
+}
+
+// ============ Grade Submissions & Entries ============
+
+export async function getGradeSubmissionByScheduleAndPeriod(scheduleId: string, gradingPeriodId: string) {
+  const [row] = await db
+    .select()
+    .from(gradeSubmissions)
+    .where(
+      and(
+        eq(gradeSubmissions.scheduleId, scheduleId),
+        eq(gradeSubmissions.gradingPeriodId, gradingPeriodId)
+      )
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getGradeSubmissionById(id: string) {
+  const [row] = await db.select().from(gradeSubmissions).where(eq(gradeSubmissions.id, id)).limit(1);
+  return row ?? null;
+}
+
+export async function getGradeSubmissionWithDetails(id: string) {
+  const [row] = await db
+    .select({
+      id: gradeSubmissions.id,
+      scheduleId: gradeSubmissions.scheduleId,
+      schoolYearId: gradeSubmissions.schoolYearId,
+      termId: gradeSubmissions.termId,
+      gradingPeriodId: gradeSubmissions.gradingPeriodId,
+      gradingPeriodName: gradingPeriods.name,
+      teacherId: gradeSubmissions.teacherId,
+      status: gradeSubmissions.status,
+      submittedAt: gradeSubmissions.submittedAt,
+      registrarRemarks: gradeSubmissions.registrarRemarks,
+      registrarReviewedAt: gradeSubmissions.registrarReviewedAt,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      teacherFirstName: teachers.firstName,
+      teacherLastName: teachers.lastName,
+    })
+    .from(gradeSubmissions)
+    .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
+    .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .where(eq(gradeSubmissions.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+type GradeSubmissionStatus = "draft" | "submitted" | "returned" | "approved" | "released";
+
+export async function listGradeSubmissionsForTeacher(
+  teacherId: string,
+  filters: { schoolYearId?: string; termId?: string; status?: GradeSubmissionStatus }
+) {
+  const conds = [eq(gradeSubmissions.teacherId, teacherId)];
+  if (filters.schoolYearId) conds.push(eq(gradeSubmissions.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(gradeSubmissions.termId, filters.termId));
+  if (filters.status) conds.push(eq(gradeSubmissions.status, filters.status));
+  return db
+    .select({
+      id: gradeSubmissions.id,
+      scheduleId: gradeSubmissions.scheduleId,
+      gradingPeriodId: gradeSubmissions.gradingPeriodId,
+      gradingPeriodName: gradingPeriods.name,
+      status: gradeSubmissions.status,
+      submittedAt: gradeSubmissions.submittedAt,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+    })
+    .from(gradeSubmissions)
+    .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
+    .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .where(and(...conds))
+    .orderBy(desc(gradeSubmissions.submittedAt));
+}
+
+export async function listGradeSubmissionsForRegistrar(filters: {
+  schoolYearId?: string;
+  termId?: string;
+  status?: GradeSubmissionStatus;
+}) {
+  const conds: ReturnType<typeof eq>[] = [];
+  if (filters.schoolYearId) conds.push(eq(gradeSubmissions.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(gradeSubmissions.termId, filters.termId));
+  if (filters.status) conds.push(eq(gradeSubmissions.status, filters.status));
+  const base = db
+    .select({
+      id: gradeSubmissions.id,
+      scheduleId: gradeSubmissions.scheduleId,
+      gradingPeriodId: gradeSubmissions.gradingPeriodId,
+      gradingPeriodName: gradingPeriods.name,
+      status: gradeSubmissions.status,
+      submittedAt: gradeSubmissions.submittedAt,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      teacherFirstName: teachers.firstName,
+      teacherLastName: teachers.lastName,
+    })
+    .from(gradeSubmissions)
+    .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
+    .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .orderBy(desc(gradeSubmissions.submittedAt));
+  if (conds.length > 0) return base.where(and(...conds));
+  return base;
+}
+
+export async function getGradeEntriesBySubmissionId(submissionId: string) {
+  return db
+    .select({
+      id: gradeEntries.id,
+      studentId: gradeEntries.studentId,
+      enrollmentId: gradeEntries.enrollmentId,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+      numericGrade: gradeEntries.numericGrade,
+      letterGrade: gradeEntries.letterGrade,
+      remarks: gradeEntries.remarks,
+    })
+    .from(gradeEntries)
+    .innerJoin(students, eq(gradeEntries.studentId, students.id))
+    .where(eq(gradeEntries.submissionId, submissionId))
+    .orderBy(students.lastName);
+}
+
+export async function isTeacherAssignedToSchedule(teacherId: string, scheduleId: string) {
+  const [row] = await db
+    .select({ id: teacherAssignments.id })
+    .from(teacherAssignments)
+    .where(
+      and(
+        eq(teacherAssignments.teacherId, teacherId),
+        eq(teacherAssignments.scheduleId, scheduleId)
+      )
+    )
+    .limit(1);
+  return !!row;
+}
+
+export async function isTeacherOwnerOfSchedule(teacherId: string, scheduleId: string) {
+  const [byAssignment] = await db
+    .select({ id: teacherAssignments.id })
+    .from(teacherAssignments)
+    .where(
+      and(
+        eq(teacherAssignments.teacherId, teacherId),
+        eq(teacherAssignments.scheduleId, scheduleId)
+      )
+    )
+    .limit(1);
+  if (byAssignment) return true;
+  const [bySchedule] = await db
+    .select({ id: classSchedules.id })
+    .from(classSchedules)
+    .where(
+      and(
+        eq(classSchedules.id, scheduleId),
+        eq(classSchedules.teacherId, teacherId)
+      )
+    )
+    .limit(1);
+  return !!bySchedule;
+}
+
+export async function createGradeSubmission(values: {
+  scheduleId: string;
+  schoolYearId: string;
+  termId: string;
+  gradingPeriodId: string;
+  teacherId: string;
+}) {
+  const [row] = await db
+    .insert(gradeSubmissions)
+    .values({ ...values, status: "draft" })
+    .returning();
+  return row ?? null;
+}
+
+export type GradeEntryInput = {
+  studentId: string;
+  enrollmentId: string;
+  numericGrade?: string | null;
+  letterGrade?: string | null;
+  remarks?: string | null;
+};
+
+export async function upsertGradeEntries(
+  submissionId: string,
+  entries: GradeEntryInput[]
+) {
+  for (const e of entries) {
+    const existing = await db
+      .select({ id: gradeEntries.id })
+      .from(gradeEntries)
+      .where(
+        and(
+          eq(gradeEntries.submissionId, submissionId),
+          eq(gradeEntries.studentId, e.studentId)
+        )
+      )
+      .limit(1);
+    if (existing.length > 0) {
+      await db
+        .update(gradeEntries)
+        .set({
+          enrollmentId: e.enrollmentId,
+          numericGrade: e.numericGrade ?? null,
+          letterGrade: e.letterGrade ?? null,
+          remarks: e.remarks ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(gradeEntries.id, existing[0].id));
+    } else {
+      await db.insert(gradeEntries).values({
+        submissionId,
+        studentId: e.studentId,
+        enrollmentId: e.enrollmentId,
+        numericGrade: e.numericGrade ?? null,
+        letterGrade: e.letterGrade ?? null,
+        remarks: e.remarks ?? null,
+      });
+    }
+  }
+}
+
+export async function submitGradesForApproval(submissionId: string) {
+  return db
+    .update(gradeSubmissions)
+    .set({ status: "submitted", submittedAt: new Date(), updatedAt: new Date() })
+    .where(eq(gradeSubmissions.id, submissionId));
+}
+
+export async function returnGradeSubmission(
+  submissionId: string,
+  registrarUserId: string,
+  remarks: string
+) {
+  return db
+    .update(gradeSubmissions)
+    .set({
+      status: "returned",
+      registrarReviewedByUserId: registrarUserId,
+      registrarReviewedAt: new Date(),
+      registrarRemarks: remarks,
+      updatedAt: new Date(),
+    })
+    .where(eq(gradeSubmissions.id, submissionId));
+}
+
+export async function approveGradeSubmission(submissionId: string, registrarUserId: string) {
+  return db
+    .update(gradeSubmissions)
+    .set({
+      status: "approved",
+      registrarReviewedByUserId: registrarUserId,
+      registrarReviewedAt: new Date(),
+      approvedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(gradeSubmissions.id, submissionId));
+}
+
+export async function releaseGradeSubmission(submissionId: string) {
+  return db
+    .update(gradeSubmissions)
+    .set({
+      status: "released",
+      releasedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(gradeSubmissions.id, submissionId));
+}
+
+export async function getReleasedGradesByStudentAndEnrollment(
+  studentId: string,
+  enrollmentId: string
+) {
+  return db
+    .select({
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      gradingPeriodName: gradingPeriods.name,
+      numericGrade: gradeEntries.numericGrade,
+      letterGrade: gradeEntries.letterGrade,
+      remarks: gradeEntries.remarks,
+    })
+    .from(gradeEntries)
+    .innerJoin(gradeSubmissions, eq(gradeEntries.submissionId, gradeSubmissions.id))
+    .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
+    .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .where(
+      and(
+        eq(gradeEntries.studentId, studentId),
+        eq(gradeEntries.enrollmentId, enrollmentId),
+        eq(gradeSubmissions.status, "released")
+      )
+    )
+    .orderBy(gradingPeriods.sortOrder, gradingPeriods.name);
+}
+
+export async function getCurrentEnrollmentForStudent(studentId: string) {
+  const sy = await getActiveSchoolYear();
+  const term = await getActiveTerm();
+  if (!sy || !term) return null;
+  const list = await getEnrollmentsList({
+    studentId,
+    schoolYearId: sy.id,
+    termId: term.id,
+  });
+  const [first] = list;
+  return first ? { id: first.id } : null;
+}
+
+/** Full enrollment row for the active school year/term for a student (for student portal). */
+export async function getEnrollmentForStudentActiveTerm(studentId: string) {
+  if (!studentId || typeof studentId !== "string" || studentId.trim() === "") return null;
+  const sy = await getActiveSchoolYear();
+  const term = await getActiveTerm();
+  if (!sy || !term) return null;
+  const [row] = await db
+    .select({
+      id: enrollments.id,
+      studentId: enrollments.studentId,
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+      programId: enrollments.programId,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      sectionId: enrollments.sectionId,
+      status: enrollments.status,
+      createdAt: enrollments.createdAt,
+      updatedAt: enrollments.updatedAt,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(enrollments)
+    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(enrollments.termId, terms.id))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        eq(enrollments.schoolYearId, sy.id),
+        eq(enrollments.termId, term.id)
+      )
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+// ============ Fee Setups ============
+
+export async function getFeeSetupsList(filters?: {
+  programId?: string;
+  yearLevel?: string;
+  schoolYearId?: string;
+  termId?: string;
+  status?: string;
+}) {
+  const conds: ReturnType<typeof eq>[] = [];
+  if (filters?.programId) conds.push(eq(feeSetups.programId, filters.programId));
+  if (filters?.yearLevel) conds.push(eq(feeSetups.yearLevel, filters.yearLevel));
+  if (filters?.schoolYearId) conds.push(eq(feeSetups.schoolYearId, filters.schoolYearId));
+  if (filters?.termId) conds.push(eq(feeSetups.termId, filters.termId));
+  if (filters?.status) conds.push(eq(feeSetups.status, filters.status as "draft" | "approved"));
+
+  let q = db
+    .select({
+      id: feeSetups.id,
+      programId: feeSetups.programId,
+      yearLevel: feeSetups.yearLevel,
+      schoolYearId: feeSetups.schoolYearId,
+      termId: feeSetups.termId,
+      status: feeSetups.status,
+      tuitionPerUnit: feeSetups.tuitionPerUnit,
+      notes: feeSetups.notes,
+      createdAt: feeSetups.createdAt,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(feeSetups)
+    .leftJoin(programs, eq(feeSetups.programId, programs.id))
+    .leftJoin(schoolYears, eq(feeSetups.schoolYearId, schoolYears.id))
+    .leftJoin(terms, eq(feeSetups.termId, terms.id))
+    .orderBy(desc(feeSetups.updatedAt));
+  if (conds.length > 0) {
+    q = q.where(and(...conds)) as typeof q;
+  }
+  return q;
+}
+
+export async function getFeeSetupById(id: string) {
+  const [row] = await db
+    .select()
+    .from(feeSetups)
+    .where(eq(feeSetups.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getFeeSetupWithDetails(id: string) {
+  const [setup] = await db
+    .select({
+      id: feeSetups.id,
+      programId: feeSetups.programId,
+      yearLevel: feeSetups.yearLevel,
+      schoolYearId: feeSetups.schoolYearId,
+      termId: feeSetups.termId,
+      status: feeSetups.status,
+      tuitionPerUnit: feeSetups.tuitionPerUnit,
+      notes: feeSetups.notes,
+      createdAt: feeSetups.createdAt,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(feeSetups)
+    .leftJoin(programs, eq(feeSetups.programId, programs.id))
+    .leftJoin(schoolYears, eq(feeSetups.schoolYearId, schoolYears.id))
+    .leftJoin(terms, eq(feeSetups.termId, terms.id))
+    .where(eq(feeSetups.id, id))
+    .limit(1);
+  if (!setup) return null;
+
+  const lines = await db
+    .select()
+    .from(feeSetupLines)
+    .where(eq(feeSetupLines.feeSetupId, id))
+    .orderBy(feeSetupLines.sortOrder);
+
+  const [approval] = await db
+    .select()
+    .from(feeSetupApprovals)
+    .where(eq(feeSetupApprovals.feeSetupId, id))
+    .limit(1);
+
+  return { setup, lines, approval: approval ?? null };
+}
+
+export async function createFeeSetup(values: {
+  programId: string;
+  yearLevel?: string | null;
+  schoolYearId?: string | null;
+  termId?: string | null;
+  tuitionPerUnit?: string;
+  notes?: string | null;
+  createdByUserId?: string | null;
+}) {
+  const [row] = await db
+    .insert(feeSetups)
+    .values({
+      programId: values.programId,
+      yearLevel: values.yearLevel ?? null,
+      schoolYearId: values.schoolYearId ?? null,
+      termId: values.termId ?? null,
+      status: "draft",
+      tuitionPerUnit: values.tuitionPerUnit ?? "0",
+      notes: values.notes ?? null,
+      createdByUserId: values.createdByUserId ?? null,
+    })
+    .returning();
+  return row;
+}
+
+export async function updateFeeSetup(
+  id: string,
+  values: {
+    programId?: string;
+    yearLevel?: string | null;
+    schoolYearId?: string | null;
+    termId?: string | null;
+    tuitionPerUnit?: string;
+    notes?: string | null;
+    status?:
+      | "draft"
+      | "pending_program_head"
+      | "pending_dean"
+      | "approved"
+      | "rejected"
+      | "archived";
+  }
+) {
+  await db
+    .update(feeSetups)
+    .set({ ...values, updatedAt: new Date() })
+    .where(eq(feeSetups.id, id));
+}
+
+export async function addFeeSetupLine(values: {
+  feeSetupId: string;
+  lineType: "tuition_component" | "lab_fee" | "misc_fee" | "other_fee";
+  label: string;
+  amount: string;
+  qty?: number;
+  perUnit?: boolean;
+  sortOrder?: number;
+}) {
+  const [row] = await db
+    .insert(feeSetupLines)
+    .values({
+      feeSetupId: values.feeSetupId,
+      lineType: values.lineType,
+      label: values.label,
+      amount: values.amount,
+      qty: values.qty ?? 1,
+      perUnit: values.perUnit ?? false,
+      sortOrder: values.sortOrder ?? 0,
+    })
+    .returning();
+  return row;
+}
+
+export async function updateFeeSetupLine(
+  lineId: string,
+  values: {
+    label?: string;
+    amount?: string;
+    qty?: number;
+    perUnit?: boolean;
+    sortOrder?: number;
+  }
+) {
+  await db
+    .update(feeSetupLines)
+    .set(values)
+    .where(eq(feeSetupLines.id, lineId));
+}
+
+export async function deleteFeeSetupLine(lineId: string) {
+  await db.delete(feeSetupLines).where(eq(feeSetupLines.id, lineId));
+}
+
+export async function getFeeSetupApprovalByFeeSetupId(feeSetupId: string) {
+  const [row] = await db
+    .select()
+    .from(feeSetupApprovals)
+    .where(eq(feeSetupApprovals.feeSetupId, feeSetupId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function upsertFeeSetupApproval(
+  feeSetupId: string,
+  values: {
+    programHeadStatus?: "pending" | "approved" | "rejected";
+    programHeadByUserId?: string | null;
+    programHeadAt?: Date | null;
+    programHeadRemarks?: string | null;
+    deanStatus?: "pending" | "approved" | "rejected";
+    deanByUserId?: string | null;
+    deanAt?: Date | null;
+    deanRemarks?: string | null;
+  }
+) {
+  const existing = await getFeeSetupApprovalByFeeSetupId(feeSetupId);
+  if (existing) {
+    await db
+      .update(feeSetupApprovals)
+      .set(values)
+      .where(eq(feeSetupApprovals.feeSetupId, feeSetupId));
+  } else {
+    await db.insert(feeSetupApprovals).values({
+      feeSetupId,
+      programHeadStatus: values.programHeadStatus ?? "pending",
+      programHeadByUserId: values.programHeadByUserId ?? null,
+      programHeadAt: values.programHeadAt ?? null,
+      programHeadRemarks: values.programHeadRemarks ?? null,
+      deanStatus: values.deanStatus ?? "pending",
+      deanByUserId: values.deanByUserId ?? null,
+      deanAt: values.deanAt ?? null,
+      deanRemarks: values.deanRemarks ?? null,
+    });
+  }
+}
+
+export async function getFeeSetupLinesByFeeSetupId(feeSetupId: string) {
+  return db
+    .select()
+    .from(feeSetupLines)
+    .where(eq(feeSetupLines.feeSetupId, feeSetupId))
+    .orderBy(feeSetupLines.sortOrder);
+}
+
+// ============ Curriculum ============
+
+export async function getCurriculumVersionsList(filters?: {
+  programId?: string;
+  schoolYearId?: string;
+  status?: "draft" | "published" | "archived";
+}) {
+  const conds: ReturnType<typeof eq>[] = [];
+  if (filters?.programId) conds.push(eq(curriculumVersions.programId, filters.programId));
+  if (filters?.schoolYearId)
+    conds.push(eq(curriculumVersions.schoolYearId, filters.schoolYearId));
+  if (filters?.status) conds.push(eq(curriculumVersions.status, filters.status));
+  const base = db
+    .select({
+      id: curriculumVersions.id,
+      programId: curriculumVersions.programId,
+      schoolYearId: curriculumVersions.schoolYearId,
+      name: curriculumVersions.name,
+      status: curriculumVersions.status,
+      createdAt: curriculumVersions.createdAt,
+      updatedAt: curriculumVersions.updatedAt,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+    })
+    .from(curriculumVersions)
+    .innerJoin(programs, eq(curriculumVersions.programId, programs.id))
+    .innerJoin(schoolYears, eq(curriculumVersions.schoolYearId, schoolYears.id))
+    .orderBy(desc(curriculumVersions.updatedAt));
+  if (conds.length) return base.where(and(...conds));
+  return base;
+}
+
+export async function getCurriculumVersionById(id: string) {
+  const [row] = await db
+    .select()
+    .from(curriculumVersions)
+    .where(eq(curriculumVersions.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function createCurriculumVersion(values: {
+  programId: string;
+  schoolYearId: string;
+  name: string;
+  createdByUserId?: string | null;
+}) {
+  const [row] = await db
+    .insert(curriculumVersions)
+    .values({
+      programId: values.programId,
+      schoolYearId: values.schoolYearId,
+      name: values.name,
+      status: "draft",
+      createdByUserId: values.createdByUserId ?? null,
+    })
+    .returning();
+  return row ?? null;
+}
+
+export async function updateCurriculumVersionStatus(
+  id: string,
+  status: "draft" | "published" | "archived"
+) {
+  await db
+    .update(curriculumVersions)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(curriculumVersions.id, id));
+}
+
+/** True if there is another published version for the same program + school year (excluding given id). */
+export async function hasOtherPublishedCurriculumForProgramYear(
+  programId: string,
+  schoolYearId: string,
+  excludeVersionId: string
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: curriculumVersions.id })
+    .from(curriculumVersions)
+    .where(
+      and(
+        eq(curriculumVersions.programId, programId),
+        eq(curriculumVersions.schoolYearId, schoolYearId),
+        eq(curriculumVersions.status, "published")
+      )
+    );
+  return rows.some((r) => r.id !== excludeVersionId);
+}
+
+export async function getCurriculumBlocksByVersionId(curriculumVersionId: string) {
+  return db
+    .select({
+      id: curriculumBlocks.id,
+      curriculumVersionId: curriculumBlocks.curriculumVersionId,
+      yearLevel: curriculumBlocks.yearLevel,
+      termId: curriculumBlocks.termId,
+      sortOrder: curriculumBlocks.sortOrder,
+      termName: terms.name,
+    })
+    .from(curriculumBlocks)
+    .innerJoin(terms, eq(curriculumBlocks.termId, terms.id))
+    .where(eq(curriculumBlocks.curriculumVersionId, curriculumVersionId))
+    .orderBy(asc(curriculumBlocks.sortOrder), asc(curriculumBlocks.yearLevel));
+}
+
+export async function getCurriculumBlockById(id: string) {
+  const [row] = await db
+    .select()
+    .from(curriculumBlocks)
+    .where(eq(curriculumBlocks.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function createCurriculumBlock(values: {
+  curriculumVersionId: string;
+  yearLevel: string;
+  termId: string;
+  sortOrder?: number;
+}) {
+  const [row] = await db
+    .insert(curriculumBlocks)
+    .values({
+      curriculumVersionId: values.curriculumVersionId,
+      yearLevel: values.yearLevel,
+      termId: values.termId,
+      sortOrder: values.sortOrder ?? 0,
+    })
+    .returning();
+  return row ?? null;
+}
+
+export async function getOrCreateCurriculumBlock(values: {
+  curriculumVersionId: string;
+  yearLevel: string;
+  termId: string;
+  sortOrder?: number;
+}) {
+  const existing = await db
+    .select()
+    .from(curriculumBlocks)
+    .where(
+      and(
+        eq(curriculumBlocks.curriculumVersionId, values.curriculumVersionId),
+        eq(curriculumBlocks.yearLevel, values.yearLevel),
+        eq(curriculumBlocks.termId, values.termId)
+      )
+    )
+    .limit(1);
+  if (existing[0]) return existing[0];
+  const created = await createCurriculumBlock(values);
+  return created;
+}
+
+export async function getCurriculumBlockSubjectsByBlockId(curriculumBlockId: string) {
+  return db
+    .select({
+      id: curriculumBlockSubjects.id,
+      subjectId: curriculumBlockSubjects.subjectId,
+      isRequired: curriculumBlockSubjects.isRequired,
+      sortOrder: curriculumBlockSubjects.sortOrder,
+      prereqText: curriculumBlockSubjects.prereqText,
+      withLab: curriculumBlockSubjects.withLab,
+      code: subjects.code,
+      title: subjects.title,
+      units: subjects.units,
+      isGe: subjects.isGe,
+    })
+    .from(curriculumBlockSubjects)
+    .innerJoin(subjects, eq(curriculumBlockSubjects.subjectId, subjects.id))
+    .where(eq(curriculumBlockSubjects.curriculumBlockId, curriculumBlockId))
+    .orderBy(curriculumBlockSubjects.sortOrder);
+}
+
+export async function addCurriculumBlockSubject(values: {
+  curriculumBlockId: string;
+  subjectId: string;
+  isRequired?: boolean;
+  sortOrder?: number;
+  prereqText?: string | null;
+  withLab?: boolean;
+}) {
+  const [row] = await db
+    .insert(curriculumBlockSubjects)
+    .values({
+      curriculumBlockId: values.curriculumBlockId,
+      subjectId: values.subjectId,
+      isRequired: values.isRequired ?? true,
+      sortOrder: values.sortOrder ?? 0,
+      prereqText: values.prereqText ?? null,
+      withLab: values.withLab ?? false,
+    })
+    .returning();
+  return row ?? null;
+}
+
+export async function updateCurriculumBlockSubject(
+  id: string,
+  values: { prereqText?: string | null; withLab?: boolean; sortOrder?: number }
+) {
+  const set: Record<string, unknown> = {};
+  if (values.prereqText !== undefined) set.prereqText = values.prereqText;
+  if (values.withLab !== undefined) set.withLab = values.withLab;
+  if (values.sortOrder !== undefined) set.sortOrder = values.sortOrder;
+  if (Object.keys(set).length === 0) return;
+  await db
+    .update(curriculumBlockSubjects)
+    .set(set as Record<string, string | number | boolean | null>)
+    .where(eq(curriculumBlockSubjects.id, id));
+}
+
+export async function removeCurriculumBlockSubject(id: string) {
+  await db
+    .delete(curriculumBlockSubjects)
+    .where(eq(curriculumBlockSubjects.id, id));
+}
+
+/** Clone a curriculum version: create new version and copy all blocks + block_subjects. */
+export async function cloneCurriculumVersion(params: {
+  fromVersionId: string;
+  programId: string;
+  schoolYearId: string;
+  name: string;
+  createdByUserId?: string | null;
+}) {
+  const fromVersion = await getCurriculumVersionById(params.fromVersionId);
+  if (!fromVersion) return null;
+  const newVersion = await createCurriculumVersion({
+    programId: params.programId,
+    schoolYearId: params.schoolYearId,
+    name: params.name,
+    createdByUserId: params.createdByUserId,
+  });
+  if (!newVersion) return null;
+  const blocks = await db
+    .select()
+    .from(curriculumBlocks)
+    .where(eq(curriculumBlocks.curriculumVersionId, params.fromVersionId));
+  for (const block of blocks) {
+    const [newBlock] = await db
+      .insert(curriculumBlocks)
+      .values({
+        curriculumVersionId: newVersion.id,
+        yearLevel: block.yearLevel,
+        termId: block.termId,
+        sortOrder: block.sortOrder,
+      })
+      .returning();
+    if (!newBlock) continue;
+    const subjRows = await db
+      .select()
+      .from(curriculumBlockSubjects)
+      .where(eq(curriculumBlockSubjects.curriculumBlockId, block.id));
+    for (const s of subjRows) {
+      await db.insert(curriculumBlockSubjects).values({
+        curriculumBlockId: newBlock.id,
+        subjectId: s.subjectId,
+        isRequired: s.isRequired,
+        sortOrder: s.sortOrder,
+        prereqText: s.prereqText,
+        withLab: s.withLab,
+      });
+    }
+  }
+  return newVersion;
+}
+
+/** Prefer curriculum-based total units when published curriculum exists for enrollment. */
+export async function getTotalUnitsForEnrollment(enrollmentId: string): Promise<number> {
+  const [enrollment] = await db
+    .select({
+      programId: enrollments.programId,
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+      yearLevel: enrollments.yearLevel,
+      sectionId: enrollments.sectionId,
+    })
+    .from(enrollments)
+    .where(eq(enrollments.id, enrollmentId))
+    .limit(1);
+  if (!enrollment) return 0;
+  const { getCurriculumSubjectsAndTotalUnitsForEnrollment } = await import(
+    "@/lib/curriculum/queries"
+  );
+  const curriculum = await getCurriculumSubjectsAndTotalUnitsForEnrollment({
+    programId: enrollment.programId,
+    schoolYearId: enrollment.schoolYearId,
+    termId: enrollment.termId,
+    yearLevel: enrollment.yearLevel,
+  });
+  if (curriculum) return curriculum.totalUnits;
+  if (!enrollment.sectionId) return 0;
+  const rows = await db
+    .select({ units: subjects.units })
+    .from(classSchedules)
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .where(
+      and(
+        eq(classSchedules.sectionId, enrollment.sectionId),
+        eq(classSchedules.schoolYearId, enrollment.schoolYearId),
+        eq(classSchedules.termId, enrollment.termId)
+      )
+    );
+  return rows.reduce((sum, r) => sum + parseFloat(String(r.units ?? 0)), 0);
+}
+
+export async function createAssessmentFromFeeSetup(params: {
+  enrollmentId: string;
+  feeSetupId: string;
+  totalUnits: number;
+  tuitionPerUnit: string;
+  tuitionAmount: string;
+  labTotal: string;
+  miscTotal: string;
+  otherTotal: string;
+  total: string;
+  lines: Array<{
+    sourceFeeSetupLineId?: string | null;
+    description: string;
+    category: "tuition" | "lab" | "misc" | "other";
+    amount: string;
+    qty: number;
+    lineTotal: string;
+    sortOrder: number;
+  }>;
+}) {
+  const [assessment] = await db
+    .insert(assessments)
+    .values({
+      enrollmentId: params.enrollmentId,
+      feeSetupId: params.feeSetupId,
+      status: "draft",
+      totalUnits: params.totalUnits,
+      tuitionRate: params.tuitionPerUnit,
+      tuitionAmount: params.tuitionAmount,
+      labTotal: params.labTotal,
+      miscTotal: params.miscTotal,
+      otherTotal: params.otherTotal,
+      subtotal: params.total,
+      discounts: "0",
+      total: params.total,
+    })
+    .returning();
+  if (!assessment) return null;
+  for (const l of params.lines) {
+    await db.insert(assessmentLines).values({
+      assessmentId: assessment.id,
+      sourceFeeSetupLineId: l.sourceFeeSetupLineId ?? null,
+      description: l.description,
+      category: l.category,
+      amount: l.amount,
+      qty: l.qty,
+      lineTotal: l.lineTotal,
+      sortOrder: l.sortOrder,
+    });
+  }
+  return assessment;
+}
+
+export async function getAssessmentFormData(assessmentId: string) {
+  const [row] = await db
+    .select({
+      assessmentId: assessments.id,
+      enrollmentId: assessments.enrollmentId,
+      feeSetupId: assessments.feeSetupId,
+      totalUnits: assessments.totalUnits,
+      tuitionRate: assessments.tuitionRate,
+      tuitionAmount: assessments.tuitionAmount,
+      labTotal: assessments.labTotal,
+      miscTotal: assessments.miscTotal,
+      otherTotal: assessments.otherTotal,
+      total: assessments.total,
+      status: assessments.status,
+      studentId: students.id,
+      studentCode: students.studentCode,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      sectionId: enrollments.sectionId,
+      programId: enrollments.programId,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+      programName: programs.name,
+    })
+    .from(assessments)
+    .innerJoin(enrollments, eq(assessments.enrollmentId, enrollments.id))
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(enrollments.termId, terms.id))
+    .leftJoin(programs, eq(enrollments.programId, programs.id))
+    .where(eq(assessments.id, assessmentId))
+    .limit(1);
+  if (!row) return null;
+
+  const lines = await db
+    .select({
+      id: assessmentLines.id,
+      description: assessmentLines.description,
+      category: assessmentLines.category,
+      amount: assessmentLines.amount,
+      qty: assessmentLines.qty,
+      lineTotal: assessmentLines.lineTotal,
+      sortOrder: assessmentLines.sortOrder,
+    })
+    .from(assessmentLines)
+    .where(eq(assessmentLines.assessmentId, assessmentId))
+    .orderBy(assessmentLines.sortOrder);
+
+  let scheduleSubjects: Array<{
+    code: string;
+    title: string;
+    units: string;
+    prereq?: string;
+    withLab?: boolean;
+  }> = [];
+  const { getCurriculumSubjectsAndTotalUnitsForEnrollment } = await import(
+    "@/lib/curriculum/queries"
+  );
+  const curriculumData = await getCurriculumSubjectsAndTotalUnitsForEnrollment({
+    programId: row.programId ?? null,
+    schoolYearId: row.schoolYearId,
+    termId: row.termId,
+    yearLevel: row.yearLevel ?? null,
+  });
+  if (curriculumData) {
+    scheduleSubjects = curriculumData.subjects.map((s) => ({
+      code: s.code,
+      title: s.title,
+      units: s.units,
+      prereq: s.prereqText ?? undefined,
+      withLab: s.withLab,
+    }));
+  } else if (row.sectionId) {
+    const sched = await db
+      .select({
+        subjectCode: subjects.code,
+        subjectTitle: subjects.title,
+        units: subjects.units,
+      })
+      .from(classSchedules)
+      .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+      .where(
+        and(
+          eq(classSchedules.sectionId, row.sectionId),
+          eq(classSchedules.schoolYearId, row.schoolYearId),
+          eq(classSchedules.termId, row.termId)
+        )
+      );
+    scheduleSubjects = sched.map((s) => ({
+      code: s.subjectCode,
+      title: s.subjectTitle ?? "",
+      units: String(s.units ?? 0),
+      prereq: undefined,
+      withLab: undefined,
+    }));
+  }
+
+  return {
+    assessment: {
+      id: row.assessmentId,
+      totalUnits: row.totalUnits,
+      tuitionRate: row.tuitionRate,
+      tuitionAmount: row.tuitionAmount,
+      labTotal: row.labTotal,
+      miscTotal: row.miscTotal,
+      otherTotal: row.otherTotal,
+      total: row.total,
+      status: row.status,
+    },
+    studentId: row.studentId,
+    student: {
+      studentCode: row.studentCode,
+      fullName: [row.firstName, row.middleName, row.lastName]
+        .filter(Boolean)
+        .join(" "),
+    },
+    program: row.program,
+    programName: row.programName,
+    yearLevel: row.yearLevel,
+    schoolYearName: row.schoolYearName,
+    termName: row.termName,
+    lines,
+    scheduleSubjects,
+  };
+}
+
+export async function getFeeSetupsPendingProgramHead(programCodes: string[] | null) {
+  const rows = await db
+    .select({
+      id: feeSetups.id,
+      programId: feeSetups.programId,
+      yearLevel: feeSetups.yearLevel,
+      schoolYearId: feeSetups.schoolYearId,
+      termId: feeSetups.termId,
+      tuitionPerUnit: feeSetups.tuitionPerUnit,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(feeSetups)
+    .innerJoin(
+      feeSetupApprovals,
+      eq(feeSetups.id, feeSetupApprovals.feeSetupId)
+    )
+    .leftJoin(programs, eq(feeSetups.programId, programs.id))
+    .leftJoin(schoolYears, eq(feeSetups.schoolYearId, schoolYears.id))
+    .leftJoin(terms, eq(feeSetups.termId, terms.id))
+    .where(
+      and(
+        eq(feeSetups.status, "pending_program_head"),
+        eq(feeSetupApprovals.programHeadStatus, "pending")
+      )
+    )
+    .orderBy(desc(feeSetups.updatedAt));
+
+  if (programCodes === null) return rows;
+  return rows.filter(
+    (r) => r.programCode && programCodes.includes(r.programCode)
+  );
+}
+
+export async function getFeeSetupsPendingDean() {
+  return db
+    .select({
+      id: feeSetups.id,
+      programId: feeSetups.programId,
+      yearLevel: feeSetups.yearLevel,
+      schoolYearId: feeSetups.schoolYearId,
+      termId: feeSetups.termId,
+      tuitionPerUnit: feeSetups.tuitionPerUnit,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(feeSetups)
+    .innerJoin(
+      feeSetupApprovals,
+      eq(feeSetups.id, feeSetupApprovals.feeSetupId)
+    )
+    .leftJoin(programs, eq(feeSetups.programId, programs.id))
+    .leftJoin(schoolYears, eq(feeSetups.schoolYearId, schoolYears.id))
+    .leftJoin(terms, eq(feeSetups.termId, terms.id))
+    .where(
+      and(
+        eq(feeSetups.status, "pending_dean"),
+        eq(feeSetupApprovals.deanStatus, "pending")
+      )
+    )
+    .orderBy(desc(feeSetups.updatedAt));
 }

@@ -2,9 +2,12 @@ import {
   getApprovedEnrollmentsNeedingAssessment,
   getAssessmentsList,
 } from "@/lib/finance/queries";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateAssessmentForm } from "./CreateAssessmentForm";
+import { GenerateFromFeeSetupButton } from "./GenerateFromFeeSetupButton";
 import { PostAssessmentButton } from "./PostAssessmentButton";
+
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +48,10 @@ export default async function AssessmentsPage() {
         </p>
       </div>
 
-      <CreateAssessmentForm enrollments={enrollmentOptions} />
+      <div className="flex flex-wrap gap-3">
+        <CreateAssessmentForm enrollments={enrollmentOptions} />
+        <GenerateFromFeeSetupButton enrollments={enrollmentOptions} />
+      </div>
 
       <Card>
         <CardHeader>
@@ -98,9 +104,17 @@ export default async function AssessmentsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {row.status === "draft" && (
-                        <PostAssessmentButton assessmentId={row.id} />
-                      )}
+                      <span className="flex flex-wrap items-center justify-end gap-2">
+                        <Link
+                          href={`/finance/assessments/${row.id}/form`}
+                          className="text-sm text-[#6A0000] hover:underline"
+                        >
+                          Form
+                        </Link>
+                        {row.status === "draft" && (
+                          <PostAssessmentButton assessmentId={row.id} />
+                        )}
+                      </span>
                     </td>
                   </tr>
                 ))}

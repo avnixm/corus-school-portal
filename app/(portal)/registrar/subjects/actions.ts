@@ -1,69 +1,73 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId } from "@/db/queries";
-import { createSubject, updateSubject, toggleSubjectActive } from "@/db/queries";
+import { requireRole } from "@/lib/rbac";
+import { createSubject, updateSubject, toggleSubjectActive, getSubjectsList } from "@/db/queries";
+import { validateCreateSubject, validateUpdateSubject } from "@/lib/subjects/validation";
 
 export async function createSubjectAction(formData: FormData) {
-  const session = (await auth.getSession())?.data;
-  if (!session?.user?.id) return { error: "Not authenticated" };
+  const auth = await requireRole(["registrar", "admin"]);
+  if ("error" in auth) return { error: auth.error };
 
-  const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
-    return { error: "Unauthorized" };
-  }
-
+  const type = (formData.get("type") as string) === "GE" ? "GE" : "PROGRAM";
+  const programId = (formData.get("programId") as string)?.trim() || null;
   const code = (formData.get("code") as string)?.trim();
-  const description = (formData.get("description") as string)?.trim();
-  const units = (formData.get("units") as string)?.trim() || null;
+  const title = (formData.get("title") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
+  const unitsRaw = (formData.get("units") as string)?.trim();
+  const units = unitsRaw ? parseInt(unitsRaw, 10) : 0;
+  if (isNaN(units) || units < 0) return { error: "Units must be 0 or greater" };
 
-  if (!code || !description) {
-    return { error: "Code and description are required" };
-  }
+  const validation = validateCreateSubject({ type, programId, code, title, units });
+  if (!validation.ok) return { error: validation.error };
 
-  await createSubject({ code, description, units: units || null });
+  const existing = await getSubjectsList({ programId: programId ?? undefined, geOnly: type === "GE" });
+  const duplicate = existing.some(
+    (s) => s.code === code && (type === "GE" ? s.isGe : s.programId === programId)
+  );
+  if (duplicate) return { error: "A subject with this code already exists for this program or as GE" };
+
+  await createSubject({ type, programId, code, title, description, units });
   revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/schedules");
   revalidatePath("/registrar");
   return { success: true };
 }
 
 export async function updateSubjectAction(id: string, formData: FormData) {
-  const session = (await auth.getSession())?.data;
-  if (!session?.user?.id) return { error: "Not authenticated" };
-
-  const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
-    return { error: "Unauthorized" };
-  }
+  const auth = await requireRole(["registrar", "admin"]);
+  if ("error" in auth) return { error: auth.error };
 
   const code = (formData.get("code") as string)?.trim();
-  const description = (formData.get("description") as string)?.trim();
-  const units = (formData.get("units") as string)?.trim() || null;
+  const title = (formData.get("title") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
+  const unitsRaw = (formData.get("units") as string)?.trim();
+  const units = unitsRaw !== "" ? parseInt(unitsRaw, 10) : undefined;
+  const type = (formData.get("type") as string) === "GE" ? "GE" : "PROGRAM";
+  const programId = (formData.get("programId") as string)?.trim() || null;
 
-  if (!code || !description) {
-    return { error: "Code and description are required" };
-  }
+  const validation = validateUpdateSubject({ code, title, units, type, programId });
+  if (!validation.ok) return { error: validation.error };
 
   await updateSubject(id, {
-    code,
+    code: code || undefined,
+    title: title || undefined,
     description,
-    units: units || null,
+    units,
+    type,
+    programId,
   });
   revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/schedules");
   return { success: true };
 }
 
 export async function toggleSubjectActiveAction(id: string, active: boolean) {
-  const session = (await auth.getSession())?.data;
-  if (!session?.user?.id) return { error: "Not authenticated" };
-
-  const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
-    return { error: "Unauthorized" };
-  }
+  const auth = await requireRole(["registrar", "admin"]);
+  if ("error" in auth) return { error: auth.error };
 
   await toggleSubjectActive(id, active);
   revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/schedules");
   return { success: true };
 }

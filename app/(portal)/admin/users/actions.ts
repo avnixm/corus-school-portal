@@ -6,7 +6,12 @@ import {
   getUserProfileByUserId,
   createUserProfile,
   updateUserProfileRole,
+  setUserProfileActive,
+  insertAuditLog,
 } from "@/db/queries";
+import { db } from "@/lib/db";
+import { userProfile } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function createUserAction(formData: FormData) {
   const session = (await auth.getSession())?.data;
@@ -90,8 +95,8 @@ export async function updateUserRoleAction(profileId: string, role: string) {
   const session = (await auth.getSession())?.data;
   if (!session?.user?.id) return { error: "Not authenticated" };
 
-  const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || profile.role !== "admin") {
+  const adminProfile = await getUserProfileByUserId(session.user.id);
+  if (!adminProfile || adminProfile.role !== "admin") {
     return { error: "Unauthorized" };
   }
 
@@ -99,8 +104,94 @@ export async function updateUserRoleAction(profileId: string, role: string) {
     return { error: "Invalid role" };
   }
 
+  const [target] = await db.select().from(userProfile).where(eq(userProfile.id, profileId)).limit(1);
+  const beforeRole = target?.role ?? null;
+
   await updateUserProfileRole(profileId, role as ValidRole);
+
+  await insertAuditLog({
+    actorUserId: session.user.id,
+    action: "ROLE_CHANGE",
+    entityType: "user_profile",
+    entityId: target?.userId ?? profileId,
+    before: beforeRole != null ? { role: beforeRole } : null,
+    after: { role },
+  });
+
   revalidatePath("/admin/users");
+  revalidatePath("/admin/audit");
+  return { success: true };
+}
+
+export async function setUserActiveAction(userId: string, active: boolean) {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) return { error: "Not authenticated" };
+
+  const profile = await getUserProfileByUserId(session.user.id);
+  if (!profile || profile.role !== "admin") {
+    return { error: "Unauthorized" };
+  }
+
+  const [target] = await db.select().from(userProfile).where(eq(userProfile.userId, userId)).limit(1);
+  const beforeActive = target?.active ?? true;
+
+  await setUserProfileActive(userId, active);
+
+  await insertAuditLog({
+    actorUserId: session.user.id,
+    action: "USER_ACTIVE",
+    entityType: "user_profile",
+    entityId: userId,
+    before: { active: beforeActive },
+    after: { active },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/audit");
+  return { success: true };
+}
+
+export async function createUserProfileAction(formData: FormData) {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) return { error: "Not authenticated" };
+
+  const profile = await getUserProfileByUserId(session.user.id);
+  if (!profile || profile.role !== "admin") {
+    return { error: "Unauthorized" };
+  }
+
+  const userId = (formData.get("userId") as string)?.trim();
+  const role = (formData.get("role") as string)?.trim();
+  const name = (formData.get("name") as string)?.trim() || null;
+  const email = (formData.get("email") as string)?.trim()?.toLowerCase() || null;
+
+  if (!userId || !role || !VALID_ROLES.includes(role as ValidRole)) {
+    return { error: "User ID and a valid role are required" };
+  }
+
+  const existing = await getUserProfileByUserId(userId);
+  if (existing) {
+    return { error: "A profile already exists for this user ID" };
+  }
+
+  await createUserProfile({
+    userId,
+    email: email ?? undefined,
+    fullName: name ?? undefined,
+    role: role as ValidRole,
+    emailVerificationBypassed: true,
+  });
+
+  await insertAuditLog({
+    actorUserId: session.user.id,
+    action: "PROFILE_CREATE",
+    entityType: "user_profile",
+    entityId: userId,
+    after: { userId, role, name, email },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/audit");
   return { success: true };
 }
 

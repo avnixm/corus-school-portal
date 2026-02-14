@@ -14,6 +14,7 @@ config({ path: ".env.local" });
 import { eq } from "drizzle-orm";
 import {
   userProfile,
+  programs,
   schoolYears,
   terms,
   students,
@@ -92,7 +93,24 @@ async function main() {
 
   console.log("  Terms: 1st Sem, 2nd Sem (2025-2026), 1st Sem (2024-2025)");
 
-  // 3. User profiles (for pending application flow)
+  // 3. Programs
+  const [progBsit] = await db
+    .insert(programs)
+    .values({ code: "BSIT", name: "Bachelor of Science in Information Technology", active: true })
+    .onConflictDoNothing({ target: programs.code })
+    .returning();
+  const [progBscs] = await db
+    .insert(programs)
+    .values({ code: "BSCS", name: "Bachelor of Science in Computer Science", active: true })
+    .onConflictDoNothing({ target: programs.code })
+    .returning();
+  const programList = await db.select().from(programs).orderBy(programs.code);
+  const programByCode = Object.fromEntries(programList.map((p) => [p.code, p]));
+  const bsitId = progBsit?.id ?? programByCode["BSIT"]?.id;
+  const bscsId = progBscs?.id ?? programByCode["BSCS"]?.id;
+  console.log("  Programs: BSIT, BSCS");
+
+  // 4. User profiles (for pending application flow)
   const [registrarProfile] = await db
     .insert(userProfile)
     .values({
@@ -129,7 +147,7 @@ async function main() {
   if (regProfile) console.log("  User profile: registrar@test.local");
   if (stuProfile) console.log("  User profile: student.pending@test.local");
 
-  // 4. Students
+  // 5. Students
   const [s1] = await db
     .insert(students)
     .values({
@@ -184,7 +202,7 @@ async function main() {
 
   console.log("  Students: 4 created");
 
-  // 5. Subjects
+  // 6. Subjects
   const subjectData = [
     { code: "CC 101", description: "Introduction to Programming", units: "3" },
     { code: "CC 102", description: "Data Structures", units: "3" },
@@ -205,13 +223,14 @@ async function main() {
   const subjMap = Object.fromEntries(subjList.map((s) => [s.code, s]));
   console.log("  Subjects:", subjList.length);
 
-  // 6. Sections
+  // 7. Sections (require programId)
+  if (!bsitId) throw new Error("BSIT program required for seed");
   const [sec1] = await db
     .insert(sections)
     .values({
+      programId: bsitId,
       name: "1-A",
       yearLevel: "1",
-      program: "BSIT",
       active: true,
     })
     .returning();
@@ -219,9 +238,9 @@ async function main() {
   const [sec2] = await db
     .insert(sections)
     .values({
+      programId: bsitId,
       name: "2-B",
       yearLevel: "2",
-      program: "BSIT",
       active: true,
     })
     .returning();
@@ -229,21 +248,21 @@ async function main() {
   const [sec3] = await db
     .insert(sections)
     .values({
+      programId: bsitId,
       name: "3-A",
       yearLevel: "3",
-      program: "BSIT",
       active: true,
     })
     .returning();
 
   console.log("  Sections: 3 created");
 
-  // 7. Enrollments (mix of pending_approval and approved)
+  // 8. Enrollments (mix of pending_approval and approved; require programId)
   const enrollData = [
-    { studentId: s1.id, schoolYearId: sy1.id, termId: term1.id, program: "BSIT", yearLevel: "2", status: "pending_approval" as const },
-    { studentId: s2.id, schoolYearId: sy1.id, termId: term1.id, program: "BSCS", yearLevel: "1", status: "pending_approval" as const },
-    { studentId: s3.id, schoolYearId: sy1.id, termId: term1.id, program: "BSIT", yearLevel: "3", status: "approved" as const },
-    { studentId: s4.id, schoolYearId: sy1.id, termId: term1.id, program: "BSIT", yearLevel: "1", status: "approved" as const },
+    { studentId: s1.id, schoolYearId: sy1.id, termId: term1.id, programId: bsitId, program: "BSIT", yearLevel: "2", status: "pending_approval" as const },
+    { studentId: s2.id, schoolYearId: sy1.id, termId: term1.id, programId: bscsId!, program: "BSCS", yearLevel: "1", status: "pending_approval" as const },
+    { studentId: s3.id, schoolYearId: sy1.id, termId: term1.id, programId: bsitId, program: "BSIT", yearLevel: "3", status: "approved" as const },
+    { studentId: s4.id, schoolYearId: sy1.id, termId: term1.id, programId: bsitId, program: "BSIT", yearLevel: "1", status: "approved" as const },
   ];
 
   for (const e of enrollData) {
@@ -254,7 +273,7 @@ async function main() {
   }
   console.log("  Enrollments: 4 (2 pending_approval, 2 approved)");
 
-  // 8. Class schedules
+  // 9. Class schedules
   const cc101 = subjMap["CC 101"];
   const cc102 = subjMap["CC 102"];
   const ge101 = subjMap["GE 101"];
@@ -313,20 +332,9 @@ async function main() {
     console.log("  Class schedules: 3 with Mon/Wed/Fri");
   }
 
-  // 9. Requirements
-  const reqData = [
-    { name: "Birth Certificate", description: "PSA-authenticated" },
-    { name: "Form 138 / Report Card", description: "From previous school" },
-    { name: "Good Moral Certificate", description: "From previous school" },
-    { name: "2x2 ID Photo", description: "Recent photo" },
-  ];
-
-  const reqList = await db
-    .insert(requirements)
-    .values(reqData)
-    .onConflictDoNothing({ target: requirements.name })
-    .returning();
-
+  // 9. Requirements (idempotent seed: BIRTH_CERT, FORM_137, FORM_138, GOOD_MORAL + enrollment rules)
+  const { seedRequirements } = await import("@/lib/requirements/seed");
+  await seedRequirements();
   const allReqs = await db.select().from(requirements);
   console.log("  Requirements:", allReqs.length);
 
@@ -413,6 +421,14 @@ async function main() {
       });
     console.log("  Pending application: 1 (Maria Santos)");
   }
+
+  // 13. System settings for enrollment flow
+  const { upsertSystemSetting } = await import("@/db/queries");
+  await upsertSystemSetting({
+    key: "enrollment_allow_submit_before_requirements",
+    value: true,
+  });
+  console.log("  System setting: enrollment_allow_submit_before_requirements = true");
 
   console.log("\nSeed complete. Run npm run dev and visit /registrar to test.\n");
   console.log("Tip: To test as registrar, sign up with an account and set its");

@@ -1,24 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId } from "@/db/queries";
+import { hasActiveFinanceHoldForEnrollment, insertAuditLog } from "@/db/queries";
+import { requireRole } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { enrollmentFinanceStatus } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 async function checkAuth() {
-  const s = (await auth.getSession())?.data;
-  if (!s?.user?.id) return { error: "Not authenticated" as const, userId: null };
-  const p = await getUserProfileByUserId(s.user.id);
-  if (!p || (p.role !== "finance" && p.role !== "admin"))
-    return { error: "Unauthorized" as const, userId: null };
-  return { error: null, userId: s.user.id };
+  const result = await requireRole(["finance", "admin"]);
+  if ("error" in result) return { error: result.error as "Unauthorized", userId: null };
+  return { error: null, userId: result.userId };
 }
 
 export async function markClearedAction(enrollmentId: string) {
   const { error, userId } = await checkAuth();
   if (error || !userId) return { error: error ?? "Unauthorized" };
+
+  const hasHold = await hasActiveFinanceHoldForEnrollment(enrollmentId);
+  if (hasHold) {
+    return { error: "Cannot clear: active hold on this enrollment" };
+  }
 
   try {
     await db
@@ -29,6 +31,12 @@ export async function markClearedAction(enrollmentId: string) {
         updatedAt: new Date(),
       })
       .where(eq(enrollmentFinanceStatus.enrollmentId, enrollmentId));
+    await insertAuditLog({
+      actorUserId: userId,
+      action: "CLEARANCE_MARK_CLEARED",
+      entityType: "enrollment_finance_status",
+      entityId: enrollmentId,
+    });
     revalidatePath("/finance/clearance");
     revalidatePath("/finance");
     revalidatePath("/registrar/enrollments");

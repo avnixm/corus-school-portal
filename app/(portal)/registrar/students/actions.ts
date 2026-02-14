@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId } from "@/db/queries";
+import { getUserProfileByUserId, generateNextStudentCode } from "@/db/queries";
 import { db } from "@/lib/db";
 import { students } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
@@ -16,7 +16,6 @@ export async function createStudent(formData: FormData) {
     return { error: "Unauthorized" };
   }
 
-  const studentNo = (formData.get("studentNo") as string)?.trim() ?? null;
   const firstName = (formData.get("firstName") as string)?.trim();
   const middleName = (formData.get("middleName") as string)?.trim() || null;
   const lastName = (formData.get("lastName") as string)?.trim();
@@ -27,8 +26,9 @@ export async function createStudent(formData: FormData) {
     return { error: "First name and last name are required" };
   }
 
+  const studentCode = await generateNextStudentCode();
   await db.insert(students).values({
-    studentCode: studentNo,
+    studentCode,
     firstName,
     middleName,
     lastName,

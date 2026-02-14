@@ -6,9 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { createSectionAction } from "./actions";
 
-export function CreateSectionForm() {
+type Program = { id: string; code: string; name: string };
+
+export function CreateSectionForm({ programs }: { programs: Program[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -29,49 +38,50 @@ export function CreateSectionForm() {
     router.refresh();
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <Button onClick={() => setOpen(true)} className="gap-2">
         <Plus className="h-4 w-4" />
         Add Section
       </Button>
-    );
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border bg-white p-4 shadow-sm"
-    >
-      <h3 className="font-semibold text-[#6A0000]">Create Section</h3>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
-          <Label htmlFor="name">Name *</Label>
-          <Input id="name" name="name" required placeholder="e.g. 1-A" />
-        </div>
-        <div>
-          <Label htmlFor="yearLevel">Year Level</Label>
-          <Input id="yearLevel" name="yearLevel" placeholder="e.g. 1" />
-        </div>
-        <div>
-          <Label htmlFor="program">Program</Label>
-          <Input id="program" name="program" placeholder="e.g. BSIT" />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          Create
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setOpen(false)}
-          disabled={pending}
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Section</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <Label htmlFor="programId">Program *</Label>
+              <select
+                id="programId"
+                name="programId"
+                required
+                className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900"
+              >
+                <option value="">Select program</option>
+                {programs.filter((p) => p.id).map((p) => (
+                  <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="yearLevel">Year Level *</Label>
+                <Input id="yearLevel" name="yearLevel" required placeholder="e.g. 1" className="mt-1 h-10" />
+              </div>
+              <div>
+                <Label htmlFor="name">Section Name *</Label>
+                <Input id="name" name="name" required placeholder="e.g. 1-A" className="mt-1 h-10" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>Cancel</Button>
+              <Button type="submit" disabled={pending}>{pending ? "Creating…" : "Create"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

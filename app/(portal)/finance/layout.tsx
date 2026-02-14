@@ -18,7 +18,7 @@ export default async function FinanceLayout({
   }
 
   if (user.role !== "finance" && user.role !== "admin") {
-    redirect("/");
+    redirect("/not-authorized");
   }
 
   const userDisplay = (user?.name || `User ${user.userId.slice(0, 8)}`) as string;
