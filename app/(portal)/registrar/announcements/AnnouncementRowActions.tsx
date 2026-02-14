@@ -92,7 +92,7 @@ export function AnnouncementRowActions({
             id="audience"
             name="audience"
             defaultValue={announcement.audience}
-            className="mt-1 h-8 w-full rounded-md border border-neutral-200 px-2 text-sm"
+            className="mt-1 h-8 w-full rounded-md border border-neutral-200 bg-white px-2 text-sm text-neutral-900"
           >
             {AUDIENCE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>

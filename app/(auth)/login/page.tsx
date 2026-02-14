@@ -76,7 +76,7 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
-                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
+                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
                     placeholder="juan.delacruz@olshco.edu.ph"
                     required
                   />
@@ -93,7 +93,7 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     type="password"
-                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
+                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
                     placeholder="Enter your password"
                     required
                   />

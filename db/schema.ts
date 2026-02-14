@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  index,
   varchar,
   date,
   boolean,
@@ -245,6 +246,208 @@ export const enrollmentApprovals = pgTable("enrollment_approvals", {
 }, (table) => ({
   enrollmentIdUnique: uniqueIndex("enrollment_approvals_enrollment_id_unique").on(table.enrollmentId),
 }));
+
+/**
+ * Finance
+ */
+
+export const feeCategoryEnum = pgEnum("fee_category", ["tuition", "misc", "other"]);
+
+export const feeItems = pgTable(
+  "fee_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 32 }).notNull(),
+    name: varchar("name", { length: 128 }).notNull(),
+    category: feeCategoryEnum("category").notNull(),
+    defaultAmount: numeric("default_amount", { precision: 12, scale: 2 }),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    codeUnique: uniqueIndex("fee_items_code_unique").on(table.code),
+  })
+);
+
+export const programFeeRules = pgTable(
+  "program_fee_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    program: varchar("program", { length: 64 }).notNull(),
+    yearLevel: varchar("year_level", { length: 32 }),
+    schoolYearId: uuid("school_year_id").references(() => schoolYears.id),
+    termId: uuid("term_id").references(() => terms.id),
+    feeItemId: uuid("fee_item_id")
+      .notNull()
+      .references(() => feeItems.id),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    programYearFeeUnique: uniqueIndex(
+      "program_fee_rules_program_year_fee_unique"
+    ).on(
+      table.program,
+      table.yearLevel,
+      table.schoolYearId,
+      table.termId,
+      table.feeItemId
+    ),
+  })
+);
+
+export const assessmentStatusEnum = pgEnum("assessment_status", [
+  "draft",
+  "posted",
+  "void",
+]);
+
+export const assessments = pgTable(
+  "assessments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id),
+    assessedByUserId: text("assessed_by_user_id"),
+    assessedAt: timestamp("assessed_at", { withTimezone: true }).defaultNow(),
+    status: assessmentStatusEnum("status").notNull().default("draft"),
+    subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
+    discounts: numeric("discounts", { precision: 12, scale: 2 }).notNull().default("0"),
+    total: numeric("total", { precision: 12, scale: 2 }).notNull().default("0"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    enrollmentIdUnique: uniqueIndex("assessments_enrollment_id_unique").on(
+      table.enrollmentId
+    ),
+  })
+);
+
+export const assessmentLines = pgTable("assessment_lines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  assessmentId: uuid("assessment_id")
+    .notNull()
+    .references(() => assessments.id),
+  feeItemId: uuid("fee_item_id").references(() => feeItems.id),
+  description: text("description").notNull(),
+  category: feeCategoryEnum("category").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  qty: integer("qty").notNull().default(1),
+  lineTotal: numeric("line_total", { precision: 12, scale: 2 }).notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const ledgerEntryTypeEnum = pgEnum("ledger_entry_type", [
+  "charge",
+  "payment",
+  "adjustment",
+  "refund",
+]);
+
+export const ledgerReferenceTypeEnum = pgEnum("ledger_reference_type", [
+  "assessment",
+  "payment",
+  "manual",
+]);
+
+export const ledgerEntries = pgTable(
+  "ledger_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id),
+    entryType: ledgerEntryTypeEnum("entry_type").notNull(),
+    referenceType: ledgerReferenceTypeEnum("reference_type").notNull(),
+    referenceId: uuid("reference_id"),
+    description: text("description").notNull(),
+    debit: numeric("debit", { precision: 12, scale: 2 }).notNull().default("0"),
+    credit: numeric("credit", { precision: 12, scale: 2 }).notNull().default("0"),
+    postedByUserId: text("posted_by_user_id"),
+    postedAt: timestamp("posted_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    studentPostedIdx: index("ledger_entries_student_posted_idx").on(
+      table.studentId,
+      table.postedAt
+    ),
+    enrollmentPostedIdx: index("ledger_entries_enrollment_posted_idx").on(
+      table.enrollmentId,
+      table.postedAt
+    ),
+  })
+);
+
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "cash",
+  "gcash",
+  "bank",
+  "card",
+  "other",
+]);
+
+export const paymentStatusEnum = pgEnum("payment_status", ["posted", "void"]);
+
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id")
+    .notNull()
+    .references(() => students.id),
+  enrollmentId: uuid("enrollment_id")
+    .notNull()
+    .references(() => enrollments.id),
+  receivedByUserId: text("received_by_user_id"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow(),
+  method: paymentMethodEnum("method").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  referenceNo: varchar("reference_no", { length: 128 }),
+  remarks: text("remarks"),
+  status: paymentStatusEnum("status").notNull().default("posted"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const paymentAllocations = pgTable("payment_allocations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  paymentId: uuid("payment_id")
+    .notNull()
+    .references(() => payments.id),
+  ledgerEntryId: uuid("ledger_entry_id").references(() => ledgerEntries.id),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+});
+
+export const enrollmentFinanceStatusEnum = pgEnum("efs_status", [
+  "unassessed",
+  "assessed",
+  "partially_paid",
+  "paid",
+  "cleared",
+  "hold",
+]);
+
+export const enrollmentFinanceStatus = pgTable(
+  "enrollment_finance_status",
+  {
+    enrollmentId: uuid("enrollment_id")
+      .primaryKey()
+      .references(() => enrollments.id),
+    status: enrollmentFinanceStatusEnum("status")
+      .notNull()
+      .default("unassessed"),
+    balance: numeric("balance", { precision: 12, scale: 2 }).notNull().default("0"),
+    updatedByUserId: text("updated_by_user_id"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  }
+);
 
 export const studentShifts = pgTable("student_shifts", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -65,7 +65,7 @@ export function CreateEnrollmentForm({
             id="studentId"
             name="studentId"
             required
-            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select student</option>
             {students.map((s) => (
@@ -83,7 +83,7 @@ export function CreateEnrollmentForm({
             required
             value={selectedSyId}
             onChange={(e) => setSelectedSyId(e.target.value)}
-            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select</option>
             {schoolYears.map((sy) => (
@@ -100,7 +100,7 @@ export function CreateEnrollmentForm({
             name="termId"
             required
             disabled={!selectedSyId}
-            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select school year first</option>
             {filteredTerms.map((t) => (

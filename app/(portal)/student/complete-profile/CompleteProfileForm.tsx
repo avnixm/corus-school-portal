@@ -150,7 +150,7 @@ export default function CompleteProfileForm({
   }
 
   const inputClass =
-    "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40 focus:border-[#6A0000]";
+    "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900 placeholder:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40 focus:border-[#6A0000]";
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">

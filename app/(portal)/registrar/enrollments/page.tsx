@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  getEnrollmentsList,
+  getEnrollmentsListWithFinanceStatus,
   getSchoolYearsList,
   getTermsList,
   getStudentsList,
@@ -25,7 +25,7 @@ export default async function EnrollmentsPage({
 }) {
   const params = await searchParams;
   const [enrollmentsList, schoolYears, terms, students] = await Promise.all([
-    getEnrollmentsList(params),
+    getEnrollmentsListWithFinanceStatus(params),
     getSchoolYearsList(),
     getTermsList(),
     getStudentsList(),
@@ -55,8 +55,8 @@ export default async function EnrollmentsPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80">
-            <table className="min-w-full text-left text-sm">
+          <div className="overflow-hidden rounded-xl border bg-white/80 text-neutral-900">
+            <table className="min-w-full text-left text-sm text-neutral-900">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
                   <th className="px-4 py-2">Student</th>
@@ -64,6 +64,8 @@ export default async function EnrollmentsPage({
                   <th className="px-4 py-2">Program</th>
                   <th className="px-4 py-2">Year Level</th>
                   <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Finance Status</th>
+                  <th className="px-4 py-2">Balance</th>
                   <th className="px-4 py-2">Date</th>
                   <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
@@ -105,6 +107,30 @@ export default async function EnrollmentsPage({
                         {row.status}
                       </span>
                     </td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs ${
+                          row.financeStatus === "cleared"
+                            ? "bg-green-100 text-green-800"
+                            : row.financeStatus === "paid"
+                            ? "bg-green-100 text-green-800"
+                            : row.financeStatus === "partially_paid"
+                            ? "bg-amber-100 text-amber-800"
+                            : row.financeStatus === "assessed"
+                            ? "bg-blue-100 text-blue-800"
+                            : row.financeStatus === "hold"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-neutral-200 text-neutral-800"
+                        }`}
+                      >
+                        {row.financeStatus ?? "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {row.financeBalance != null
+                        ? `₱${parseFloat(row.financeBalance).toFixed(2)}`
+                        : "—"}
+                    </td>
                     <td className="px-4 py-2 text-neutral-800">
                       {row.createdAt
                         ? new Date(row.createdAt).toLocaleDateString()
@@ -124,7 +150,7 @@ export default async function EnrollmentsPage({
                 {enrollmentsList.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={9}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No enrollments found.

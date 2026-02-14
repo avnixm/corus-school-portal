@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/server";
 import { getUserProfileByUserId } from "@/db/queries";
 import { approveEnrollmentById, rejectEnrollmentById, getEnrollmentById } from "@/db/queries";
-
 export async function approveEnrollment(enrollmentId: string, remarks?: string) {
   const session = (await auth.getSession())?.data;
   if (!session?.user?.id) return { error: "Not authenticated" };
@@ -22,6 +21,7 @@ export async function approveEnrollment(enrollmentId: string, remarks?: string) 
   await approveEnrollmentById(enrollmentId, session.user.id, remarks);
   revalidatePath("/registrar");
   revalidatePath("/registrar/approvals");
+  revalidatePath("/finance/assessments");
   return { success: true };
 }
 

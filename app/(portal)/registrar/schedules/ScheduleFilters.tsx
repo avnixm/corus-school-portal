@@ -46,7 +46,7 @@ export function ScheduleFilters({
           id="sy"
           value={syId}
           onChange={(e) => handleChange("schoolYearId", e.target.value)}
-          className="ml-2 mt-1 h-9 rounded-md border border-neutral-200 px-2 text-sm"
+          className="ml-2 mt-1 h-9 rounded-md border border-neutral-200 bg-white px-2 text-sm text-neutral-900"
         >
           <option value="">All</option>
           {schoolYears.map((sy) => (
@@ -61,7 +61,7 @@ export function ScheduleFilters({
           value={termId}
           onChange={(e) => handleChange("termId", e.target.value)}
           disabled={!syId}
-          className="ml-2 mt-1 h-9 rounded-md border border-neutral-200 px-2 text-sm"
+          className="ml-2 mt-1 h-9 rounded-md border border-neutral-200 bg-white px-2 text-sm text-neutral-900"
         >
           <option value="">All</option>
           {filteredTerms.map((t) => (
@@ -75,7 +75,7 @@ export function ScheduleFilters({
           id="section"
           value={sectionId}
           onChange={(e) => handleChange("sectionId", e.target.value)}
-          className="ml-2 mt-1 h-9 rounded-md border border-neutral-200 px-2 text-sm"
+          className="ml-2 mt-1 h-9 rounded-md border border-neutral-200 bg-white px-2 text-sm text-neutral-900"
         >
           <option value="">All</option>
           {sections.map((s) => (

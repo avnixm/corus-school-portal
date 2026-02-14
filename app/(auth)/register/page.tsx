@@ -74,7 +74,7 @@ export default function RegisterPage() {
                   <input
                     id="fullName"
                     name="fullName"
-                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
+                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
                     placeholder="Juan Dela Cruz"
                     required
                   />
@@ -91,7 +91,7 @@ export default function RegisterPage() {
                     id="email"
                     name="email"
                     type="email"
-                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
+                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
                     placeholder="juan.delacruz@olshco.edu.ph"
                     required
                   />
@@ -107,7 +107,7 @@ export default function RegisterPage() {
                   <input
                     id="course"
                     name="course"
-                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
+                    className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
                     placeholder="e.g. BSIT 2"
                   />
                 </div>
@@ -124,7 +124,7 @@ export default function RegisterPage() {
                       id="password"
                       name="password"
                       type="password"
-                      className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
+                      className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
                       placeholder="Create a secure password"
                       required
                     />
@@ -140,7 +140,7 @@ export default function RegisterPage() {
                       id="confirmPassword"
                       name="confirmPassword"
                       type="password"
-                      className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
+                      className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
                       placeholder="Re-enter your password"
                       required
                     />

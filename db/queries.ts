@@ -19,6 +19,7 @@ import {
   requirementVerifications,
   announcements,
   enrollmentApprovals,
+  enrollmentFinanceStatus,
 } from "@/db/schema";
 import { eq, and, desc, sql, or, like, isNull } from "drizzle-orm";
 
@@ -519,39 +520,54 @@ export async function approveEnrollmentById(
   reviewedByUserId: string,
   remarks?: string
 ) {
-  await db
-    .update(enrollments)
-    .set({ status: "approved", updatedAt: new Date() })
-    .where(eq(enrollments.id, enrollmentId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(enrollments)
+      .set({ status: "approved", updatedAt: new Date() })
+      .where(eq(enrollments.id, enrollmentId));
 
-  const [existing] = await db
-    .select()
-    .from(enrollmentApprovals)
-    .where(eq(enrollmentApprovals.enrollmentId, enrollmentId))
-    .limit(1);
+    const [existing] = await tx
+      .select()
+      .from(enrollmentApprovals)
+      .where(eq(enrollmentApprovals.enrollmentId, enrollmentId))
+      .limit(1);
 
-  const now = new Date();
-  if (existing) {
-    await db
-      .update(enrollmentApprovals)
-      .set({
+    const now = new Date();
+    if (existing) {
+      await tx
+        .update(enrollmentApprovals)
+        .set({
+          status: "approved",
+          actionBy: undefined,
+          reviewedByUserId,
+          actionDate: now,
+          reviewedAt: now,
+          remarks: remarks ?? null,
+        })
+        .where(eq(enrollmentApprovals.enrollmentId, enrollmentId));
+    } else {
+      await tx.insert(enrollmentApprovals).values({
+        enrollmentId,
         status: "approved",
-        actionBy: undefined,
         reviewedByUserId,
-        actionDate: now,
         reviewedAt: now,
         remarks: remarks ?? null,
-      })
-      .where(eq(enrollmentApprovals.enrollmentId, enrollmentId));
-  } else {
-    await db.insert(enrollmentApprovals).values({
-      enrollmentId,
-      status: "approved",
-      reviewedByUserId,
-      reviewedAt: now,
-      remarks: remarks ?? null,
-    });
-  }
+      });
+    }
+
+    const [efs] = await tx
+      .select()
+      .from(enrollmentFinanceStatus)
+      .where(eq(enrollmentFinanceStatus.enrollmentId, enrollmentId))
+      .limit(1);
+    if (!efs) {
+      await tx.insert(enrollmentFinanceStatus).values({
+        enrollmentId,
+        status: "unassessed",
+        balance: "0",
+      });
+    }
+  });
 }
 
 export async function rejectEnrollmentById(
@@ -691,6 +707,49 @@ export async function getEnrollmentsList(filters?: {
     .innerJoin(students, eq(enrollments.studentId, students.id))
     .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
     .innerJoin(terms, eq(enrollments.termId, terms.id))
+    .orderBy(desc(enrollments.createdAt));
+
+  if (conds.length > 0) {
+    return base.where(and(...conds));
+  }
+  return base;
+}
+
+export async function getEnrollmentsListWithFinanceStatus(filters?: {
+  studentId?: string;
+  schoolYearId?: string;
+  termId?: string;
+}) {
+  const conds: ReturnType<typeof eq>[] = [];
+  if (filters?.studentId) conds.push(eq(enrollments.studentId, filters.studentId));
+  if (filters?.schoolYearId) conds.push(eq(enrollments.schoolYearId, filters.schoolYearId));
+  if (filters?.termId) conds.push(eq(enrollments.termId, filters.termId));
+
+  const base = db
+    .select({
+      id: enrollments.id,
+      studentId: enrollments.studentId,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      status: enrollments.status,
+      createdAt: enrollments.createdAt,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+      financeStatus: enrollmentFinanceStatus.status,
+      financeBalance: enrollmentFinanceStatus.balance,
+    })
+    .from(enrollments)
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(enrollments.termId, terms.id))
+    .leftJoin(
+      enrollmentFinanceStatus,
+      eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
+    )
     .orderBy(desc(enrollments.createdAt));
 
   if (conds.length > 0) {

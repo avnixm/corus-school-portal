@@ -1,0 +1,231 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, Loader2 } from "lucide-react";
+import {
+  postPaymentAction,
+  searchStudentsAction,
+  getEnrollmentsForStudentAction,
+} from "./actions";
+
+function fullName(r: {
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+}) {
+  return [r.firstName, r.middleName, r.lastName].filter(Boolean).join(" ");
+}
+
+export function PostPaymentForm() {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<
+    { id: string; studentCode: string | null; firstName: string; middleName: string | null; lastName: string }[]
+  >([]);
+  const [selectedStudent, setSelectedStudent] = useState<{
+    id: string;
+    studentCode: string | null;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+  } | null>(null);
+  const [enrollments, setEnrollments] = useState<
+    {
+      id: string;
+      schoolYearName: string;
+      termName: string;
+      program: string | null;
+      yearLevel: string | null;
+      balance: string | null;
+      financeStatus: string | null;
+    }[]
+  >([]);
+  const [enrollmentId, setEnrollmentId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<"cash" | "gcash" | "bank" | "card" | "other">("cash");
+  const [referenceNo, setReferenceNo] = useState("");
+  const [remarks, setRemarks] = useState("");
+
+  async function handleSearch() {
+    if (!search.trim()) return;
+    const results = await searchStudentsAction(search);
+    setSearchResults(results);
+    setSelectedStudent(null);
+    setEnrollments([]);
+    setEnrollmentId("");
+  }
+
+  async function handleSelectStudent(student: (typeof searchResults)[0]) {
+    setSelectedStudent(student);
+    const encs = await getEnrollmentsForStudentAction(student.id);
+    setEnrollments(encs);
+    setEnrollmentId(encs[0]?.id ?? "");
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!selectedStudent) {
+      setError("Search and select a student first");
+      return;
+    }
+    if (!enrollmentId) {
+      setError("Select an enrollment");
+      return;
+    }
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
+      setError("Enter a valid amount");
+      return;
+    }
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("studentId", selectedStudent.id);
+      formData.set("enrollmentId", enrollmentId);
+      formData.set("amount", amt.toFixed(2));
+      formData.set("method", method);
+      formData.set("referenceNo", referenceNo);
+      formData.set("remarks", remarks);
+      const result = await postPaymentAction(formData);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      setAmount("");
+      setReferenceNo("");
+      setRemarks("");
+      router.refresh();
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold text-[#6A0000]">
+          Post Payment
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div>
+          <Label>Search Student</Label>
+          <div className="flex gap-2">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
+              placeholder="Student number or name"
+            />
+            <Button type="button" onClick={handleSearch}>
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+          {searchResults.length > 0 && (
+            <div className="mt-2 max-h-40 overflow-y-auto rounded border">
+              {searchResults.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => handleSelectStudent(s)}
+                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 ${
+                    selectedStudent?.id === s.id ? "bg-[#6A0000]/10" : ""
+                  }`}
+                >
+                  {s.studentCode ?? ""} – {fullName(s)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {selectedStudent && (
+          <div className="rounded border bg-neutral-50 p-3 text-sm">
+            <span className="font-medium text-[#6A0000]">
+              {selectedStudent.studentCode ?? ""} – {fullName(selectedStudent)}
+            </span>
+          </div>
+        )}
+        {enrollments.length > 0 && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="enrollmentId">Enrollment *</Label>
+              <select
+                id="enrollmentId"
+                value={enrollmentId}
+                onChange={(e) => setEnrollmentId(e.target.value)}
+                required
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              >
+                {enrollments.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.schoolYearName} / {e.termName} – {e.program ?? "—"}{" "}
+                    {e.yearLevel ?? ""} (Balance: ₱
+                    {parseFloat(e.balance ?? "0").toLocaleString()})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="amount">Amount *</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="method">Method *</Label>
+                <select
+                  id="method"
+                  value={method}
+                  onChange={(e) =>
+                    setMethod(e.target.value as "cash" | "gcash" | "bank" | "card" | "other")
+                  }
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="gcash">GCash</option>
+                  <option value="bank">Bank</option>
+                  <option value="card">Card</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="referenceNo">Reference No.</Label>
+              <Input
+                id="referenceNo"
+                value={referenceNo}
+                onChange={(e) => setReferenceNo(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label htmlFor="remarks">Remarks</Label>
+              <Input
+                id="remarks"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <Button type="submit" disabled={pending}>
+              {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Post Payment
+            </Button>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

@@ -95,7 +95,7 @@ function VerifyEmailContent() {
                     inputMode="numeric"
                     maxLength={6}
                     placeholder="000000"
-                    className="h-12 w-full rounded-md border border-neutral-300 bg-white px-4 text-center text-2xl tracking-widest font-mono text-neutral-900 placeholder:text-neutral-400 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-2 focus-visible:ring-[#6A0000]"
+                    className="h-12 w-full rounded-md border border-neutral-300 bg-white px-4 text-center text-2xl tracking-widest font-mono text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-2 focus-visible:ring-[#6A0000]"
                     required
                     autoFocus
                   />

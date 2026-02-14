@@ -73,7 +73,7 @@ export function UpdatePasswordButton({
         placeholder="New password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 placeholder:text-neutral-500"
+        className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 placeholder:text-neutral-700"
         autoFocus
         minLength={8}
       />
@@ -82,7 +82,7 @@ export function UpdatePasswordButton({
         placeholder="Confirm password"
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
-        className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 placeholder:text-neutral-500"
+        className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 placeholder:text-neutral-700"
         minLength={8}
       />
       {error && <p className="text-xs text-red-600">{error}</p>}

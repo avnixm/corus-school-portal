@@ -84,7 +84,7 @@ export function CreateScheduleForm({
             required
             value={selectedSyId}
             onChange={(e) => setSelectedSyId(e.target.value)}
-            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select</option>
             {schoolYears.map((sy) => (
@@ -99,7 +99,7 @@ export function CreateScheduleForm({
             name="termId"
             required
             disabled={!selectedSyId}
-            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select</option>
             {filteredTerms.map((t) => (
@@ -113,7 +113,7 @@ export function CreateScheduleForm({
             id="sectionId"
             name="sectionId"
             required
-            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select</option>
             {sections.map((s) => (
@@ -127,7 +127,7 @@ export function CreateScheduleForm({
             id="subjectId"
             name="subjectId"
             required
-            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+            className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
           >
             <option value="">Select</option>
             {subjects.map((s) => (

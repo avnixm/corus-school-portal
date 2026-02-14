@@ -9,10 +9,11 @@ import { LogOut } from "lucide-react";
 import { getStudentNavItems } from "./nav/student";
 import { getAdminNavItems } from "./nav/admin";
 import { getRegistrarNavItems } from "./nav/registrar";
+import { getFinanceNavItems } from "./nav/finance";
 
 interface AppShellProps {
   sidebarItems?: SidebarItem[];
-  navVariant?: "student" | "registrar" | "admin";
+  navVariant?: "student" | "registrar" | "admin" | "finance";
   title?: string;
   userDisplay?: string;
   userId?: string;
@@ -39,6 +40,8 @@ export function AppShell({
     providedItems ??
     (navVariant === "registrar"
       ? getRegistrarNavItems()
+      : navVariant === "finance"
+      ? getFinanceNavItems()
       : navVariant === "admin" || role === "admin"
       ? getAdminNavItems()
       : getStudentNavItems());

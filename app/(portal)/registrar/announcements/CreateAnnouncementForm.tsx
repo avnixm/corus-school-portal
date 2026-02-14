@@ -81,7 +81,7 @@ export function CreateAnnouncementForm() {
         <select
           id="audience"
           name="audience"
-          className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm"
+          className="mt-1 flex h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
         >
           {AUDIENCE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>

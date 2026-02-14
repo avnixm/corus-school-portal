@@ -139,4 +139,9 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  /* Ensure selects and options have readable dark text on light backgrounds */
+  select,
+  select option {
+    color: #171717;
+  }
 }
