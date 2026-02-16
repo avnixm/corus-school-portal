@@ -7,7 +7,12 @@ import { getAnnouncementsForStudent } from "@/db/queries";
 import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 
 export default async function LandingPage() {
-  const announcements = await getAnnouncementsForStudent(5, null);
+  let announcements: Awaited<ReturnType<typeof getAnnouncementsForStudent>> = [];
+  try {
+    announcements = await getAnnouncementsForStudent(5, null);
+  } catch {
+    // Ignore query errors so the landing page still loads
+  }
     return (
         <div className="relative min-h-screen flex flex-col overflow-hidden">
             {/* Subtle background */}

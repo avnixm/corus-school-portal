@@ -14,6 +14,7 @@ import {
   CheckCheck,
   BookMarked,
   UserCog,
+  UserCheck,
 } from "lucide-react";
 import type { SidebarItem } from "../Sidebar";
 
@@ -27,6 +28,7 @@ export const getRegistrarNavItems = (): SidebarItem[] => [
   { label: "Curriculum", href: "/registrar/curriculum", icon: BookMarked },
   { label: "Subjects", href: "/registrar/subjects", icon: BookOpen },
   { label: "Sections", href: "/registrar/sections", icon: Layers },
+  { label: "Advisers", href: "/registrar/advisers", icon: UserCheck },
   { label: "Schedules", href: "/registrar/schedules", icon: CalendarClock },
   { label: "Teachers", href: "/registrar/teachers", icon: UserCog },
   { label: "Requirements", href: "/registrar/requirements", icon: FileCheck },
