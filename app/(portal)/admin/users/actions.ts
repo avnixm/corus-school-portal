@@ -13,6 +13,22 @@ import { db } from "@/lib/db";
 import { userProfile } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+/** Neon Auth admin APIs require the session user to be "admin" in Neon Auth (set in Neon Console), not just in our app. */
+function isNeonAdminPermissionError(message: string): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("not allowed") && (m.includes("update") || m.includes("create") || m.includes("users"));
+}
+
+function neonAdminHint(originalMessage: string): string {
+  return (
+    "Neon Auth rejected this action: your account must be an admin in Neon Auth. " +
+    "In Neon Console go to your project → Auth → Users, open your user, and choose “Make admin”. " +
+    "Then sign out and sign in again. (" +
+    originalMessage +
+    ")"
+  );
+}
+
 export async function createUserAction(formData: FormData) {
   const session = (await auth.getSession())?.data;
   if (!session?.user?.id) return { error: "Not authenticated" };
@@ -55,17 +71,22 @@ export async function createUserAction(formData: FormData) {
     return { error: "Password must be at least 8 characters" };
   }
 
-  const signUpResult = await auth.signUp.email({
+  // Create user via admin API so they are created with emailVerified: true (no verify step).
+  // Auth role is only "user" | "admin"; our app role (student, registrar, etc.) is stored in user_profile.
+  const createResult = await auth.admin.createUser({
     email,
     password,
     name: fullName,
+    role: "user",
+    data: { emailVerified: true },
   });
 
-  if (signUpResult.error || !signUpResult.data?.user) {
-    return { error: signUpResult.error?.message || "Failed to create user" };
+  if (createResult.error || !createResult.data?.user) {
+    const msg = createResult.error?.message ?? "Failed to create user";
+    return { error: isNeonAdminPermissionError(msg) ? neonAdminHint(msg) : msg };
   }
 
-  const authUser = signUpResult.data.user as { id: string };
+  const authUser = createResult.data.user as { id: string };
 
   await createUserProfile({
     userId: authUser.id,
@@ -120,6 +141,28 @@ export async function updateUserRoleAction(profileId: string, role: string) {
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/audit");
+  return { success: true };
+}
+
+/** Set emailVerified in auth so admin-created (bypassed) users can sign in without "Email not verified". */
+export async function markUserEmailVerifiedAction(authUserId: string) {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) return { error: "Not authenticated" };
+
+  const profile = await getUserProfileByUserId(session.user.id);
+  if (!profile || profile.role !== "admin") {
+    return { error: "Unauthorized" };
+  }
+
+  const updateResult = await auth.admin.updateUser({
+    userId: authUserId,
+    data: { emailVerified: true },
+  });
+  if (updateResult.error) {
+    const msg = updateResult.error.message || "Failed to set email verified";
+    return { error: isNeonAdminPermissionError(msg) ? neonAdminHint(msg) : msg };
+  }
+  revalidatePath("/admin/users");
   return { success: true };
 }
 
@@ -217,9 +260,62 @@ export async function updateUserPasswordAction(
   });
 
   if (result.error) {
-    return { error: result.error.message ?? "Failed to update password" };
+    const msg = result.error.message ?? "Failed to update password";
+    return { error: isNeonAdminPermissionError(msg) ? neonAdminHint(msg) : msg };
   }
 
   revalidatePath("/admin/users");
+  return { success: true };
+}
+
+export async function deleteUserAction(userId: string) {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) return { error: "Not authenticated" };
+
+  const adminProfile = await getUserProfileByUserId(session.user.id);
+  if (!adminProfile || adminProfile.role !== "admin") {
+    return { error: "Unauthorized" };
+  }
+
+  // Prevent admin from deleting themselves
+  if (session.user.id === userId) {
+    return { error: "You cannot delete your own account" };
+  }
+
+  // Get user profile for audit log
+  const targetProfile = await getUserProfileByUserId(userId);
+  if (!targetProfile) {
+    return { error: "User not found" };
+  }
+
+  // Log the deletion (soft delete)
+  await insertAuditLog({
+    actorUserId: session.user.id,
+    action: "USER_DELETE",
+    entityType: "user_profile",
+    entityId: userId,
+    before: {
+      userId: targetProfile.userId,
+      email: targetProfile.email,
+      fullName: targetProfile.fullName,
+      role: targetProfile.role,
+      active: targetProfile.active,
+    },
+    after: { active: false, email: null, fullName: null },
+  });
+
+  // Soft delete: deactivate and anonymize; getUsersListSearch hides rows with no email & no fullName
+  await db
+    .update(userProfile)
+    .set({
+      active: false,
+      email: null,
+      fullName: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(userProfile.userId, userId));
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/audit");
   return { success: true };
 }

@@ -186,7 +186,8 @@ export function ReviewScheduleDialog({
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            variant="outline"
+            className="border-red-300 text-red-700 hover:bg-red-50"
             onClick={() => {
               setAction("reject");
               setTimeout(() => handleSubmit(), 0);

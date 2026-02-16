@@ -52,6 +52,10 @@ export const userProfile = pgTable(
     /** Program head scope: which program this user oversees (null = not set; use Settings to set or "ALL") */
     program: varchar("program", { length: 64 }),
     department: varchar("department", { length: 64 }),
+    /** Teacher-specific (when role = teacher) */
+    employeeNo: varchar("employee_no", { length: 32 }),
+    position: varchar("position", { length: 128 }),
+    departmentProgramId: uuid("department_program_id").references(() => programs.id),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
@@ -191,36 +195,13 @@ export const students = pgTable("students", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const teachers = pgTable(
-  "teachers",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id"), // Neon Auth / Better Auth user id
-    userProfileId: uuid("user_profile_id").references(() => userProfile.id),
-    employeeNo: varchar("employee_no", { length: 32 }),
-    teacherCode: varchar("teacher_code", { length: 32 }), // legacy
-    firstName: varchar("first_name", { length: 128 }).notNull(),
-    lastName: varchar("last_name", { length: 128 }).notNull(),
-    email: varchar("email", { length: 255 }),
-    position: varchar("position", { length: 128 }),
-    status: varchar("status", { length: 32 }),
-    active: boolean("active").notNull().default(true),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-  },
-  (table) => ({
-    userIdUnique: uniqueIndex("teachers_user_id_unique").on(table.userId),
-    employeeNoUnique: uniqueIndex("teachers_employee_no_unique").on(table.employeeNo),
-  })
-);
-
 export const teacherAssignments = pgTable(
   "teacher_assignments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    teacherId: uuid("teacher_id")
+    teacherUserProfileId: uuid("teacher_user_profile_id")
       .notNull()
-      .references(() => teachers.id),
+      .references(() => userProfile.id),
     scheduleId: uuid("schedule_id")
       .notNull()
       .references(() => classSchedules.id),
@@ -235,19 +216,39 @@ export const teacherAssignments = pgTable(
   },
   (table) => ({
     teacherScheduleUnique: uniqueIndex("teacher_assignments_teacher_schedule_unique").on(
-      table.teacherId,
+      table.teacherUserProfileId,
       table.scheduleId
     ),
   })
 );
 
+export const capabilityPackageStatusEnum = pgEnum("capability_package_status", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+  "archived",
+]);
+
+export const capabilityTypeEnum = pgEnum("capability_type", [
+  "major_department",
+  "ge",
+  "cross_department",
+]);
+
+export const capabilityLineStatusEnum = pgEnum("capability_line_status", [
+  "pending",
+  "active",
+  "inactive",
+]);
+
 export const teacherSubjectPermissions = pgTable(
   "teacher_subject_permissions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    teacherId: uuid("teacher_id")
+    teacherUserProfileId: uuid("teacher_user_profile_id")
       .notNull()
-      .references(() => teachers.id, { onDelete: "cascade" }),
+      .references(() => userProfile.id, { onDelete: "cascade" }),
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => subjects.id, { onDelete: "cascade" }),
@@ -259,7 +260,7 @@ export const teacherSubjectPermissions = pgTable(
   },
   (table) => ({
     teacherSubjectUnique: uniqueIndex("teacher_subject_permissions_teacher_subject_unique").on(
-      table.teacherId,
+      table.teacherUserProfileId,
       table.subjectId
     ),
   })
@@ -314,9 +315,9 @@ export const gradeSubmissions = pgTable(
     gradingPeriodId: uuid("grading_period_id")
       .notNull()
       .references(() => gradingPeriods.id),
-    teacherId: uuid("teacher_id")
+    teacherUserProfileId: uuid("teacher_user_profile_id")
       .notNull()
-      .references(() => teachers.id),
+      .references(() => userProfile.id),
     status: gradeSubmissionStatusEnum("status").notNull().default("draft"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     registrarReviewedByUserId: text("registrar_reviewed_by_user_id"),
@@ -386,6 +387,55 @@ export const subjects = pgTable(
   })
 );
 
+export const teacherCapabilityPackages = pgTable(
+  "teacher_capability_packages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => programs.id),
+    schoolYearId: uuid("school_year_id").references(() => schoolYears.id),
+    termId: uuid("term_id").references(() => terms.id),
+    title: text("title").notNull(),
+    status: capabilityPackageStatusEnum("status").notNull().default("draft"),
+    createdByUserId: text("created_by_user_id").notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    reviewedByUserId: text("reviewed_by_user_id"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    deanRemarks: text("dean_remarks"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  }
+);
+
+export const teacherSubjectCapabilities = pgTable(
+  "teacher_subject_capabilities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    packageId: uuid("package_id")
+      .notNull()
+      .references(() => teacherCapabilityPackages.id, { onDelete: "cascade" }),
+    teacherUserProfileId: uuid("teacher_user_profile_id")
+      .notNull()
+      .references(() => userProfile.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    capabilityType: capabilityTypeEnum("capability_type").notNull(),
+    status: capabilityLineStatusEnum("status").notNull().default("pending"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("teacher_subject_capabilities_teacher_subject_idx").on(
+      table.teacherUserProfileId,
+      table.subjectId
+    ),
+    index("teacher_subject_capabilities_status_idx").on(table.status),
+  ]
+);
+
 export const sections = pgTable(
   "sections",
   {
@@ -410,6 +460,34 @@ export const sections = pgTable(
   })
 );
 
+/**
+ * Adviser assignments: per program, year level, and block (section).
+ * One adviser per section per school year.
+ */
+export const adviserAssignments = pgTable(
+  "adviser_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => sections.id, { onDelete: "cascade" }),
+    schoolYearId: uuid("school_year_id")
+      .notNull()
+      .references(() => schoolYears.id, { onDelete: "cascade" }),
+    teacherUserProfileId: uuid("teacher_user_profile_id")
+      .notNull()
+      .references(() => userProfile.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    sectionYearUnique: uniqueIndex("adviser_assignments_section_year_unique").on(
+      table.sectionId,
+      table.schoolYearId
+    ),
+  })
+);
+
 export const classSchedules = pgTable("class_schedules", {
   id: uuid("id").primaryKey().defaultRandom(),
   schoolYearId: uuid("school_year_id")
@@ -424,7 +502,7 @@ export const classSchedules = pgTable("class_schedules", {
   subjectId: uuid("subject_id")
     .notNull()
     .references(() => subjects.id),
-  teacherId: uuid("teacher_id").references(() => teachers.id),
+  teacherUserProfileId: uuid("teacher_user_profile_id").references(() => userProfile.id),
   teacherName: varchar("teacher_name", { length: 128 }),
   timeIn: varchar("time_in", { length: 16 }), // e.g. 08:00
   timeOut: varchar("time_out", { length: 16 }),
@@ -487,7 +565,7 @@ export const classOfferings = pgTable(
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => subjects.id),
-    teacherId: uuid("teacher_id").references(() => teachers.id),
+    teacherUserProfileId: uuid("teacher_user_profile_id").references(() => userProfile.id),
     teacherName: varchar("teacher_name", { length: 128 }),
     room: varchar("room", { length: 64 }),
     timeStart: varchar("time_start", { length: 16 }),
@@ -1078,6 +1156,8 @@ export const studentRequirementSubmissions = pgTable(
     verifiedByUserId: text("verified_by_user_id"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     registrarRemarks: text("registrar_remarks"),
+    /** When true, student indicated they will submit this document later; allows enrollment submit without file */
+    markAsToFollow: boolean("mark_as_to_follow").notNull().default(false),
     lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }).defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
@@ -1087,6 +1167,27 @@ export const studentRequirementSubmissions = pgTable(
     ).on(table.studentId, table.enrollmentId, table.requirementId),
   })
 );
+
+export const requirementRequestStatusEnum = pgEnum("requirement_request_status", [
+  "pending",
+  "fulfilled",
+  "cancelled",
+]);
+
+export const requirementRequests = pgTable("requirement_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  enrollmentId: uuid("enrollment_id")
+    .notNull()
+    .references(() => enrollments.id),
+  submissionId: uuid("submission_id")
+    .notNull()
+    .references(() => studentRequirementSubmissions.id),
+  requestedByUserId: text("requested_by_user_id").notNull(),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow(),
+  message: text("message"),
+  status: requirementRequestStatusEnum("status").notNull().default("pending"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
 
 export const requirementFiles = pgTable(
   "requirement_files",
@@ -1401,7 +1502,7 @@ export const studentScheduleView = pgView("student_schedule_view").as(
         termId: enrollments.termId,
         sectionId: classSchedules.sectionId,
         subjectId: classSchedules.subjectId,
-        teacherId: classSchedules.teacherId,
+        teacherUserProfileId: classSchedules.teacherUserProfileId,
         timeIn: classSchedules.timeIn,
         timeOut: classSchedules.timeOut,
         room: classSchedules.room,

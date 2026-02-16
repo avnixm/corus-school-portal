@@ -13,6 +13,7 @@ import {
   getRecentlyCompletedProfilesCount,
 } from "@/db/queries";
 import Link from "next/link";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import {
   BadgeCheck,
   Users,
@@ -360,7 +361,12 @@ export default async function RegistrarDashboardPage() {
                   href="/registrar/announcements"
                   className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
                 >
-                  <span className="font-medium text-[#6A0000]">{row.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase text-[#6A0000]">
+                      {getRoleDisplayLabel(row.createdByRole)}
+                    </span>
+                    <span className="font-medium text-[#6A0000]">{row.title}</span>
+                  </div>
                   <span className="text-xs text-neutral-800">
                     {row.createdAt
                       ? new Date(row.createdAt).toLocaleDateString()

@@ -8,6 +8,8 @@ import {
   Layers,
   Megaphone,
   Settings,
+  BookOpen,
+  CalendarCheck,
 } from "lucide-react";
 import type { SidebarItem } from "../Sidebar";
 
@@ -18,6 +20,8 @@ export const getProgramHeadNavItems = (): SidebarItem[] => [
   { label: "Grade Submissions", href: "/program-head/submissions", icon: ClipboardCheck },
   { label: "Finance Clearance", href: "/program-head/clearance", icon: ShieldCheck },
   { label: "Fee Approvals", href: "/program-head/fees", icon: BadgeDollarSign },
+  { label: "Teacher Capabilities", href: "/program-head/teacher-capabilities", icon: BookOpen },
+  { label: "Schedules", href: "/program-head/schedules", icon: CalendarCheck },
   { label: "Sections & Loads", href: "/program-head/sections", icon: Layers },
   { label: "Announcements", href: "/program-head/announcements", icon: Megaphone },
   { label: "Settings", href: "/program-head/settings", icon: Settings },

@@ -12,7 +12,7 @@ import {
   gradeEntries,
   gradingPeriods,
   subjects,
-  teachers,
+  userProfile,
   enrollmentFinanceStatus,
   announcements,
   ledgerEntries,
@@ -25,6 +25,7 @@ export type ProgramScope = Awaited<ReturnType<typeof getProgramHeadScopePrograms
 
 function programConditionEnrollments(scope: ProgramScope) {
   if (scope === null || scope.length === 0) return null;
+  if (scope.length === 1) return eq(enrollments.program, scope[0]);
   return inArray(enrollments.program, scope);
 }
 
@@ -167,8 +168,10 @@ export async function getRecentAnnouncementsForProgramHead(limit = 5) {
       body: announcements.body,
       audience: announcements.audience,
       createdAt: announcements.createdAt,
+      createdByRole: userProfile.role,
     })
     .from(announcements)
+    .leftJoin(userProfile, eq(announcements.createdByUserId, userProfile.userId))
     .where(sql`${announcements.audience} IN ('all', 'program_head')`)
     .orderBy(desc(announcements.createdAt))
     .limit(limit);
@@ -195,15 +198,15 @@ export async function getAttentionNeededSubmissions(
       gradingPeriodName: gradingPeriods.name,
       status: gradeSubmissions.status,
       updatedAt: gradeSubmissions.updatedAt,
-      teacherFirstName: teachers.firstName,
-      teacherLastName: teachers.lastName,
+      teacherFirstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      teacherLastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
     })
     .from(gradeSubmissions)
     .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
     .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
     .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
     .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
-    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .innerJoin(userProfile, eq(gradeSubmissions.teacherUserProfileId, userProfile.id))
     .where(and(...conds, ...(sectionCond ? [sectionCond] : [])))
     .orderBy(desc(gradeSubmissions.updatedAt))
     .limit(limit);
@@ -414,15 +417,15 @@ export async function listGradeSubmissionsProgramHead(
       status: gradeSubmissions.status,
       submittedAt: gradeSubmissions.submittedAt,
       updatedAt: gradeSubmissions.updatedAt,
-      teacherFirstName: teachers.firstName,
-      teacherLastName: teachers.lastName,
+      teacherFirstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      teacherLastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
     })
     .from(gradeSubmissions)
     .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
     .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
     .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
     .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
-    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .innerJoin(userProfile, eq(gradeSubmissions.teacherUserProfileId, userProfile.id))
     .orderBy(desc(gradeSubmissions.updatedAt));
   if (conds.length > 0) return base.where(and(...conds));
   return base;

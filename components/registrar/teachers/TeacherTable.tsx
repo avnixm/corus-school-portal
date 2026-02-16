@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
-import { TeacherDetailSheet } from "./TeacherDetailSheet";
+import { Eye, Pencil } from "lucide-react";
+import { EditTeacherDialog } from "./EditTeacherDialog";
+import { TeacherCapabilitiesSheet } from "./TeacherCapabilitiesSheet";
 
+type Program = { id: string; code: string; name: string };
 type Teacher = {
   id: string;
   firstName: string;
@@ -13,11 +15,15 @@ type Teacher = {
   email: string | null;
   position: string | null;
   active: boolean;
-  permissionCount: number;
+  departmentProgramId: string | null;
+  departmentCode: string | null;
+  departmentName: string | null;
+  activeCapabilityCount: number;
 };
 
-export function TeacherTable({ teachers }: { teachers: Teacher[] }) {
-  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+export function TeacherTable({ teachers, programs }: { teachers: Teacher[]; programs: Program[] }) {
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [capabilitiesTeacher, setCapabilitiesTeacher] = useState<Teacher | null>(null);
 
   return (
     <>
@@ -26,9 +32,9 @@ export function TeacherTable({ teachers }: { teachers: Teacher[] }) {
           <tr>
             <th className="px-4 py-2">Name</th>
             <th className="px-4 py-2">Email</th>
-            <th className="px-4 py-2">Position</th>
+            <th className="px-4 py-2">Department</th>
             <th className="px-4 py-2">Status</th>
-            <th className="px-4 py-2 text-center">Authorized Courses</th>
+            <th className="px-4 py-2 text-center">#Active Capabilities</th>
             <th className="px-4 py-2 text-center">Actions</th>
           </tr>
         </thead>
@@ -42,7 +48,15 @@ export function TeacherTable({ teachers }: { teachers: Teacher[] }) {
                 {teacher.firstName} {teacher.lastName}
               </td>
               <td className="px-4 py-2 text-neutral-600">{teacher.email || "—"}</td>
-              <td className="px-4 py-2 text-neutral-600">{teacher.position || "—"}</td>
+              <td className="px-4 py-2">
+                {teacher.departmentCode ? (
+                  <Badge variant="outline" className="font-normal">
+                    {teacher.departmentCode}
+                  </Badge>
+                ) : (
+                  "—"
+                )}
+              </td>
               <td className="px-4 py-2">
                 <Badge
                   variant={teacher.active ? "default" : "outline"}
@@ -53,28 +67,50 @@ export function TeacherTable({ teachers }: { teachers: Teacher[] }) {
               </td>
               <td className="px-4 py-2 text-center">
                 <Badge variant="outline" className="font-mono">
-                  {teacher.permissionCount}
+                  {teacher.activeCapabilityCount}
                 </Badge>
               </td>
-              <td className="px-4 py-2 text-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedTeacher(teacher)}
-                >
-                  <Eye className="mr-1.5 h-4 w-4" />
-                  View
-                </Button>
+              <td className="px-4 py-2">
+                <div className="flex items-center justify-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingTeacher(teacher)}
+                    title="Edit teacher"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCapabilitiesTeacher(teacher)}
+                    title="View capabilities"
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    View Capabilities
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {selectedTeacher && (
-        <TeacherDetailSheet
-          teacher={selectedTeacher}
-          onClose={() => setSelectedTeacher(null)}
+      {editingTeacher && (
+        <EditTeacherDialog
+          teacher={editingTeacher}
+          programs={programs}
+          open={!!editingTeacher}
+          onOpenChange={(open) => !open && setEditingTeacher(null)}
+          onSuccess={() => setEditingTeacher(null)}
+        />
+      )}
+
+      {capabilitiesTeacher && (
+        <TeacherCapabilitiesSheet
+          teacher={capabilitiesTeacher}
+          open={!!capabilitiesTeacher}
+          onOpenChange={(open) => !open && setCapabilitiesTeacher(null)}
         />
       )}
     </>

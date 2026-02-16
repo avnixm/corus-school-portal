@@ -85,7 +85,7 @@ export async function finalizeEnrollmentClasses(
                 termId: row.termId,
                 sectionId: row.sectionId,
                 subjectId: row.subjectId,
-                teacherId: row.teacherId ?? null,
+                teacherUserProfileId: row.teacherUserProfileId ?? null,
                 teacherName: row.teacherName ?? null,
                 room: row.room ?? null,
                 timeStart: row.timeIn ?? null,

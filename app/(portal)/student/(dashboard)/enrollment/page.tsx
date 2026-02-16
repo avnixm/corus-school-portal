@@ -4,6 +4,7 @@ import {
   getActiveSchoolYear,
   getActiveTerm,
   getEnrollmentApprovalByEnrollmentId,
+  getEnrollmentsByStudentId,
 } from "@/db/queries";
 import { getProgramsList, getSectionsList } from "@/db/queries";
 import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
@@ -14,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EnrollmentWizard } from "@/app/(portal)/student/(dashboard)/enrollment/EnrollmentWizard";
-import { StudentEnrollmentRequirementsClient } from "@/app/(portal)/student/(dashboard)/enrollment/StudentEnrollmentRequirementsClient";
 import { EnrollmentStatusActions } from "@/app/(portal)/student/(dashboard)/enrollment/EnrollmentStatusActions";
 import { NewEnrollmentButton } from "@/app/(portal)/student/(dashboard)/enrollment/NewEnrollmentButton";
 
@@ -70,19 +70,19 @@ export default async function StudentEnrollmentPage() {
   }
 
   await ensureEnrollmentRequirementSubmissions(enrollment.id);
-  const applicable = await getApplicableRequirements({
-    studentId: current.studentId,
-    enrollmentId: enrollment.id,
-    appliesTo: "enrollment",
-    program: enrollment.program,
-    yearLevel: enrollment.yearLevel,
-    schoolYearId: enrollment.schoolYearId,
-    termId: enrollment.termId,
-  });
+  const [applicable, allEnrollments] = await Promise.all([
+    getApplicableRequirements({
+      studentId: current.studentId,
+      enrollmentId: enrollment.id,
+      appliesTo: "enrollment",
+      program: enrollment.program,
+      yearLevel: enrollment.yearLevel,
+      schoolYearId: enrollment.schoolYearId,
+      termId: enrollment.termId,
+    }),
+    getEnrollmentsByStudentId(current.studentId),
+  ]);
   const policy = await getEnrollmentRequirementsPolicy(applicable);
-  const required = applicable.filter((a) => a.rule.isRequired);
-  const verifiedCount = required.filter((a) => a.submission.status === "verified").length;
-  const totalRequired = required.length;
   const approval = await getEnrollmentApprovalByEnrollmentId(enrollment.id);
 
   const status = enrollment.status;
@@ -102,7 +102,7 @@ export default async function StudentEnrollmentPage() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-[#6A0000]">Status</CardTitle>
+          <CardTitle className="text-sm font-semibold text-[#6A0000]">Enrollment current</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -124,14 +124,14 @@ export default async function StudentEnrollmentPage() {
           </div>
 
           {isPending && (
-            <div className="space-y-1">
-              <p className="text-sm text-amber-800">
-                Wait for registrar review. You will see an update here once your enrollment is processed.
-              </p>
-              <p className="text-sm text-neutral-600">
-                You can still add or update requirement documents below while waiting.
-              </p>
-            </div>
+            <p className="text-sm text-amber-800">
+              Wait for registrar review. You will see an update here once your enrollment is processed.
+              You can add or update requirement documents on the{" "}
+              <Link href="/student/requirements" className="font-medium text-[#6A0000] hover:underline">
+                Forms &amp; Requirements
+              </Link>{" "}
+              page while waiting.
+            </p>
           )}
           {isRejected && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -161,38 +161,50 @@ export default async function StudentEnrollmentPage() {
 
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-sm font-semibold text-[#6A0000]">
-              Upload requirement documents
-            </CardTitle>
-            <span className="text-xs text-neutral-600">
-              {verifiedCount} / {totalRequired || 1} verified
-            </span>
-          </div>
-          <p className="text-xs text-neutral-600 mt-1">
-            Drag and drop or click to upload a file for each requirement, then submit for verification.
-          </p>
+          <CardTitle className="text-sm font-semibold text-[#6A0000]">Enrollment history</CardTitle>
         </CardHeader>
         <CardContent>
-          <StudentEnrollmentRequirementsClient items={applicable} />
-          {!policy.canSubmit && policy.message && (
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              {policy.message}
-              <Link
-                href="/student/requirements"
-                className="ml-2 font-medium text-[#6A0000] hover:underline"
-              >
-                Upload now →
-              </Link>
-            </div>
+          {allEnrollments.length === 0 ? (
+            <p className="text-sm text-neutral-600">No enrollments yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {allEnrollments.map((enc) => {
+                const isCurrent = enc.id === enrollment.id;
+                return (
+                  <li
+                    key={enc.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-neutral-900">
+                        {enc.schoolYearName} · {enc.termName}
+                      </span>
+                      {isCurrent && (
+                        <Badge variant="secondary" className="bg-[#6A0000]/10 text-[#6A0000]">
+                          Current
+                        </Badge>
+                      )}
+                      <span className="text-neutral-600">
+                        {enc.program ?? "—"} · Year {enc.yearLevel ?? "—"}
+                      </span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        enc.status === "approved" || enc.status === "enrolled"
+                          ? "border-green-300 text-green-800"
+                          : enc.status === "rejected"
+                            ? "border-red-200 text-red-800"
+                            : ""
+                      }
+                    >
+                      {enc.status.replace(/_/g, " ")}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-          <p className="mt-4 text-sm text-neutral-600">
-            You can upload and submit requirement documents here or on the{" "}
-            <Link href="/student/requirements" className="font-medium text-[#6A0000] hover:underline">
-              Forms &amp; Requirements
-            </Link>{" "}
-            page.
-          </p>
         </CardContent>
       </Card>
     </div>

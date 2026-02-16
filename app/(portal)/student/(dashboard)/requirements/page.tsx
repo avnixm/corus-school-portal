@@ -1,5 +1,5 @@
 import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
-import { getEnrollmentForStudentActiveTerm } from "@/db/queries";
+import { getEnrollmentForStudentActiveTerm, getPendingRequirementRequestsForEnrollment } from "@/db/queries";
 import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
 import { getEnrollmentRequirementsPolicy } from "@/lib/requirements/policy";
 import { ensureEnrollmentRequirementSubmissions } from "@/lib/requirements/progress";
@@ -11,9 +11,15 @@ import { StudentRequirementsClient } from "./StudentRequirementsClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function StudentRequirementsPage() {
+export default async function StudentRequirementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ required?: string }>;
+}) {
   const current = await getCurrentStudent();
   if (!current) redirect("/student");
+  const { required: requiredParam } = await searchParams;
+  const fromRequiredRedirect = requiredParam === "1";
 
   const enrollment = await getEnrollmentForStudentActiveTerm(current.studentId);
   const enrollmentId = enrollment?.id ?? null;
@@ -44,25 +50,39 @@ export default async function StudentRequirementsPage() {
   }
 
   if (enrollment?.id) await ensureEnrollmentRequirementSubmissions(enrollment.id);
-  const applicable = await getApplicableRequirements({
-    studentId: current.studentId,
-    enrollmentId,
-    appliesTo: "enrollment",
-    program,
-    yearLevel,
-    schoolYearId,
-    termId,
-  });
+  const [applicable, pendingRequests] = await Promise.all([
+    getApplicableRequirements({
+      studentId: current.studentId,
+      enrollmentId,
+      appliesTo: "enrollment",
+      program,
+      yearLevel,
+      schoolYearId,
+      termId,
+    }),
+    enrollment?.id ? getPendingRequirementRequestsForEnrollment(enrollment.id) : Promise.resolve([]),
+  ]);
 
   const policy = await getEnrollmentRequirementsPolicy(applicable);
   const required = applicable.filter((a) => a.rule.isRequired);
   const verifiedCount = required.filter((a) => a.submission.status === "verified").length;
   const totalRequired = required.length;
   const progress = totalRequired > 0 ? Math.round((verifiedCount / totalRequired) * 100) : 100;
-  const blocking = [...policy.missingRequired, ...policy.unverifiedRequired];
+  const needSubmit = policy.missingRequired;
+  const waitForApproval = required.filter((a) => a.submission.status === "submitted");
+  const needResubmit = required.filter((a) => a.submission.status === "rejected");
 
   return (
     <div className="space-y-6">
+      {fromRequiredRedirect && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900">
+          <p className="font-semibold">Complete required documents</p>
+          <p className="mt-1 text-sm">
+            You need to submit the required documents below before you can access Schedule, Billing, and Grades.
+          </p>
+        </div>
+      )}
+
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Forms & Requirements
@@ -81,17 +101,48 @@ export default async function StudentRequirementsPage() {
         <CardContent className="space-y-3">
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold text-[#6A0000]">
-              {verifiedCount} / {totalRequired || 1} verified
+              {totalRequired === 0
+                ? "No requirements configured"
+                : `${verifiedCount} / ${totalRequired} verified`}
             </span>
-            <span className="text-sm text-neutral-600">{progress}% complete</span>
+            {totalRequired > 0 && (
+              <span className="text-sm text-neutral-600">{progress}% complete</span>
+            )}
           </div>
-          <Progress value={progress} className="h-2" />
-          {blocking.length > 0 && (
+          {totalRequired > 0 && <Progress value={progress} className="h-2" />}
+          {needSubmit.length > 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-              <p className="font-medium text-amber-800">Upload and submit these forms:</p>
+              <p className="font-medium text-amber-800">Submit these requirements:</p>
               <ul className="mt-1 list-inside list-disc text-amber-700">
-                {blocking.map((b) => (
+                {needSubmit.map((b) => (
                   <li key={b.submission.id}>{b.requirement.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {waitForApproval.length > 0 && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
+              <p className="font-medium text-blue-800">Wait for approval:</p>
+              <ul className="mt-1 list-inside list-disc text-blue-700">
+                {waitForApproval.map((b) => (
+                  <li key={b.submission.id}>{b.requirement.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {needResubmit.length > 0 && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
+              <p className="font-medium text-red-800">Resubmit (registrar feedback below):</p>
+              <ul className="mt-1 list-inside list-disc space-y-1 text-red-700">
+                {needResubmit.map((b) => (
+                  <li key={b.submission.id}>
+                    <span className="font-medium">{b.requirement.name}</span>
+                    {b.submission.registrarRemarks?.trim() && (
+                      <p className="mt-0.5 text-sm text-red-600">
+                        {b.submission.registrarRemarks}
+                      </p>
+                    )}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -104,7 +155,7 @@ export default async function StudentRequirementsPage() {
           <CardContent className="py-8 text-center">
             <p className="font-medium text-neutral-800">No document requirements are set for your program and term.</p>
             <p className="mt-2 text-sm text-neutral-600">
-              If you were asked to submit forms (e.g. clearance, consent, ID), contact the Registrar&apos;s office.
+              If you were asked to submit forms (e.g. clearance, consent, ID), contact the Registrar&apos;s office to configure requirements for your program and term.
             </p>
           </CardContent>
         </Card>
@@ -116,9 +167,21 @@ export default async function StudentRequirementsPage() {
               Upload a file for each requirement below. When ready, click <strong>Submit for verification</strong> on each item.
             </p>
           </div>
+          {pendingRequests.length > 0 && (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+              <p className="font-medium">Registrar requested these documents:</p>
+              <ul className="mt-1 list-inside list-disc">
+                {pendingRequests.map((r) => (
+                  <li key={r.submissionId}>{r.requirementName}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-blue-800">Please upload below.</p>
+            </div>
+          )}
           <StudentRequirementsClient
             items={applicable}
             enrollmentId={enrollmentId}
+            pendingRequestSubmissionIds={pendingRequests.map((r) => r.submissionId)}
           />
         </>
       )}

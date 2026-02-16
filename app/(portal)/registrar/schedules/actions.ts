@@ -8,11 +8,10 @@ import {
   deleteSchedule,
   isSubjectAllowedForSection,
   getSectionById,
-  validateTeacherCanTeach,
-  listAuthorizedTeachersForSubject,
   getTeacherById,
   createScheduleApproval,
 } from "@/db/queries";
+import { listEligibleTeachersForSubject, validateTeacherCapability } from "@/lib/capabilities/eligibility";
 import { getSubjectsAvailableForSection } from "@/lib/subjects/queries";
 import { db } from "@/lib/db";
 import { classSchedules } from "@/db/schema";
@@ -23,7 +22,7 @@ export async function createScheduleAction(formData: FormData) {
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
+  if (!profile || (profile.role !== "registrar" && profile.role !== "program_head" && profile.role !== "admin")) {
     return { error: "Unauthorized" };
   }
 
@@ -32,7 +31,6 @@ export async function createScheduleAction(formData: FormData) {
   const sectionId = (formData.get("sectionId") as string)?.trim();
   const subjectId = (formData.get("subjectId") as string)?.trim();
   const teacherId = (formData.get("teacherId") as string)?.trim();
-  const overrideReason = (formData.get("overrideReason") as string)?.trim() || null;
   const room = (formData.get("room") as string)?.trim() || null;
   const timeIn = (formData.get("timeIn") as string)?.trim() || null;
   const timeOut = (formData.get("timeOut") as string)?.trim() || null;
@@ -56,25 +54,20 @@ export async function createScheduleAction(formData: FormData) {
     return { error: allowed.error ?? "This subject cannot be scheduled for the selected section" };
   }
 
-  // Validate teacher authorization
-  const isAuthorized = await validateTeacherCanTeach(teacherId, subjectId);
-  const hasOverride = !isAuthorized && !!overrideReason;
-
-  if (!isAuthorized && !overrideReason) {
-    return { error: "Teacher is not authorized for this subject. Provide an override reason to proceed." };
+  const hasCapability = await validateTeacherCapability(teacherId, subjectId);
+  if (!hasCapability) {
+    return { error: "Teacher is not approved to teach this subject. Request capability approval." };
   }
 
-  // Get teacher name for display
   const teacher = await getTeacherById(teacherId);
   const teacherName = teacher ? `${teacher.firstName} ${teacher.lastName}` : null;
 
-  // Create schedule
   const schedule = await createScheduleWithDays({
     schoolYearId,
     termId,
     sectionId,
     subjectId,
-    teacherId,
+    teacherUserProfileId: teacherId,
     teacherName,
     room,
     timeIn,
@@ -82,14 +75,13 @@ export async function createScheduleAction(formData: FormData) {
     days,
   });
 
-  // Create approval record
   await createScheduleApproval({
     scheduleId: schedule.id,
     schoolYearId,
     termId,
     submittedByUserId: session.user.id,
-    hasTeacherOverride: hasOverride,
-    overrideReason: hasOverride ? overrideReason : null,
+    hasTeacherOverride: false,
+    overrideReason: null,
   });
 
   // Set schedule to pending approval
@@ -98,6 +90,7 @@ export async function createScheduleAction(formData: FormData) {
     .where(eq(classSchedules.id, schedule.id));
 
   revalidatePath("/registrar/schedules");
+  revalidatePath("/program-head/schedules");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -109,10 +102,11 @@ export async function getSubjectsForSectionAction(sectionId: string) {
   return getSubjectsAvailableForSection(section.programId);
 }
 
-/** Returns teacher IDs authorized for a subject. */
-export async function getAuthorizedTeachersForSubjectAction(subjectId: string) {
-  const authorized = await listAuthorizedTeachersForSubject(subjectId);
-  return authorized.map(t => t.teacherId);
+/** Returns eligible teachers for a subject (recommended + department match) given section context. */
+export async function getEligibleTeachersForSubjectAction(subjectId: string, sectionId: string) {
+  const section = await getSectionById(sectionId);
+  const contextProgramId = section?.programId ?? null;
+  return listEligibleTeachersForSubject(subjectId, contextProgramId);
 }
 
 export async function deleteScheduleAction(id: string) {

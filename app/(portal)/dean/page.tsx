@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import {
   getDeanDashboardTotalEnrollments,
   getDeanDashboardPendingApprovals,
@@ -215,7 +216,10 @@ export default async function DeanDashboardPage() {
             <ul className="space-y-2">
               {recentAnnouncements.map((a) => (
                 <li key={a.id} className="rounded border px-3 py-2 text-sm">
-                  <span className="font-medium text-[#6A0000]">{a.title}</span>
+                  <span className="text-xs font-semibold uppercase text-[#6A0000]">
+                    {getRoleDisplayLabel(a.createdByRole)}
+                  </span>
+                  <span className="ml-2 font-medium text-[#6A0000]">{a.title}</span>
                   {a.pinned && (
                     <span className="ml-2 text-xs text-amber-600">Pinned</span>
                   )}

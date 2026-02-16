@@ -156,12 +156,12 @@ export async function getOrCreateSubmissionDraft(scheduleId: string, periodId: s
       schoolYearId: schedule.schoolYearId,
       termId: schedule.termId,
       gradingPeriodId: periodId,
-      teacherId: ctx.teacherId,
+      teacherUserProfileId: ctx.teacherId,
     });
     if (!created) return { error: "Failed to create submission", submission: null };
     submission = created;
   }
-  if (submission.teacherId !== ctx.teacherId)
+  if (submission.teacherUserProfileId !== ctx.teacherId)
     return { error: "You are not the teacher for this submission", submission: null };
   return { error: null, submission };
 }
@@ -175,7 +175,7 @@ export async function upsertGradeEntriesAction(
   const { getGradeSubmissionById } = await import("@/db/queries");
   const sub = await getGradeSubmissionById(submissionId);
   if (!sub) return { error: "Submission not found" };
-  if (sub.teacherId !== ctx.teacherId) return { error: "Not your submission" };
+  if (sub.teacherUserProfileId !== ctx.teacherId) return { error: "Not your submission" };
   if (sub.status !== "draft" && sub.status !== "returned")
     return { error: "Submission is locked for editing" };
   await upsertGradeEntries(submissionId, entries);
@@ -194,7 +194,7 @@ export async function submitGradesAction(submissionId: string) {
   const { getGradeSubmissionById, getGradeEntriesBySubmissionId } = await import("@/db/queries");
   const sub = await getGradeSubmissionById(submissionId);
   if (!sub) return { error: "Submission not found" };
-  if (sub.teacherId !== ctx.teacherId) return { error: "Not your submission" };
+  if (sub.teacherUserProfileId !== ctx.teacherId) return { error: "Not your submission" };
   if (sub.status !== "draft" && sub.status !== "returned")
     return { error: "Submission is not in draft or returned state" };
   const entries = await getGradeEntriesBySubmissionId(submissionId);

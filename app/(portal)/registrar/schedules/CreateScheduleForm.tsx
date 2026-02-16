@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createScheduleAction, getSubjectsForSectionAction, getAuthorizedTeachersForSubjectAction } from "./actions";
+import { createScheduleAction, getSubjectsForSectionAction, getEligibleTeachersForSubjectAction } from "./actions";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -75,10 +74,9 @@ export function CreateScheduleForm({
   const [selectedSectionId, setSelectedSectionId] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
-  const [overrideReason, setOverrideReason] = useState("");
   const [subjectsForSection, setSubjectsForSection] = useState<Subject[]>([]);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
-  const [authorizedTeachers, setAuthorizedTeachers] = useState<string[]>([]);
+  const [eligibleTeachers, setEligibleTeachers] = useState<{ recommended: { teacherId: string; teacherName: string }[]; departmentMatch: { teacherId: string; teacherName: string }[] }>({ recommended: [], departmentMatch: [] });
   const [authCheckLoading, setAuthCheckLoading] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
@@ -99,16 +97,16 @@ export function CreateScheduleForm({
   }, [selectedSectionId]);
 
   useEffect(() => {
-    if (!selectedSubjectId) {
-      setAuthorizedTeachers([]);
+    if (!selectedSubjectId || !selectedSectionId) {
+      setEligibleTeachers({ recommended: [], departmentMatch: [] });
       return;
     }
     setAuthCheckLoading(true);
-    getAuthorizedTeachersForSubjectAction(selectedSubjectId).then((teacherIds) => {
-      setAuthorizedTeachers(teacherIds);
+    getEligibleTeachersForSubjectAction(selectedSubjectId, selectedSectionId).then((res) => {
+      setEligibleTeachers(res);
       setAuthCheckLoading(false);
     });
-  }, [selectedSubjectId]);
+  }, [selectedSubjectId, selectedSectionId]);
 
   const filteredTerms = selectedSyId ? terms.filter((t) => t.schoolYearId === selectedSyId) : [];
   const filteredSections = sections.filter((s) => {
@@ -121,9 +119,8 @@ export function CreateScheduleForm({
     setSelectedDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   }
 
-  const isAuthorized = selectedTeacherId ? authorizedTeachers.includes(selectedTeacherId) : true;
-  const authorizedTeacherList = teachers.filter(t => authorizedTeachers.includes(t.id));
-  const unauthorizedTeacherList = teachers.filter(t => !authorizedTeachers.includes(t.id));
+  const recommendedIds = new Set(eligibleTeachers.recommended.map((t) => t.teacherId));
+  const isEligible = selectedTeacherId ? recommendedIds.has(selectedTeacherId) : true;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -145,7 +142,6 @@ export function CreateScheduleForm({
     setSelectedSectionId("");
     setSelectedSubjectId("");
     setSelectedTeacherId("");
-    setOverrideReason("");
     setSelectedDays([]);
     router.refresh();
   }
@@ -273,31 +269,36 @@ export function CreateScheduleForm({
                     <SelectValue placeholder={authCheckLoading ? "Loading..." : "Select teacher"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {authorizedTeacherList.length > 0 && (
+                    {eligibleTeachers.recommended.length > 0 && (
                       <>
                         <SelectGroup>
-                          <SelectLabel>Authorized Teachers</SelectLabel>
-                          {authorizedTeacherList.map(t => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.firstName} {t.lastName} {t.email ? `(${t.email})` : ""}
+                          <SelectLabel>Recommended (approved for this subject)</SelectLabel>
+                          {eligibleTeachers.recommended.map((t) => (
+                            <SelectItem key={t.teacherId} value={t.teacherId}>
+                              {t.teacherName}
                             </SelectItem>
                           ))}
                         </SelectGroup>
-                        {unauthorizedTeacherList.length > 0 && <SelectSeparator />}
+                        {eligibleTeachers.departmentMatch.length > 0 && <SelectSeparator />}
                       </>
                     )}
-                    {unauthorizedTeacherList.length > 0 && (
+                    {eligibleTeachers.departmentMatch.length > 0 && (
                       <SelectGroup>
-                        <SelectLabel>Other Teachers (Requires Dean Approval)</SelectLabel>
-                        {unauthorizedTeacherList.map(t => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.firstName} {t.lastName} {t.email ? `(${t.email})` : ""}
+                        <SelectLabel>Department match (not yet approved – Request capability)</SelectLabel>
+                        {eligibleTeachers.departmentMatch.map((t) => (
+                          <SelectItem key={t.teacherId} value={t.teacherId} disabled>
+                            {t.teacherName} – Not approved
                           </SelectItem>
                         ))}
                       </SelectGroup>
                     )}
                   </SelectContent>
                 </Select>
+                {eligibleTeachers.recommended.length === 0 && !authCheckLoading && selectedSubjectId && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    No teachers with active capability. Request capability approval in Program Head / Teacher Capabilities.
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="room">Room</Label>
@@ -313,33 +314,14 @@ export function CreateScheduleForm({
               </div>
             </div>
 
-            {/* Warning when teacher not authorized */}
-            {selectedTeacherId && selectedSubjectId && !isAuthorized && (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-                <div className="flex gap-3">
-                  <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-2">
-                    <p className="font-semibold text-amber-900">Dean approval required</p>
-                    <p className="text-sm text-amber-800">
-                      This teacher is not authorized for this subject. The schedule will require Dean approval before activation.
-                    </p>
-                    <div className="mt-2">
-                      <Label htmlFor="overrideReason" className="text-amber-900">
-                        Override Reason *
-                      </Label>
-                      <Textarea
-                        id="overrideReason"
-                        name="overrideReason"
-                        value={overrideReason}
-                        onChange={(e) => setOverrideReason(e.target.value)}
-                        placeholder="Explain why this teacher should be assigned to this subject..."
-                        className="mt-1 border-amber-300"
-                        rows={2}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
+            {selectedTeacherId && selectedSubjectId && !isEligible && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                <p className="text-sm text-red-800">
+                  Teacher is not approved to teach this subject. Request capability approval from Program Head.
+                </p>
+                <a href="/program-head/teacher-capabilities" className="mt-2 inline-block text-sm font-medium text-[#6A0000] hover:underline">
+                  Request capability
+                </a>
               </div>
             )}
 
@@ -363,7 +345,7 @@ export function CreateScheduleForm({
               <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>Cancel</Button>
               <Button
                 type="submit"
-                disabled={pending || selectedDays.length === 0 || !selectedTeacherId || (!isAuthorized && !overrideReason.trim())}
+                disabled={pending || selectedDays.length === 0 || !selectedTeacherId || !isEligible}
               >
                 {pending ? "Creating…" : "Create & Submit for Approval"}
               </Button>

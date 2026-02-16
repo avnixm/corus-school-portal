@@ -20,13 +20,15 @@ import {
   requirementRules,
   requirementVerifications,
   studentRequirementSubmissions,
+  requirementRequests,
   requirementFiles,
   announcements,
   enrollmentApprovals,
   enrollmentFinanceStatus,
-  teachers,
   teacherAssignments,
   teacherSubjectPermissions,
+  teacherCapabilityPackages,
+  teacherSubjectCapabilities,
   gradingPeriods,
   gradeSubmissions,
   gradeEntries,
@@ -46,8 +48,9 @@ import {
   classOfferings,
   studentClassEnrollments,
   enrollmentSubjects,
+  adviserAssignments,
 } from "@/db/schema";
-import { eq, and, desc, asc, sql, or, like, isNull, gte, lte, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql, or, like, isNull, gte, lte, inArray, isNotNull, ne } from "drizzle-orm";
 
 // ============ Auth / User ============
 
@@ -56,6 +59,18 @@ export async function getUserProfileByUserId(userId: string) {
     .select()
     .from(userProfile)
     .where(eq(userProfile.userId, userId))
+    .limit(1);
+  return profile ?? null;
+}
+
+/** Used at login to detect admin-created (bypassed) accounts when auth returns "email not verified". */
+export async function getUserProfileByEmail(email: string) {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) return null;
+  const [profile] = await db
+    .select({ userId: userProfile.userId, emailVerificationBypassed: userProfile.emailVerificationBypassed, role: userProfile.role })
+    .from(userProfile)
+    .where(eq(userProfile.email, normalized))
     .limit(1);
   return profile ?? null;
 }
@@ -135,9 +150,16 @@ export async function getUsersListSearch(params?: {
 }) {
   const q = params?.q?.trim()?.toLowerCase();
   const roleFilter = params?.role;
+  // Exclude soft-deleted users (admin "Delete" sets email & fullName to null)
   const rows = await db
     .select()
     .from(userProfile)
+    .where(
+      or(
+        isNotNull(userProfile.email),
+        isNotNull(userProfile.fullName)
+      )
+    )
     .orderBy(desc(userProfile.createdAt));
   let result = rows;
   if (q) {
@@ -301,6 +323,15 @@ export async function getProgramById(id: string) {
     .where(eq(programs.id, id))
     .limit(1);
   return row ? { ...row, description: null as string | null } : null;
+}
+
+export async function getProgramsByCodes(codes: string[]) {
+  if (codes.length === 0) return [];
+  return db
+    .select(programsListCols)
+    .from(programs)
+    .where(inArray(programs.code, codes))
+    .orderBy(programs.code);
 }
 
 export async function createProgram(params: {
@@ -984,15 +1015,15 @@ export async function getRecentGradeSubmissions(limit = 10) {
       subjectCode: subjects.code,
       sectionName: sections.name,
       gradingPeriodName: gradingPeriods.name,
-      teacherFirstName: teachers.firstName,
-      teacherLastName: teachers.lastName,
+      teacherFirstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      teacherLastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
     })
     .from(gradeSubmissions)
     .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
     .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
     .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
     .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
-    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .innerJoin(userProfile, eq(gradeSubmissions.teacherUserProfileId, userProfile.id))
     .orderBy(desc(gradeSubmissions.submittedAt))
     .limit(limit);
   return rows;
@@ -1005,8 +1036,10 @@ export async function getRecentAnnouncements(limit = 5) {
       title: announcements.title,
       audience: announcements.audience,
       createdAt: announcements.createdAt,
+      createdByRole: userProfile.role,
     })
     .from(announcements)
+    .leftJoin(userProfile, eq(announcements.createdByUserId, userProfile.userId))
     .orderBy(desc(announcements.createdAt))
     .limit(limit);
 }
@@ -1034,8 +1067,10 @@ export async function getAnnouncementsForStudent(
       body: announcements.body,
       pinned: announcements.pinned,
       createdAt: announcements.createdAt,
+      createdByRole: userProfile.role,
     })
     .from(announcements)
+    .leftJoin(userProfile, eq(announcements.createdByUserId, userProfile.userId))
     .where(and(...conds))
     .orderBy(desc(announcements.pinned), desc(announcements.createdAt))
     .limit(limit);
@@ -1882,6 +1917,139 @@ export async function getSectionById(id: string) {
   return row ?? null;
 }
 
+// ============ Adviser Assignments (per program, year, block/section) ============
+
+export async function getAdviserAssignmentsList(filters?: {
+  programId?: string;
+  yearLevel?: string;
+  schoolYearId?: string;
+}) {
+  const conds: ReturnType<typeof eq>[] = [];
+  if (filters?.programId) conds.push(eq(sections.programId, filters.programId));
+  if (filters?.yearLevel) conds.push(eq(sections.yearLevel, filters.yearLevel));
+  if (filters?.schoolYearId) conds.push(eq(adviserAssignments.schoolYearId, filters.schoolYearId));
+
+  const base = db
+    .select({
+      id: adviserAssignments.id,
+      sectionId: adviserAssignments.sectionId,
+      schoolYearId: adviserAssignments.schoolYearId,
+      teacherUserProfileId: adviserAssignments.teacherUserProfileId,
+      sectionName: sections.name,
+      sectionYearLevel: sections.yearLevel,
+      sectionProgramId: sections.programId,
+      programCode: programs.code,
+      programName: programs.name,
+      adviserName: userProfile.fullName,
+      adviserEmail: userProfile.email,
+    })
+    .from(adviserAssignments)
+    .innerJoin(sections, eq(adviserAssignments.sectionId, sections.id))
+    .leftJoin(programs, eq(sections.programId, programs.id))
+    .innerJoin(userProfile, eq(adviserAssignments.teacherUserProfileId, userProfile.id));
+
+  const q = conds.length > 0 ? base.where(and(...conds)) : base;
+  return q.orderBy(programs.code, sections.yearLevel, sections.name);
+}
+
+export async function getSectionsWithAdvisers(
+  schoolYearId: string,
+  filters?: { programId?: string; yearLevel?: string }
+) {
+  const sectionConds: ReturnType<typeof eq>[] = [];
+  if (filters?.programId) sectionConds.push(eq(sections.programId, filters.programId));
+  if (filters?.yearLevel) sectionConds.push(eq(sections.yearLevel, filters.yearLevel));
+
+  const sectionsBase = db
+    .select({
+      id: sections.id,
+      name: sections.name,
+      yearLevel: sections.yearLevel,
+      programId: sections.programId,
+      programCode: programs.code,
+    })
+    .from(sections)
+    .leftJoin(programs, eq(sections.programId, programs.id));
+
+  const sectionsList = await (sectionConds.length > 0
+    ? sectionsBase.where(and(...sectionConds))
+    : sectionsBase
+  ).orderBy(programs.code, sections.yearLevel, sections.name);
+
+  const assignments = await db
+    .select({
+      sectionId: adviserAssignments.sectionId,
+      teacherUserProfileId: adviserAssignments.teacherUserProfileId,
+      adviserName: userProfile.fullName,
+    })
+    .from(adviserAssignments)
+    .innerJoin(userProfile, eq(adviserAssignments.teacherUserProfileId, userProfile.id))
+    .where(eq(adviserAssignments.schoolYearId, schoolYearId));
+
+  const bySection = new Map(assignments.map((a) => [a.sectionId, a]));
+
+  return sectionsList.map((s) => ({
+    ...s,
+    adviser: bySection.get(s.id) ?? null,
+  }));
+}
+
+export async function upsertAdviserAssignment(values: {
+  sectionId: string;
+  schoolYearId: string;
+  teacherUserProfileId: string;
+}) {
+  const existing = await db
+    .select({ id: adviserAssignments.id })
+    .from(adviserAssignments)
+    .where(
+      and(
+        eq(adviserAssignments.sectionId, values.sectionId),
+        eq(adviserAssignments.schoolYearId, values.schoolYearId)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(adviserAssignments)
+      .set({ teacherUserProfileId: values.teacherUserProfileId, updatedAt: new Date() })
+      .where(eq(adviserAssignments.id, existing[0].id));
+  } else {
+    await db.insert(adviserAssignments).values(values);
+  }
+}
+
+export async function deleteAdviserAssignment(sectionId: string, schoolYearId: string) {
+  await db
+    .delete(adviserAssignments)
+    .where(
+      and(
+        eq(adviserAssignments.sectionId, sectionId),
+        eq(adviserAssignments.schoolYearId, schoolYearId)
+      )
+    );
+}
+
+export async function getAdviserForSection(sectionId: string, schoolYearId: string) {
+  const [row] = await db
+    .select({
+      teacherUserProfileId: adviserAssignments.teacherUserProfileId,
+      adviserName: userProfile.fullName,
+      adviserEmail: userProfile.email,
+    })
+    .from(adviserAssignments)
+    .innerJoin(userProfile, eq(adviserAssignments.teacherUserProfileId, userProfile.id))
+    .where(
+      and(
+        eq(adviserAssignments.sectionId, sectionId),
+        eq(adviserAssignments.schoolYearId, schoolYearId)
+      )
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 export async function getRequirementsList(activeOnly = true) {
   if (activeOnly) {
     return db
@@ -1895,8 +2063,20 @@ export async function getRequirementsList(activeOnly = true) {
 
 export async function getAnnouncementsList(limit = 50) {
   return db
-    .select()
+    .select({
+      id: announcements.id,
+      title: announcements.title,
+      body: announcements.body,
+      audience: announcements.audience,
+      program: announcements.program,
+      pinned: announcements.pinned,
+      createdByUserId: announcements.createdByUserId,
+      createdAt: announcements.createdAt,
+      updatedAt: announcements.updatedAt,
+      createdByRole: userProfile.role,
+    })
     .from(announcements)
+    .leftJoin(userProfile, eq(announcements.createdByUserId, userProfile.userId))
     .orderBy(desc(announcements.createdAt))
     .limit(limit);
 }
@@ -1966,7 +2146,7 @@ export async function createScheduleWithDays(values: {
   termId: string;
   sectionId: string;
   subjectId: string;
-  teacherId?: string | null;
+  teacherUserProfileId?: string | null;
   teacherName?: string | null;
   room?: string | null;
   timeIn?: string | null;
@@ -1978,7 +2158,7 @@ export async function createScheduleWithDays(values: {
     .insert(classSchedules)
     .values({
       ...scheduleValues,
-      teacherId: scheduleValues.teacherId ?? null,
+      teacherUserProfileId: scheduleValues.teacherUserProfileId ?? null,
       timeIn: scheduleValues.timeIn ?? null,
       timeOut: scheduleValues.timeOut ?? null,
       room: scheduleValues.room ?? null,
@@ -2244,12 +2424,20 @@ export async function updateStudentRequirementSubmission(
     verifiedByUserId: string | null;
     verifiedAt: Date | null;
     registrarRemarks: string | null;
+    markAsToFollow: boolean;
   }>
 ) {
   return db
     .update(studentRequirementSubmissions)
     .set({ ...values, lastUpdatedAt: new Date() })
     .where(eq(studentRequirementSubmissions.id, id));
+}
+
+export async function setSubmissionMarkAsToFollow(submissionId: string, markAsToFollow: boolean) {
+  return db
+    .update(studentRequirementSubmissions)
+    .set({ markAsToFollow, lastUpdatedAt: new Date() })
+    .where(eq(studentRequirementSubmissions.id, submissionId));
 }
 
 export async function verifySubmission(
@@ -2303,6 +2491,76 @@ export async function deleteRequirementFile(id: string) {
   return db.delete(requirementFiles).where(eq(requirementFiles.id, id));
 }
 
+// ============ Requirement requests (registrar requests document from student) ============
+
+export async function createRequirementRequest(values: {
+  enrollmentId: string;
+  submissionId: string;
+  requestedByUserId: string;
+  message?: string | null;
+}) {
+  const [row] = await db.insert(requirementRequests).values(values).returning();
+  return row!;
+}
+
+export async function getRequirementRequestsByEnrollment(enrollmentId: string) {
+  return db
+    .select({
+      id: requirementRequests.id,
+      submissionId: requirementRequests.submissionId,
+      requirementId: studentRequirementSubmissions.requirementId,
+      requirementCode: requirements.code,
+      requirementName: requirements.name,
+      requestedAt: requirementRequests.requestedAt,
+      message: requirementRequests.message,
+      status: requirementRequests.status,
+    })
+    .from(requirementRequests)
+    .innerJoin(studentRequirementSubmissions, eq(requirementRequests.submissionId, studentRequirementSubmissions.id))
+    .innerJoin(requirements, eq(studentRequirementSubmissions.requirementId, requirements.id))
+    .where(eq(requirementRequests.enrollmentId, enrollmentId))
+    .orderBy(desc(requirementRequests.requestedAt));
+}
+
+export async function getPendingRequirementRequestsBySubmissionId(submissionId: string) {
+  return db
+    .select()
+    .from(requirementRequests)
+    .where(
+      and(
+        eq(requirementRequests.submissionId, submissionId),
+        eq(requirementRequests.status, "pending")
+      )
+    );
+}
+
+export async function getPendingRequirementRequestsForEnrollment(enrollmentId: string) {
+  return db
+    .select({
+      submissionId: requirementRequests.submissionId,
+      requirementName: requirements.name,
+      requirementCode: requirements.code,
+      requestedAt: requirementRequests.requestedAt,
+      message: requirementRequests.message,
+    })
+    .from(requirementRequests)
+    .innerJoin(studentRequirementSubmissions, eq(requirementRequests.submissionId, studentRequirementSubmissions.id))
+    .innerJoin(requirements, eq(studentRequirementSubmissions.requirementId, requirements.id))
+    .where(
+      and(
+        eq(requirementRequests.enrollmentId, enrollmentId),
+        eq(requirementRequests.status, "pending")
+      )
+    );
+}
+
+export async function markRequirementRequestFulfilled(id: string) {
+  return db
+    .update(requirementRequests)
+    .set({ status: "fulfilled", updatedAt: new Date() })
+    .where(eq(requirementRequests.id, id));
+}
+
 export async function getRequirementSubmissionById(id: string) {
   const [row] = await db
     .select()
@@ -2310,6 +2568,45 @@ export async function getRequirementSubmissionById(id: string) {
     .where(eq(studentRequirementSubmissions.id, id))
     .limit(1);
   return row ?? null;
+}
+
+/** Verified (passed) forms for a student: submission + requirement name + files, for registrar student detail. */
+export async function getStudentVerifiedForms(studentId: string) {
+  const rows = await db
+    .select({
+      submissionId: studentRequirementSubmissions.id,
+      requirementId: requirements.id,
+      requirementName: requirements.name,
+      requirementCode: requirements.code,
+      submittedAt: studentRequirementSubmissions.submittedAt,
+      verifiedAt: studentRequirementSubmissions.verifiedAt,
+      registrarRemarks: studentRequirementSubmissions.registrarRemarks,
+      status: studentRequirementSubmissions.status,
+    })
+    .from(studentRequirementSubmissions)
+    .innerJoin(requirements, eq(studentRequirementSubmissions.requirementId, requirements.id))
+    .where(eq(studentRequirementSubmissions.studentId, studentId))
+    .orderBy(desc(studentRequirementSubmissions.verifiedAt));
+
+  const verified = rows.filter((r) => r.status === "verified");
+
+  const withFiles = await Promise.all(
+    verified.map(async (row) => {
+      const { status: _s, ...rest } = row;
+      const files = await getRequirementFilesBySubmissionId(row.submissionId);
+      return {
+        ...rest,
+        files: files.map((f) => ({
+          id: f.id,
+          fileName: f.fileName,
+          fileType: f.fileType,
+          fileSize: f.fileSize,
+          url: f.url,
+        })),
+      };
+    })
+  );
+  return withFiles;
 }
 
 export async function getQueueSubmissions(filters?: {
@@ -2408,66 +2705,99 @@ export async function deleteAnnouncement(id: string) {
   return db.delete(announcements).where(eq(announcements.id, id));
 }
 
-// ============ Teachers & Assignments ============
+// ============ Teachers (user_profile with role=teacher, active=true) ============
+
+/** Teacher = user_profile where role='teacher' and active=true */
+function teacherShape(up: typeof userProfile.$inferSelect) {
+  const parts = (up.fullName ?? "").trim().split(/\s+/);
+  const firstName = parts[0] ?? "";
+  const lastName = parts.slice(1).join(" ") ?? "";
+  return {
+    id: up.id,
+    userId: up.userId,
+    userProfileId: up.id,
+    firstName,
+    lastName,
+    fullName: up.fullName,
+    email: up.email,
+    employeeNo: up.employeeNo,
+    position: up.position,
+    departmentProgramId: up.departmentProgramId,
+    active: up.active,
+    createdAt: up.createdAt,
+    updatedAt: up.updatedAt,
+  };
+}
 
 export async function getTeacherByUserId(userId: string) {
   const [row] = await db
     .select()
-    .from(teachers)
-    .where(eq(teachers.userId, userId))
+    .from(userProfile)
+    .where(and(eq(userProfile.userId, userId), eq(userProfile.role, "teacher"), eq(userProfile.active, true)))
     .limit(1);
-  return row ?? null;
+  return row ? teacherShape(row) : null;
 }
 
-export async function getTeacherById(teacherId: string) {
+export async function getTeacherById(teacherUserProfileId: string) {
   const [row] = await db
     .select()
-    .from(teachers)
-    .where(eq(teachers.id, teacherId))
+    .from(userProfile)
+    .where(and(eq(userProfile.id, teacherUserProfileId), eq(userProfile.role, "teacher")))
     .limit(1);
-  return row ?? null;
+  return row ? teacherShape(row) : null;
 }
 
 export async function getTeacherByUserProfileId(userProfileId: string) {
-  const [row] = await db
-    .select()
-    .from(teachers)
-    .where(eq(teachers.userProfileId, userProfileId))
-    .limit(1);
-  return row ?? null;
+  return getTeacherById(userProfileId);
 }
 
 export async function createTeacher(values: {
-  userId?: string | null;
+  userId: string;
   userProfileId?: string | null;
-  employeeNo?: string | null;
-  firstName: string;
-  lastName: string;
   email?: string | null;
+  fullName?: string | null;
+  firstName?: string;
+  lastName?: string;
+  employeeNo?: string | null;
   active?: boolean;
 }) {
+  const fullName = values.fullName ?? ([values.firstName, values.lastName].filter(Boolean).join(" ") || "Teacher");
+  // If user_profile exists (e.g. admin-created with different role), update to teacher
+  const existing = await db.select().from(userProfile).where(eq(userProfile.userId, values.userId)).limit(1);
+  if (existing[0]) {
+    const [row] = await db
+      .update(userProfile)
+      .set({ role: "teacher", fullName, email: values.email ?? existing[0].email, active: values.active ?? true, employeeNo: values.employeeNo ?? existing[0].employeeNo, updatedAt: new Date() })
+      .where(eq(userProfile.id, existing[0].id))
+      .returning();
+    return row ? teacherShape(row) : null;
+  }
   const [row] = await db
-    .insert(teachers)
+    .insert(userProfile)
     .values({
-      ...values,
+      userId: values.userId,
+      email: values.email ?? null,
+      fullName,
+      role: "teacher",
       active: values.active ?? true,
+      employeeNo: values.employeeNo ?? null,
     })
     .returning();
-  return row ?? null;
+  return row ? teacherShape(row) : null;
 }
 
-export async function updateTeacherUserId(teacherId: string, userId: string) {
+export async function updateTeacherUserId(teacherUserProfileId: string, userId: string) {
   await db
-    .update(teachers)
+    .update(userProfile)
     .set({ userId, updatedAt: new Date() })
-    .where(eq(teachers.id, teacherId));
+    .where(eq(userProfile.id, teacherUserProfileId));
 }
 
 export async function listTeacherAssignmentsForTeacher(
-  teacherId: string,
+  teacherUserProfileId: string,
   filters: { schoolYearId?: string; termId?: string }
 ) {
-  const conds = [eq(teacherAssignments.teacherId, teacherId)];
+  const conds = [eq(teacherAssignments.teacherUserProfileId, teacherUserProfileId)];
   if (filters.schoolYearId) conds.push(eq(teacherAssignments.schoolYearId, filters.schoolYearId));
   if (filters.termId) conds.push(eq(teacherAssignments.termId, filters.termId));
   return db
@@ -2497,12 +2827,12 @@ export async function listTeacherAssignmentsForTeacher(
 
 /** Schedules assigned to teacher that meet on the given day (e.g. "Mon", "Tue"). */
 export async function getTodaysClassesForTeacher(
-  teacherId: string,
+  teacherUserProfileId: string,
   dayShort: string,
   filters: { schoolYearId?: string; termId?: string }
 ) {
   const conds = [
-    eq(teacherAssignments.teacherId, teacherId),
+    eq(teacherAssignments.teacherUserProfileId, teacherUserProfileId),
     eq(scheduleDays.day, dayShort),
     eq(scheduleDays.isActive, true),
   ];
@@ -2665,7 +2995,7 @@ export async function getGradeSubmissionWithDetails(id: string) {
       termId: gradeSubmissions.termId,
       gradingPeriodId: gradeSubmissions.gradingPeriodId,
       gradingPeriodName: gradingPeriods.name,
-      teacherId: gradeSubmissions.teacherId,
+      teacherUserProfileId: gradeSubmissions.teacherUserProfileId,
       status: gradeSubmissions.status,
       submittedAt: gradeSubmissions.submittedAt,
       registrarRemarks: gradeSubmissions.registrarRemarks,
@@ -2673,15 +3003,15 @@ export async function getGradeSubmissionWithDetails(id: string) {
       subjectCode: subjects.code,
       subjectDescription: subjects.description,
       sectionName: sections.name,
-      teacherFirstName: teachers.firstName,
-      teacherLastName: teachers.lastName,
+      teacherFirstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      teacherLastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
     })
     .from(gradeSubmissions)
     .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
     .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
     .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
     .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
-    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .innerJoin(userProfile, eq(gradeSubmissions.teacherUserProfileId, userProfile.id))
     .where(eq(gradeSubmissions.id, id))
     .limit(1);
   return row ?? null;
@@ -2690,10 +3020,10 @@ export async function getGradeSubmissionWithDetails(id: string) {
 type GradeSubmissionStatus = "draft" | "submitted" | "returned" | "approved" | "released";
 
 export async function listGradeSubmissionsForTeacher(
-  teacherId: string,
+  teacherUserProfileId: string,
   filters: { schoolYearId?: string; termId?: string; status?: GradeSubmissionStatus }
 ) {
-  const conds = [eq(gradeSubmissions.teacherId, teacherId)];
+  const conds = [eq(gradeSubmissions.teacherUserProfileId, teacherUserProfileId)];
   if (filters.schoolYearId) conds.push(eq(gradeSubmissions.schoolYearId, filters.schoolYearId));
   if (filters.termId) conds.push(eq(gradeSubmissions.termId, filters.termId));
   if (filters.status) conds.push(eq(gradeSubmissions.status, filters.status));
@@ -2738,15 +3068,15 @@ export async function listGradeSubmissionsForRegistrar(filters: {
       subjectCode: subjects.code,
       subjectDescription: subjects.description,
       sectionName: sections.name,
-      teacherFirstName: teachers.firstName,
-      teacherLastName: teachers.lastName,
+      teacherFirstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      teacherLastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
     })
     .from(gradeSubmissions)
     .innerJoin(gradingPeriods, eq(gradeSubmissions.gradingPeriodId, gradingPeriods.id))
     .innerJoin(classSchedules, eq(gradeSubmissions.scheduleId, classSchedules.id))
     .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
     .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
-    .innerJoin(teachers, eq(gradeSubmissions.teacherId, teachers.id))
+    .innerJoin(userProfile, eq(gradeSubmissions.teacherUserProfileId, userProfile.id))
     .orderBy(desc(gradeSubmissions.submittedAt));
   if (conds.length > 0) return base.where(and(...conds));
   return base;
@@ -2772,13 +3102,13 @@ export async function getGradeEntriesBySubmissionId(submissionId: string) {
     .orderBy(students.lastName);
 }
 
-export async function isTeacherAssignedToSchedule(teacherId: string, scheduleId: string) {
+export async function isTeacherAssignedToSchedule(teacherUserProfileId: string, scheduleId: string) {
   const [row] = await db
     .select({ id: teacherAssignments.id })
     .from(teacherAssignments)
     .where(
       and(
-        eq(teacherAssignments.teacherId, teacherId),
+        eq(teacherAssignments.teacherUserProfileId, teacherUserProfileId),
         eq(teacherAssignments.scheduleId, scheduleId)
       )
     )
@@ -2786,13 +3116,13 @@ export async function isTeacherAssignedToSchedule(teacherId: string, scheduleId:
   return !!row;
 }
 
-export async function isTeacherOwnerOfSchedule(teacherId: string, scheduleId: string) {
+export async function isTeacherOwnerOfSchedule(teacherUserProfileId: string, scheduleId: string) {
   const [byAssignment] = await db
     .select({ id: teacherAssignments.id })
     .from(teacherAssignments)
     .where(
       and(
-        eq(teacherAssignments.teacherId, teacherId),
+        eq(teacherAssignments.teacherUserProfileId, teacherUserProfileId),
         eq(teacherAssignments.scheduleId, scheduleId)
       )
     )
@@ -2804,7 +3134,7 @@ export async function isTeacherOwnerOfSchedule(teacherId: string, scheduleId: st
     .where(
       and(
         eq(classSchedules.id, scheduleId),
-        eq(classSchedules.teacherId, teacherId)
+        eq(classSchedules.teacherUserProfileId, teacherUserProfileId)
       )
     )
     .limit(1);
@@ -2816,7 +3146,7 @@ export async function createGradeSubmission(values: {
   schoolYearId: string;
   termId: string;
   gradingPeriodId: string;
-  teacherId: string;
+  teacherUserProfileId: string;
 }) {
   const [row] = await db
     .insert(gradeSubmissions)
@@ -3881,7 +4211,7 @@ export async function getFeeSetupsPendingDean() {
 
 // ============ Teacher Subject Permissions ============
 
-export async function listTeacherSubjectPermissions(teacherId: string) {
+export async function listTeacherSubjectPermissions(teacherUserProfileId: string) {
   return db.select({
     id: teacherSubjectPermissions.id,
     subjectId: teacherSubjectPermissions.subjectId,
@@ -3895,18 +4225,18 @@ export async function listTeacherSubjectPermissions(teacherId: string) {
   })
   .from(teacherSubjectPermissions)
   .innerJoin(subjects, eq(teacherSubjectPermissions.subjectId, subjects.id))
-  .where(eq(teacherSubjectPermissions.teacherId, teacherId))
+  .where(eq(teacherSubjectPermissions.teacherUserProfileId, teacherUserProfileId))
   .orderBy(subjects.code);
 }
 
 export async function addTeacherSubjectPermissions(values: {
-  teacherId: string;
+  teacherUserProfileId: string;
   subjectIds: string[];
   notes?: string | null;
   createdByUserId: string;
 }) {
   const rows = values.subjectIds.map((subjectId) => ({
-    teacherId: values.teacherId,
+    teacherUserProfileId: values.teacherUserProfileId,
     subjectId,
     notes: values.notes,
     createdByUserId: values.createdByUserId,
@@ -3915,31 +4245,31 @@ export async function addTeacherSubjectPermissions(values: {
   return db.insert(teacherSubjectPermissions).values(rows).onConflictDoNothing();
 }
 
-export async function removeTeacherSubjectPermission(teacherId: string, subjectId: string) {
+export async function removeTeacherSubjectPermission(teacherUserProfileId: string, subjectId: string) {
   return db.delete(teacherSubjectPermissions)
     .where(and(
-      eq(teacherSubjectPermissions.teacherId, teacherId),
+      eq(teacherSubjectPermissions.teacherUserProfileId, teacherUserProfileId),
       eq(teacherSubjectPermissions.subjectId, subjectId)
     ));
 }
 
-export async function updateTeacherSubjectPermission(teacherId: string, subjectId: string, updates: {
+export async function updateTeacherSubjectPermission(teacherUserProfileId: string, subjectId: string, updates: {
   notes?: string;
   canTeach?: boolean;
 }) {
   return db.update(teacherSubjectPermissions)
     .set({ ...updates, updatedAt: new Date() })
     .where(and(
-      eq(teacherSubjectPermissions.teacherId, teacherId),
+      eq(teacherSubjectPermissions.teacherUserProfileId, teacherUserProfileId),
       eq(teacherSubjectPermissions.subjectId, subjectId)
     ));
 }
 
-export async function validateTeacherCanTeach(teacherId: string, subjectId: string): Promise<boolean> {
+export async function validateTeacherCanTeach(teacherUserProfileId: string, subjectId: string): Promise<boolean> {
   const [perm] = await db.select()
     .from(teacherSubjectPermissions)
     .where(and(
-      eq(teacherSubjectPermissions.teacherId, teacherId),
+      eq(teacherSubjectPermissions.teacherUserProfileId, teacherUserProfileId),
       eq(teacherSubjectPermissions.subjectId, subjectId),
       eq(teacherSubjectPermissions.canTeach, true)
     ))
@@ -3949,36 +4279,56 @@ export async function validateTeacherCanTeach(teacherId: string, subjectId: stri
 
 export async function listAuthorizedTeachersForSubject(subjectId: string) {
   return db.select({
-    teacherId: teachers.id,
-    teacherName: sql<string>`${teachers.firstName} || ' ' || ${teachers.lastName}`,
-    email: teachers.email,
-    position: teachers.position,
+    teacherId: userProfile.id,
+    teacherName: sql<string>`COALESCE(${userProfile.fullName}, '')`,
+    email: userProfile.email,
+    position: userProfile.position,
     permissionId: teacherSubjectPermissions.id,
   })
   .from(teacherSubjectPermissions)
-  .innerJoin(teachers, eq(teacherSubjectPermissions.teacherId, teachers.id))
+  .innerJoin(userProfile, eq(teacherSubjectPermissions.teacherUserProfileId, userProfile.id))
   .where(and(
     eq(teacherSubjectPermissions.subjectId, subjectId),
     eq(teacherSubjectPermissions.canTeach, true),
-    eq(teachers.active, true)
+    eq(userProfile.active, true),
+    eq(userProfile.role, "teacher")
   ))
-  .orderBy(teachers.lastName, teachers.firstName);
+  .orderBy(userProfile.fullName);
+}
+
+/** Teachers = user_profile where role='teacher' and active=true */
+export async function listTeachersFromUserProfile() {
+  return db.select({
+    id: userProfile.id,
+    firstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+    lastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
+    fullName: userProfile.fullName,
+    email: userProfile.email,
+    position: userProfile.position,
+    active: userProfile.active,
+    departmentProgramId: userProfile.departmentProgramId,
+    employeeNo: userProfile.employeeNo,
+  })
+  .from(userProfile)
+  .where(and(eq(userProfile.role, "teacher"), eq(userProfile.active, true)))
+  .orderBy(userProfile.fullName);
 }
 
 export async function getTeachersListForRegistrar() {
   return db.select({
-    id: teachers.id,
-    firstName: teachers.firstName,
-    lastName: teachers.lastName,
-    email: teachers.email,
-    position: teachers.position,
-    active: teachers.active,
+    id: userProfile.id,
+    firstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+    lastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
+    email: userProfile.email,
+    position: userProfile.position,
+    active: userProfile.active,
     permissionCount: sql<number>`count(${teacherSubjectPermissions.id})::int`,
   })
-  .from(teachers)
-  .leftJoin(teacherSubjectPermissions, eq(teachers.id, teacherSubjectPermissions.teacherId))
-  .groupBy(teachers.id)
-  .orderBy(teachers.lastName, teachers.firstName);
+  .from(userProfile)
+  .leftJoin(teacherSubjectPermissions, eq(userProfile.id, teacherSubjectPermissions.teacherUserProfileId))
+  .where(and(eq(userProfile.role, "teacher"), eq(userProfile.active, true)))
+  .groupBy(userProfile.id)
+  .orderBy(userProfile.fullName);
 }
 
 // ============ Schedule Approvals ============
@@ -4009,7 +4359,7 @@ export async function listPendingScheduleApprovalsForDean(schoolYearId?: string,
     subjectCode: subjects.code,
     subjectTitle: subjects.title,
     sectionName: sections.name,
-    teacherName: sql<string>`${teachers.firstName} || ' ' || ${teachers.lastName}`,
+    teacherName: sql<string>`COALESCE(${userProfile.fullName}, '')`,
     timeIn: classSchedules.timeIn,
     timeOut: classSchedules.timeOut,
     room: classSchedules.room,
@@ -4021,7 +4371,7 @@ export async function listPendingScheduleApprovalsForDean(schoolYearId?: string,
   .innerJoin(classSchedules, eq(scheduleApprovals.scheduleId, classSchedules.id))
   .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
   .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
-  .leftJoin(teachers, eq(classSchedules.teacherId, teachers.id))
+  .leftJoin(userProfile, eq(classSchedules.teacherUserProfileId, userProfile.id))
   .where(and(...conditions))
   .orderBy(scheduleApprovals.submittedAt);
 }
@@ -4033,8 +4383,8 @@ export async function getScheduleApprovalDetails(approvalId: string) {
     subjectCode: subjects.code,
     subjectTitle: subjects.title,
     sectionName: sections.name,
-    teacherId: teachers.id,
-    teacherName: sql<string>`${teachers.firstName} || ' ' || ${teachers.lastName}`,
+    teacherId: userProfile.id,
+    teacherName: sql<string>`COALESCE(${userProfile.fullName}, '')`,
     timeIn: classSchedules.timeIn,
     timeOut: classSchedules.timeOut,
     room: classSchedules.room,
@@ -4048,7 +4398,7 @@ export async function getScheduleApprovalDetails(approvalId: string) {
   .innerJoin(classSchedules, eq(scheduleApprovals.scheduleId, classSchedules.id))
   .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
   .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
-  .leftJoin(teachers, eq(classSchedules.teacherId, teachers.id))
+  .leftJoin(userProfile, eq(classSchedules.teacherUserProfileId, userProfile.id))
   .where(eq(scheduleApprovals.id, approvalId))
   .limit(1);
   
@@ -4104,4 +4454,406 @@ export async function rejectSchedule(approvalId: string, deanUserId: string, rem
       .set({ status: "rejected" })
       .where(eq(classSchedules.id, approval.scheduleId));
   }
+}
+
+// ============ Teacher Capabilities ============
+
+export async function updateTeacherDepartment(teacherUserProfileId: string, departmentProgramId: string | null) {
+  await db
+    .update(userProfile)
+    .set({ departmentProgramId, updatedAt: new Date() })
+    .where(eq(userProfile.id, teacherUserProfileId));
+}
+
+export async function hasActiveCapability(teacherUserProfileId: string, subjectId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: teacherSubjectCapabilities.id })
+    .from(teacherSubjectCapabilities)
+    .where(
+      and(
+        eq(teacherSubjectCapabilities.teacherUserProfileId, teacherUserProfileId),
+        eq(teacherSubjectCapabilities.subjectId, subjectId),
+        eq(teacherSubjectCapabilities.status, "active")
+      )
+    )
+    .limit(1);
+  return !!row;
+}
+
+export async function listTeachersWithActiveCapabilityForSubject(subjectId: string) {
+  return db
+    .select({
+      teacherId: userProfile.id,
+      teacherName: sql<string>`COALESCE(${userProfile.fullName}, '')`,
+      email: userProfile.email,
+      departmentProgramId: userProfile.departmentProgramId,
+    })
+    .from(teacherSubjectCapabilities)
+    .innerJoin(userProfile, eq(teacherSubjectCapabilities.teacherUserProfileId, userProfile.id))
+    .where(
+      and(
+        eq(teacherSubjectCapabilities.subjectId, subjectId),
+        eq(teacherSubjectCapabilities.status, "active"),
+        eq(userProfile.active, true),
+        eq(userProfile.role, "teacher")
+      )
+    )
+    .orderBy(userProfile.fullName);
+}
+
+export async function listTeachersInDepartment(departmentProgramId: string) {
+  return db
+    .select({
+      id: userProfile.id,
+      firstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      lastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
+      email: userProfile.email,
+      departmentProgramId: userProfile.departmentProgramId,
+    })
+    .from(userProfile)
+    .where(and(eq(userProfile.role, "teacher"), eq(userProfile.active, true), eq(userProfile.departmentProgramId, departmentProgramId)))
+    .orderBy(userProfile.fullName);
+}
+
+/** Teachers = user_profile where role='teacher' and active=true */
+export async function listTeachersWithDepartmentAndCapabilityCount(search?: string) {
+  const base = db
+    .select({
+      id: userProfile.id,
+      firstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      lastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
+      email: userProfile.email,
+      position: userProfile.position,
+      active: userProfile.active,
+      departmentProgramId: userProfile.departmentProgramId,
+      departmentCode: programs.code,
+      departmentName: programs.name,
+      activeCapabilityCount: sql<number>`count(
+        case when ${teacherSubjectCapabilities.status} = 'active' then 1 end
+      )::int`,
+    })
+    .from(userProfile)
+    .leftJoin(programs, eq(userProfile.departmentProgramId, programs.id))
+    .leftJoin(teacherSubjectCapabilities, eq(userProfile.id, teacherSubjectCapabilities.teacherUserProfileId))
+    .where(and(eq(userProfile.role, "teacher"), eq(userProfile.active, true)))
+    .groupBy(userProfile.id, programs.code, programs.name)
+    .orderBy(userProfile.fullName);
+
+  if (search?.trim()) {
+    const term = `%${search.trim()}%`;
+    return db
+      .select({
+        id: userProfile.id,
+        firstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+        lastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
+        email: userProfile.email,
+        position: userProfile.position,
+        active: userProfile.active,
+        departmentProgramId: userProfile.departmentProgramId,
+        departmentCode: programs.code,
+        departmentName: programs.name,
+        activeCapabilityCount: sql<number>`count(
+          case when ${teacherSubjectCapabilities.status} = 'active' then 1 end
+        )::int`,
+      })
+      .from(userProfile)
+      .leftJoin(programs, eq(userProfile.departmentProgramId, programs.id))
+      .leftJoin(teacherSubjectCapabilities, eq(userProfile.id, teacherSubjectCapabilities.teacherUserProfileId))
+      .where(
+        and(
+          eq(userProfile.role, "teacher"),
+          eq(userProfile.active, true),
+          or(
+            like(userProfile.fullName ?? "", term),
+            like(userProfile.email ?? "", term)
+          )
+        )
+      )
+      .groupBy(userProfile.id, programs.code, programs.name)
+      .orderBy(userProfile.fullName);
+  }
+  return base;
+}
+
+export async function listActiveCapabilitiesByTeacher(teacherId: string) {
+  return db
+    .select({
+      id: teacherSubjectCapabilities.id,
+      subjectId: subjects.id,
+      subjectCode: subjects.code,
+      subjectTitle: subjects.title,
+      capabilityType: teacherSubjectCapabilities.capabilityType,
+      status: teacherSubjectCapabilities.status,
+      notes: teacherSubjectCapabilities.notes,
+      subjectProgramId: subjects.programId,
+      subjectIsGe: subjects.isGe,
+    })
+    .from(teacherSubjectCapabilities)
+    .innerJoin(subjects, eq(teacherSubjectCapabilities.subjectId, subjects.id))
+    .where(
+      and(
+        eq(teacherSubjectCapabilities.teacherUserProfileId, teacherId),
+        eq(teacherSubjectCapabilities.status, "active")
+      )
+    )
+    .orderBy(subjects.code);
+}
+
+// ============ Capability Packages ============
+
+export async function listCapabilityPackages(filters: {
+  programId: string;
+  schoolYearId?: string | null;
+  termId?: string | null;
+}) {
+  const conds = [eq(teacherCapabilityPackages.programId, filters.programId)];
+  if (filters.schoolYearId) conds.push(eq(teacherCapabilityPackages.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(teacherCapabilityPackages.termId, filters.termId));
+  return db
+    .select({
+      id: teacherCapabilityPackages.id,
+      programId: teacherCapabilityPackages.programId,
+      schoolYearId: teacherCapabilityPackages.schoolYearId,
+      termId: teacherCapabilityPackages.termId,
+      title: teacherCapabilityPackages.title,
+      status: teacherCapabilityPackages.status,
+      createdByUserId: teacherCapabilityPackages.createdByUserId,
+      submittedAt: teacherCapabilityPackages.submittedAt,
+      reviewedByUserId: teacherCapabilityPackages.reviewedByUserId,
+      reviewedAt: teacherCapabilityPackages.reviewedAt,
+      deanRemarks: teacherCapabilityPackages.deanRemarks,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(teacherCapabilityPackages)
+    .leftJoin(programs, eq(teacherCapabilityPackages.programId, programs.id))
+    .leftJoin(schoolYears, eq(teacherCapabilityPackages.schoolYearId, schoolYears.id))
+    .leftJoin(terms, eq(teacherCapabilityPackages.termId, terms.id))
+    .where(and(...conds))
+    .orderBy(desc(teacherCapabilityPackages.updatedAt));
+}
+
+export async function listCapabilityPackagesByStatus(status: "submitted" | "approved" | "rejected") {
+  return db
+    .select({
+      id: teacherCapabilityPackages.id,
+      programId: teacherCapabilityPackages.programId,
+      title: teacherCapabilityPackages.title,
+      status: teacherCapabilityPackages.status,
+      createdByUserId: teacherCapabilityPackages.createdByUserId,
+      submittedAt: teacherCapabilityPackages.submittedAt,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(teacherCapabilityPackages)
+    .leftJoin(programs, eq(teacherCapabilityPackages.programId, programs.id))
+    .leftJoin(schoolYears, eq(teacherCapabilityPackages.schoolYearId, schoolYears.id))
+    .leftJoin(terms, eq(teacherCapabilityPackages.termId, terms.id))
+    .where(eq(teacherCapabilityPackages.status, status))
+    .orderBy(desc(teacherCapabilityPackages.submittedAt));
+}
+
+export async function getCapabilityPackageById(packageId: string) {
+  const [row] = await db
+    .select({
+      id: teacherCapabilityPackages.id,
+      programId: teacherCapabilityPackages.programId,
+      schoolYearId: teacherCapabilityPackages.schoolYearId,
+      termId: teacherCapabilityPackages.termId,
+      title: teacherCapabilityPackages.title,
+      status: teacherCapabilityPackages.status,
+      createdByUserId: teacherCapabilityPackages.createdByUserId,
+      submittedAt: teacherCapabilityPackages.submittedAt,
+      reviewedByUserId: teacherCapabilityPackages.reviewedByUserId,
+      reviewedAt: teacherCapabilityPackages.reviewedAt,
+      deanRemarks: teacherCapabilityPackages.deanRemarks,
+      programCode: programs.code,
+      programName: programs.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(teacherCapabilityPackages)
+    .leftJoin(programs, eq(teacherCapabilityPackages.programId, programs.id))
+    .leftJoin(schoolYears, eq(teacherCapabilityPackages.schoolYearId, schoolYears.id))
+    .leftJoin(terms, eq(teacherCapabilityPackages.termId, terms.id))
+    .where(eq(teacherCapabilityPackages.id, packageId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function createCapabilityPackage(values: {
+  programId: string;
+  schoolYearId?: string | null;
+  termId?: string | null;
+  title: string;
+  createdByUserId: string;
+}) {
+  const [row] = await db
+    .insert(teacherCapabilityPackages)
+    .values({
+      ...values,
+      status: "draft",
+    })
+    .returning();
+  return row;
+}
+
+export async function submitCapabilityPackage(packageId: string) {
+  await db
+    .update(teacherCapabilityPackages)
+    .set({ status: "submitted", submittedAt: new Date(), updatedAt: new Date() })
+    .where(eq(teacherCapabilityPackages.id, packageId));
+}
+
+export async function approveCapabilityPackageDb(packageId: string, deanUserId: string) {
+  const lines = await db
+    .select({ teacherId: teacherSubjectCapabilities.teacherUserProfileId, subjectId: teacherSubjectCapabilities.subjectId })
+    .from(teacherSubjectCapabilities)
+    .where(eq(teacherSubjectCapabilities.packageId, packageId));
+  for (const line of lines) {
+    await db
+      .update(teacherSubjectCapabilities)
+      .set({ status: "inactive", updatedAt: new Date() })
+      .where(
+        and(
+          eq(teacherSubjectCapabilities.teacherUserProfileId, line.teacherId),
+          eq(teacherSubjectCapabilities.subjectId, line.subjectId),
+          eq(teacherSubjectCapabilities.status, "active"),
+          ne(teacherSubjectCapabilities.packageId, packageId)
+        )
+      );
+  }
+  await db
+    .update(teacherSubjectCapabilities)
+    .set({ status: "active", updatedAt: new Date() })
+    .where(eq(teacherSubjectCapabilities.packageId, packageId));
+  await db
+    .update(teacherCapabilityPackages)
+    .set({
+      status: "approved",
+      reviewedByUserId: deanUserId,
+      reviewedAt: new Date(),
+      deanRemarks: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(teacherCapabilityPackages.id, packageId));
+}
+
+export async function rejectCapabilityPackageDb(packageId: string, deanUserId: string, remarks: string) {
+  await db
+    .update(teacherCapabilityPackages)
+    .set({
+      status: "rejected",
+      reviewedByUserId: deanUserId,
+      reviewedAt: new Date(),
+      deanRemarks: remarks,
+      updatedAt: new Date(),
+    })
+    .where(eq(teacherCapabilityPackages.id, packageId));
+}
+
+// ============ Capability Lines ============
+
+export async function listCapabilityLines(packageId: string) {
+  return db
+    .select({
+      id: teacherSubjectCapabilities.id,
+      packageId: teacherSubjectCapabilities.packageId,
+      teacherId: teacherSubjectCapabilities.teacherUserProfileId,
+      subjectId: teacherSubjectCapabilities.subjectId,
+      capabilityType: teacherSubjectCapabilities.capabilityType,
+      status: teacherSubjectCapabilities.status,
+      notes: teacherSubjectCapabilities.notes,
+      teacherFirstName: sql<string>`COALESCE(SPLIT_PART(COALESCE(${userProfile.fullName},''), ' ', 1), '')`,
+      teacherLastName: sql<string>`COALESCE(NULLIF(TRIM(SUBSTRING(COALESCE(${userProfile.fullName},'') FROM POSITION(' ' IN COALESCE(${userProfile.fullName},'')||' ')+1)), ''), '')`,
+      teacherDepartmentProgramId: userProfile.departmentProgramId,
+      subjectCode: subjects.code,
+      subjectTitle: subjects.title,
+      subjectProgramId: subjects.programId,
+      subjectIsGe: subjects.isGe,
+    })
+    .from(teacherSubjectCapabilities)
+    .innerJoin(userProfile, eq(teacherSubjectCapabilities.teacherUserProfileId, userProfile.id))
+    .innerJoin(subjects, eq(teacherSubjectCapabilities.subjectId, subjects.id))
+    .where(eq(teacherSubjectCapabilities.packageId, packageId))
+    .orderBy(userProfile.fullName, subjects.code);
+}
+
+export async function addCapabilityLines(
+  packageId: string,
+  lines: { teacherId: string; subjectId: string; capabilityType: "major_department" | "ge" | "cross_department"; notes?: string | null }[]
+) {
+  if (lines.length === 0) return [];
+  const rows = lines.map((l) => ({
+    packageId,
+    teacherUserProfileId: l.teacherId,
+    subjectId: l.subjectId,
+    capabilityType: l.capabilityType,
+    status: "pending" as const,
+    notes: l.notes ?? null,
+  }));
+  return db.insert(teacherSubjectCapabilities).values(rows).returning();
+}
+
+export async function removeCapabilityLine(lineId: string) {
+  await db.delete(teacherSubjectCapabilities).where(eq(teacherSubjectCapabilities.id, lineId));
+}
+
+export async function updateCapabilityLineNotes(lineId: string, notes: string | null) {
+  await db
+    .update(teacherSubjectCapabilities)
+    .set({ notes, updatedAt: new Date() })
+    .where(eq(teacherSubjectCapabilities.id, lineId));
+}
+
+export type CapabilityIssue = {
+  type: "duplicate" | "invalid_type";
+  lineId?: string;
+  teacherId: string;
+  subjectId: string;
+  message: string;
+};
+
+export async function detectCapabilityIssues(packageId: string): Promise<CapabilityIssue[]> {
+  const lines = await listCapabilityLines(packageId);
+  const issues: CapabilityIssue[] = [];
+  const seen = new Set<string>();
+
+  for (const line of lines) {
+    const key = `${line.teacherId}:${line.subjectId}`;
+    if (seen.has(key)) {
+      issues.push({
+        type: "duplicate",
+        lineId: line.id,
+        teacherId: line.teacherId,
+        subjectId: line.subjectId,
+        message: `Duplicate: teacher already in package for subject ${line.subjectCode}.`,
+      });
+    }
+    seen.add(key);
+
+    const teacher = await getTeacherById(line.teacherId);
+    const deptProgramId = teacher?.departmentProgramId ?? null;
+    const isGe = line.subjectIsGe;
+    const subjProgramId = line.subjectProgramId;
+    const expectedType: "major_department" | "ge" | "cross_department" = isGe
+      ? "ge"
+      : deptProgramId && subjProgramId === deptProgramId
+        ? "major_department"
+        : "cross_department";
+    if (line.capabilityType !== expectedType) {
+      issues.push({
+        type: "invalid_type",
+        lineId: line.id,
+        teacherId: line.teacherId,
+        subjectId: line.subjectId,
+        message: `Capability type should be ${expectedType} for teacher's department and subject.`,
+      });
+    }
+  }
+  return issues;
 }

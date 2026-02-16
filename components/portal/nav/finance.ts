@@ -6,6 +6,7 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
+  Megaphone,
 } from "lucide-react";
 import type { SidebarItem } from "../Sidebar";
 
@@ -21,4 +22,5 @@ export const getFinanceNavItems = (): SidebarItem[] => [
   },
   { label: "Fee Setup", href: "/finance/fee-setup", icon: Settings },
   { label: "Clearance", href: "/finance/clearance", icon: ShieldCheck },
+  { label: "Announcements", href: "/finance/announcements", icon: Megaphone },
 ];

@@ -47,6 +47,7 @@ export async function getCurrentUserWithRole(): Promise<CurrentUser | null> {
       };
     }
 
+    // Admin-created users have emailVerificationBypassed; treat as verified so they are not sent to verify-email.
     const effectiveVerified =
       emailVerified || (profile.emailVerificationBypassed ?? false);
 
@@ -58,6 +59,22 @@ export async function getCurrentUserWithRole(): Promise<CurrentUser | null> {
       emailVerified: effectiveVerified,
     };
   } catch {
+    // If profile fetch failed (e.g. transient error), still respect admin bypass:
+    // admin-created users have emailVerificationBypassed and must not be sent to verify-email.
+    try {
+      const fallbackProfile = await getUserProfileByUserId(userId);
+      if (fallbackProfile?.emailVerificationBypassed) {
+        return {
+          userId,
+          email,
+          name,
+          role: fallbackProfile.role,
+          emailVerified: true,
+        };
+      }
+    } catch {
+      // ignore
+    }
     return {
       userId,
       email,

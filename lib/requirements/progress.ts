@@ -74,3 +74,19 @@ export async function ensureEnrollmentRequirementSubmissions(
 ): Promise<void> {
   await getApplicableRequirementsForEnrollment(enrollmentId);
 }
+
+/**
+ * Returns names of required forms that are still missing (no file submitted, not marked to follow).
+ * Used to gate schedule/billing/grades for enrolled students who have not submitted required documents.
+ */
+export async function getEnrolledStudentMissingRequiredFormNames(
+  enrollmentId: string
+): Promise<string[]> {
+  const applicable = await getApplicableRequirementsForEnrollment(enrollmentId);
+  const required = applicable.filter((a) => a.rule.isRequired);
+  const missing = required.filter(
+    (a) =>
+      a.submission.status === "missing" && !(a.submission.markAsToFollow ?? false)
+  );
+  return missing.map((a) => a.requirement.name);
+}

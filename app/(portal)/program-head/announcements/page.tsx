@@ -1,5 +1,6 @@
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";
 import { getRecentAnnouncementsForProgramHead } from "@/lib/programHead/queries";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,10 @@ export default async function ProgramHeadAnnouncementsPage() {
           <ul className="space-y-4">
             {announcements.map((a) => (
               <li key={a.id} className="rounded-lg border p-4">
-                <h3 className="font-medium text-[#6A0000]">{a.title}</h3>
+                <span className="text-xs font-semibold uppercase text-[#6A0000]">
+                  {getRoleDisplayLabel(a.createdByRole)}
+                </span>
+                <h3 className="mt-1 font-medium text-[#6A0000]">{a.title}</h3>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-800">{a.body}</p>
                 <p className="mt-2 text-xs text-neutral-500">
                   {a.createdAt ? new Date(a.createdAt).toLocaleString() : ""}

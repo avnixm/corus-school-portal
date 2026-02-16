@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RoleSelect } from "../RoleSelect";
 import { SetActiveButton } from "../SetActiveButton";
 import { UpdatePasswordButton } from "../UpdatePasswordButton";
+import { MarkVerifiedButton } from "../MarkVerifiedButton";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,14 @@ export default async function AdminUserDetailPage({
               />
             </p>
           </div>
+          {profile.emailVerificationBypassed && (
+            <div>
+              <span className="font-medium text-neutral-500">Email verification</span>
+              <p className="mt-1">
+                <MarkVerifiedButton authUserId={profile.userId} />
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

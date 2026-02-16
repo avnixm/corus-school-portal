@@ -47,9 +47,8 @@ export async function GET(
   if (row.url) {
     return NextResponse.json({ url: row.url });
   }
-  // TODO: Generate signed URL from row.storageKey when storage is configured
+  // View-only URL: stream file from local uploads (no download)
   return NextResponse.json({
-    url: null,
-    message: "Download not configured; storage_key: " + row.storageKey,
+    url: `/api/uploads/requirements/${fileId}/view`,
   });
 }

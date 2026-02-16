@@ -6,6 +6,7 @@ import {
   getAssessmentsByEnrollment,
   getPaymentsByEnrollment,
 } from "@/lib/finance/queries";
+import { getEnrolledStudentMissingRequiredFormNames } from "@/lib/requirements/progress";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,15 @@ export default async function StudentBillingPage() {
         </div>
       </div>
     );
+  }
+
+  const isApproved =
+    enrollment.status === "approved" || enrollment.status === "enrolled";
+  if (isApproved) {
+    const missingFormNames = await getEnrolledStudentMissingRequiredFormNames(enrollment.id);
+    if (missingFormNames.length > 0) {
+      redirect("/student/requirements?required=1");
+    }
   }
 
   const [efs, assessments, payments, hasHold] = await Promise.all([

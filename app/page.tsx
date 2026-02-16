@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/landing/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, FileText, CreditCard, Megaphone } from "lucide-react";
+import { getAnnouncementsForStudent } from "@/db/queries";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const announcements = await getAnnouncementsForStudent(5, null);
     return (
         <div className="relative min-h-screen flex flex-col overflow-hidden">
             {/* Subtle background */}
@@ -47,6 +50,45 @@ export default function LandingPage() {
 					</div>
 				</div>
 			</section>
+
+			{/* Announcements */}
+			{announcements.length > 0 && (
+				<section className="relative z-10 w-full bg-white/60">
+					<div className="mx-auto max-w-6xl px-4 py-14">
+						<h2 className="text-2xl font-semibold text-corus-maroon mb-6">Announcements</h2>
+						<div className="space-y-4">
+							{announcements.map((a) => (
+								<Card key={a.id} className={a.pinned ? "border-corus-maroon/30 shadow" : "border-corus-maroon/20 shadow"}>
+									<CardHeader className="pb-2">
+										<div className="flex flex-wrap items-center gap-2">
+											{a.pinned && (
+												<span className="rounded bg-corus-maroon/10 px-2 py-0.5 text-xs font-medium text-corus-maroon">
+													Pinned
+												</span>
+											)}
+											<span className="text-xs font-semibold uppercase text-corus-maroon">
+												{getRoleDisplayLabel(a.createdByRole)}
+											</span>
+										</div>
+										<CardTitle className="mt-3 text-base text-corus-maroon">{a.title}</CardTitle>
+										<p className="text-xs text-gray-500">
+											{a.createdAt ? new Date(a.createdAt).toLocaleString() : ""}
+										</p>
+									</CardHeader>
+									<CardContent>
+										<div className="whitespace-pre-wrap text-sm text-gray-700 line-clamp-3">{a.body}</div>
+									</CardContent>
+								</Card>
+							))}
+						</div>
+						<div className="mt-4">
+							<Link href="/login" className="text-sm font-medium text-corus-maroon hover:underline">
+								Login to view all announcements →
+							</Link>
+						</div>
+					</div>
+				</section>
+			)}
 
 			{/* Features */}
             <section className="relative z-10 w-full">

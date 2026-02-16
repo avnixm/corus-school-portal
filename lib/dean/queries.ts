@@ -12,9 +12,9 @@ import {
   gradeEntries,
   gradingPeriods,
   subjects,
-  teachers,
   enrollmentFinanceStatus,
   announcements,
+  userProfile,
   assessments,
   payments,
   enrollmentApprovals,
@@ -148,8 +148,20 @@ export async function getDeanAcademicRiskCount(syId: string | null, termId: stri
 
 export async function getDeanRecentAnnouncements(limit = 10) {
   return db
-    .select()
+    .select({
+      id: announcements.id,
+      title: announcements.title,
+      body: announcements.body,
+      audience: announcements.audience,
+      program: announcements.program,
+      pinned: announcements.pinned,
+      createdByUserId: announcements.createdByUserId,
+      createdAt: announcements.createdAt,
+      updatedAt: announcements.updatedAt,
+      createdByRole: userProfile.role,
+    })
     .from(announcements)
+    .leftJoin(userProfile, eq(announcements.createdByUserId, userProfile.userId))
     .orderBy(desc(announcements.pinned), desc(announcements.createdAt))
     .limit(limit);
 }

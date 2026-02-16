@@ -5,6 +5,7 @@ import {
   getEnrollmentSubjectsByEnrollmentId,
   getScheduleWithDetailsByEnrollmentId,
 } from "@/db/queries";
+import { getEnrolledStudentMissingRequiredFormNames } from "@/lib/requirements/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
 
@@ -42,6 +43,11 @@ export default async function StudentSchedulePage() {
         </p>
       </div>
     );
+  }
+
+  const missingFormNames = await getEnrolledStudentMissingRequiredFormNames(enrollment.id);
+  if (missingFormNames.length > 0) {
+    redirect("/student/requirements?required=1");
   }
 
   // Prefer class enrollments (finalized schedule); else planned subjects; else legacy view

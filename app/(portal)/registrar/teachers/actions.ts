@@ -3,60 +3,38 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/rbac";
 import {
-  addTeacherSubjectPermissions,
-  removeTeacherSubjectPermission,
-  updateTeacherSubjectPermission,
+  listTeachersWithDepartmentAndCapabilityCount,
+  updateTeacherDepartment,
+  listActiveCapabilitiesByTeacher,
 } from "@/db/queries";
 
-export async function addTeacherSubjectPermissionsAction(formData: FormData) {
+export async function listTeachersAction(search?: string) {
+  const auth = await requireRole(["registrar", "admin"]);
+  if ("error" in auth) return { error: auth.error, teachers: [] };
+  const teachers = await listTeachersWithDepartmentAndCapabilityCount(search);
+  return { teachers };
+}
+
+export async function updateTeacherDepartmentAction(teacherId: string, programId: string | null) {
   const auth = await requireRole(["registrar", "admin"]);
   if ("error" in auth) return { error: auth.error };
 
-  const teacherId = formData.get("teacherId") as string;
-  const subjectIdsStr = formData.get("subjectIds") as string;
-  const notes = formData.get("notes") as string | null;
-
-  if (!teacherId || !subjectIdsStr) {
-    return { error: "Teacher and subjects are required" };
-  }
-
-  const subjectIds = JSON.parse(subjectIdsStr);
-  if (!Array.isArray(subjectIds) || subjectIds.length === 0) {
-    return { error: "At least one subject is required" };
-  }
-
-  await addTeacherSubjectPermissions({
-    teacherId,
-    subjectIds,
-    notes,
-    createdByUserId: auth.userId,
-  });
-
+  await updateTeacherDepartment(teacherId, programId);
   revalidatePath("/registrar/teachers");
   return { success: true };
 }
 
-export async function removeTeacherSubjectPermissionAction(
-  teacherId: string,
-  subjectId: string
-) {
+export async function getTeacherCapabilitiesAction(teacherId: string) {
   const auth = await requireRole(["registrar", "admin"]);
-  if ("error" in auth) return { error: auth.error };
-
-  await removeTeacherSubjectPermission(teacherId, subjectId);
-  revalidatePath("/registrar/teachers");
-  return { success: true };
-}
-
-export async function updateTeacherSubjectPermissionAction(
-  teacherId: string,
-  subjectId: string,
-  updates: { notes?: string; canTeach?: boolean }
-) {
-  const auth = await requireRole(["registrar", "admin"]);
-  if ("error" in auth) return { error: auth.error };
-
-  await updateTeacherSubjectPermission(teacherId, subjectId, updates);
-  revalidatePath("/registrar/teachers");
-  return { success: true };
+  if ("error" in auth) return { error: auth.error, capabilities: null };
+  const rows = await listActiveCapabilitiesByTeacher(teacherId);
+  const major: typeof rows = [];
+  const ge: typeof rows = [];
+  const cross: typeof rows = [];
+  for (const r of rows) {
+    if (r.capabilityType === "major_department") major.push(r);
+    else if (r.capabilityType === "ge") ge.push(r);
+    else cross.push(r);
+  }
+  return { capabilities: { major, ge, cross } };
 }

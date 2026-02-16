@@ -15,6 +15,7 @@ import {
   deleteRequirementRule,
   verifySubmission,
   rejectSubmission,
+  getRequirementSubmissionById,
   insertAuditLog,
 } from "@/db/queries";
 
@@ -207,6 +208,9 @@ export async function verifySubmissionAction(submissionId: string, messageToStud
   revalidatePath("/registrar/requirements");
   revalidatePath("/registrar/requirements/queue");
   revalidatePath("/registrar/approvals");
+  revalidatePath("/student/requirements");
+  const sub = await getRequirementSubmissionById(submissionId);
+  if (sub?.studentId) revalidatePath(`/registrar/students/${sub.studentId}`);
   return { success: true };
 }
 
@@ -225,5 +229,8 @@ export async function rejectSubmissionAction(submissionId: string, remarks: stri
   revalidatePath("/registrar/requirements");
   revalidatePath("/registrar/requirements/queue");
   revalidatePath("/registrar/approvals");
+  revalidatePath("/student/requirements");
+  const sub = await getRequirementSubmissionById(submissionId);
+  if (sub?.studentId) revalidatePath(`/registrar/students/${sub.studentId}`);
   return { success: true };
 }

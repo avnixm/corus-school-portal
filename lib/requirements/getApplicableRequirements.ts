@@ -29,6 +29,7 @@ export type ApplicableRequirement = {
     submittedAt: Date | null;
     verifiedAt: Date | null;
     registrarRemarks: string | null;
+    markAsToFollow: boolean;
   };
   files: { id: string; fileName: string; fileType: string; fileSize: number; storageKey: string }[];
 };
@@ -42,13 +43,24 @@ export async function getApplicableRequirements(params: {
   schoolYearId?: string | null;
   termId?: string | null;
 }): Promise<ApplicableRequirement[]> {
-  const rules = await getRequirementRulesForContext({
+  let rules = await getRequirementRulesForContext({
     appliesTo: params.appliesTo,
     program: params.program ?? null,
     yearLevel: params.yearLevel ?? null,
     schoolYearId: params.schoolYearId ?? null,
     termId: params.termId ?? null,
   });
+  // Fallback: if no rules match this context (e.g. new program/term), use generic enrollment rules
+  // so students can still see and submit common forms (Form 137, Birth Cert, etc.)
+  if (rules.length === 0 && params.appliesTo === "enrollment" && params.enrollmentId) {
+    rules = await getRequirementRulesForContext({
+      appliesTo: "enrollment",
+      program: null,
+      yearLevel: null,
+      schoolYearId: null,
+      termId: null,
+    });
+  }
   if (rules.length === 0) return [];
 
   const requirementIds = [...new Set(rules.map((r) => r.requirementId))];
@@ -86,6 +98,7 @@ export async function getApplicableRequirements(params: {
         submittedAt: submission.submittedAt,
         verifiedAt: submission.verifiedAt,
         registrarRemarks: submission.registrarRemarks,
+        markAsToFollow: submission.markAsToFollow ?? false,
       },
       files: files.map((f) => ({
         id: f.id,

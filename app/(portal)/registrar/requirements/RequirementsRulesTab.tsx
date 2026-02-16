@@ -110,6 +110,9 @@ export function RequirementsRulesTab({
         <CardTitle className="text-sm font-semibold text-[#6A0000]">
           Which requirements apply (enrollment / program / year / term)
         </CardTitle>
+        <p className="mt-1 text-xs text-neutral-600">
+          Add rules here to define which documents students must submit and when (e.g. Form 137 and Birth Certificate for 1st year only). Leave program, year, school year, or term empty for &quot;all&quot;.
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleAddRule} className="flex flex-wrap items-end gap-3 rounded-lg border bg-neutral-50/50 p-4">

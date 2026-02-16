@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileDropzone } from "./FileDropzone";
-import { AlertCircle, RefreshCw, X } from "lucide-react";
+import { AlertCircle, RefreshCw, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type RequirementItem = {
@@ -25,6 +25,7 @@ export type RequirementItem = {
     submittedAt: Date | null;
     verifiedAt: Date | null;
     registrarRemarks: string | null;
+    markAsToFollow?: boolean;
   };
   files: { id: string; fileName: string; fileType: string; fileSize: number; storageKey: string }[];
 };
@@ -35,6 +36,8 @@ interface RequirementCardProps {
   onRemoveFile: (fileId: string) => Promise<void>;
   onSubmit: (submissionId: string) => Promise<void>;
   onResubmit: (submissionId: string) => Promise<void>;
+  onMarkAsToFollow?: (submissionId: string, value: boolean) => Promise<void>;
+  hasPendingRequest?: boolean;
   readOnly?: boolean;
 }
 
@@ -51,11 +54,15 @@ export function RequirementCard({
   onRemoveFile,
   onSubmit,
   onResubmit,
+  onMarkAsToFollow,
+  hasPendingRequest,
   readOnly,
 }: RequirementCardProps) {
   const [uploading, setUploading] = React.useState(false);
   const [actionPending, setActionPending] = React.useState(false);
+  const [toFollowPending, setToFollowPending] = React.useState(false);
   const { requirement, submission, files } = item;
+  const markAsToFollow = submission.markAsToFollow ?? false;
   const canEdit = submission.status !== "verified" && !readOnly;
   const atLimit = requirement.maxFiles > 0 && files.length >= requirement.maxFiles;
 
@@ -96,9 +103,16 @@ export function RequirementCard({
               <p className="text-sm text-neutral-600">{requirement.description}</p>
             )}
           </div>
-          <Badge variant={statusVariant[submission.status] ?? "outline"}>
-            {submission.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {markAsToFollow && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300">
+                To follow
+              </Badge>
+            )}
+            <Badge variant={statusVariant[submission.status] ?? "outline"}>
+              {submission.status}
+            </Badge>
+          </div>
         </div>
         {requirement.instructions && (
           <p className="text-sm text-neutral-700">{requirement.instructions}</p>
@@ -124,6 +138,44 @@ export function RequirementCard({
             <div>
               <span className="font-medium">Registrar: </span>
               {submission.registrarRemarks}
+            </div>
+          </div>
+        )}
+
+        {hasPendingRequest && (
+          <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <p>Registrar requested this document. Please upload below.</p>
+          </div>
+        )}
+
+        {markAsToFollow && submission.status === "missing" && (
+          <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <Clock className="h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">You marked this as &quot;To follow&quot;</p>
+              <p className="mt-0.5 text-amber-700">
+                You can upload this later; the registrar may send a request for this document.
+              </p>
+              {onMarkAsToFollow && canEdit && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 border-amber-400 text-amber-800 hover:bg-amber-100"
+                  disabled={toFollowPending}
+                  onClick={async () => {
+                    setToFollowPending(true);
+                    try {
+                      await onMarkAsToFollow(submission.id, false);
+                    } finally {
+                      setToFollowPending(false);
+                    }
+                  }}
+                >
+                  Unmark to follow (I&apos;ll upload now)
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -161,7 +213,27 @@ export function RequirementCard({
                 isUploading={uploading}
               />
             )}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {submission.status === "missing" && !markAsToFollow && onMarkAsToFollow && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 border-amber-400 text-amber-800 hover:bg-amber-50"
+                  disabled={toFollowPending}
+                  onClick={async () => {
+                    setToFollowPending(true);
+                    try {
+                      await onMarkAsToFollow(submission.id, true);
+                    } finally {
+                      setToFollowPending(false);
+                    }
+                  }}
+                >
+                  <Clock className="h-3 w-3" />
+                  Mark as To follow (I&apos;ll submit later)
+                </Button>
+              )}
               {submission.status === "missing" && files.length > 0 && (
                 <Button
                   size="sm"

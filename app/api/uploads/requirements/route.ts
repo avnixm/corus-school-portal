@@ -4,9 +4,15 @@ import { auth } from "@/lib/auth/server";
 import { getProfileAndStudentByUserId } from "@/db/queries";
 import { getRequirementSubmissionById, insertRequirementFile, updateStudentRequirementSubmission } from "@/db/queries";
 import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+
+function getUploadDir(): string {
+  return process.env.UPLOAD_DIR ?? path.join(process.cwd(), "uploads");
+}
 
 export async function POST(request: NextRequest) {
   const session = (await auth.getSession())?.data;
@@ -58,8 +64,12 @@ export async function POST(request: NextRequest) {
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
   const key = `requirements/${submissionId}/${randomUUID()}.${ext}`;
-  // TODO: Store file to S3-compatible storage; for MVP use stub and persist metadata only
-  // e.g. const url = await uploadToS3(key, file);
+  const uploadDir = getUploadDir();
+  const filePath = path.join(uploadDir, key);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(filePath, buffer);
+  // View URL is our own endpoint for view-only (no download); external url can be set when using S3 etc.
   const url: string | null = null;
 
   const row = await insertRequirementFile({

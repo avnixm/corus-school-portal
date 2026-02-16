@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId, createUserProfile } from "@/db/queries";
+import { getUserProfileByUserId, getUserProfileByEmail, createUserProfile } from "@/db/queries";
 import { roleHomePath } from "@/lib/roles";
 
 export interface AuthState {
@@ -47,6 +47,11 @@ export async function register(
   redirect("/verify-email?email=" + encodeURIComponent(email));
 }
 
+function isEmailNotVerifiedError(message: string): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("email") && (m.includes("not verified") || m.includes("unverified") || m.includes("verify"));
+}
+
 export async function login(
   _prevState: AuthState,
   formData: FormData
@@ -58,10 +63,24 @@ export async function login(
     return { error: "Email and password are required" };
   }
 
-  const result = await auth.signIn.email({
+  let result = await auth.signIn.email({
     email,
     password,
   });
+
+  if (result.error && isEmailNotVerifiedError(result.error.message ?? "")) {
+    const profile = await getUserProfileByEmail(email);
+    const bypassedUserId = profile?.emailVerificationBypassed ? profile.userId : null;
+    if (bypassedUserId) {
+      const updateResult = await auth.admin.updateUser({
+        userId: bypassedUserId,
+        data: { emailVerified: true },
+      });
+      if (!updateResult.error) {
+        result = await auth.signIn.email({ email, password });
+      }
+    }
+  }
 
   if (result.error) {
     return { error: result.error.message || "Invalid email or password" };
@@ -74,8 +93,6 @@ export async function login(
       const role = profile?.role ?? "student";
       redirect(roleHomePath(role));
     } catch {
-      // Profile query can fail if schema is outdated (e.g. missing program/department columns).
-      // Fall back to student so login still succeeds. Run: npx tsx scripts/run-apply-schema.ts
       redirect(roleHomePath("student"));
     }
   }

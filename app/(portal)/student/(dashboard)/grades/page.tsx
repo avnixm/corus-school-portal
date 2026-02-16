@@ -1,9 +1,11 @@
 // path: app/(portal)/student/grades/page.tsx
 import {
-  getCurrentEnrollmentForStudent,
+  getEnrollmentForStudentActiveTerm,
   getReleasedGradesByStudentAndEnrollment,
 } from "@/db/queries";
 import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
+import { getEnrolledStudentMissingRequiredFormNames } from "@/lib/requirements/progress";
+import { redirect } from "next/navigation";
 
 export default async function GradesPage() {
   const current = await getCurrentStudent();
@@ -18,7 +20,17 @@ export default async function GradesPage() {
     );
   }
 
-  const enrollment = await getCurrentEnrollmentForStudent(studentId);
+  const enrollment = await getEnrollmentForStudentActiveTerm(studentId);
+  if (enrollment) {
+    const isApproved =
+      enrollment.status === "approved" || enrollment.status === "enrolled";
+    if (isApproved) {
+      const missingFormNames = await getEnrolledStudentMissingRequiredFormNames(enrollment.id);
+      if (missingFormNames.length > 0) {
+        redirect("/student/requirements?required=1");
+      }
+    }
+  }
   const grades = enrollment
     ? await getReleasedGradesByStudentAndEnrollment(studentId, enrollment.id)
     : [];

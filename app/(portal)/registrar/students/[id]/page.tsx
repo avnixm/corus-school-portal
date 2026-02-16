@@ -1,10 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getStudentById, getEnrollmentsByStudentId } from "@/db/queries";
+import {
+  getStudentById,
+  getEnrollmentsByStudentId,
+  getEnrollmentById,
+  getRequirementRequestsByEnrollment,
+} from "@/db/queries";
+import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EditStudentForm } from "../EditStudentForm";
 import { DeleteStudentButton } from "../DeleteStudentButton";
+import { EnrollmentReviewContent } from "@/app/(portal)/registrar/approvals/[enrollmentId]/review/EnrollmentReviewContent";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +33,25 @@ export default async function StudentDetailPage({
   if (!student) notFound();
 
   const enrollments = await getEnrollmentsByStudentId(id);
+  const latestEnrollment = enrollments.length > 0 ? await getEnrollmentById(enrollments[0].id) : null;
+  const [applicable, requirementRequests] =
+    latestEnrollment != null
+      ? await Promise.all([
+          getApplicableRequirements({
+            studentId: id,
+            enrollmentId: latestEnrollment.id,
+            appliesTo: "enrollment",
+            program: latestEnrollment.program,
+            yearLevel: latestEnrollment.yearLevel,
+            schoolYearId: latestEnrollment.schoolYearId,
+            termId: latestEnrollment.termId,
+          }),
+          getRequirementRequestsByEnrollment(latestEnrollment.id),
+        ])
+      : [[], []];
+  const pendingRequestSubmissionIds = requirementRequests
+    .filter((r) => r.status === "pending")
+    .map((r) => r.submissionId);
 
   return (
     <div className="space-y-6">
@@ -72,11 +98,15 @@ export default async function StudentDetailPage({
           </p>
           <p>
             <span className="text-neutral-700">Program:</span>{" "}
-            <span className="text-neutral-900">{student.program ?? "—"}</span>
+            <span className="text-neutral-900">
+              {latestEnrollment?.program ?? student.program ?? "—"}
+            </span>
           </p>
           <p>
             <span className="text-neutral-700">Year Level:</span>{" "}
-            <span className="text-neutral-900">{student.yearLevel ?? "—"}</span>
+            <span className="text-neutral-900">
+              {latestEnrollment?.yearLevel ?? student.yearLevel ?? "—"}
+            </span>
           </p>
         </CardContent>
       </Card>
@@ -148,6 +178,34 @@ export default async function StudentDetailPage({
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-[#6A0000]">
+            Forms
+          </CardTitle>
+          {latestEnrollment && (
+            <Link href={`/registrar/approvals/${latestEnrollment.id}/review`}>
+              <Button size="sm" variant="outline">
+                Open in enrollment review
+              </Button>
+            </Link>
+          )}
+        </CardHeader>
+        <CardContent>
+          {latestEnrollment ? (
+            <EnrollmentReviewContent
+              enrollmentId={latestEnrollment.id}
+              applicable={applicable}
+              pendingRequestSubmissionIds={pendingRequestSubmissionIds}
+            />
+          ) : (
+            <p className="text-sm text-neutral-600">
+              Add an enrollment above to see and approve requirement forms here (same as when a student enrolls).
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

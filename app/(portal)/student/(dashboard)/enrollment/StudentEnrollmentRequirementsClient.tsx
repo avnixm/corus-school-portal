@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { RequirementChecklist } from "@/components/requirements/RequirementChecklist";
 import type { ApplicableRequirement } from "@/lib/requirements/getApplicableRequirements";
-import { submitRequirement, resubmitRequirement, removeFile } from "../requirements/actions";
+import { submitRequirement, resubmitRequirement, removeFile, markAsToFollowAction } from "../requirements/actions";
 
 type SerializableItem = {
   requirement: ApplicableRequirement["requirement"];
@@ -16,6 +16,7 @@ type SerializableItem = {
     submittedAt: string | null;
     verifiedAt: string | null;
     registrarRemarks: string | null;
+    markAsToFollow?: boolean;
   };
   files: ApplicableRequirement["files"];
 };
@@ -27,14 +28,17 @@ function toItem(s: SerializableItem): ApplicableRequirement {
       ...s.submission,
       submittedAt: s.submission.submittedAt ? new Date(s.submission.submittedAt) : null,
       verifiedAt: s.submission.verifiedAt ? new Date(s.submission.verifiedAt) : null,
+      markAsToFollow: s.submission.markAsToFollow ?? false,
     },
   };
 }
 
 export function StudentEnrollmentRequirementsClient({
   items,
+  pendingRequestSubmissionIds = [],
 }: {
   items: ApplicableRequirement[];
+  pendingRequestSubmissionIds?: string[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -48,6 +52,7 @@ export function StudentEnrollmentRequirementsClient({
       submittedAt: i.submission.submittedAt?.toISOString() ?? null,
       verifiedAt: i.submission.verifiedAt?.toISOString() ?? null,
       registrarRemarks: i.submission.registrarRemarks,
+      markAsToFollow: i.submission.markAsToFollow,
     },
     files: i.files,
   }));
@@ -82,6 +87,12 @@ export function StudentEnrollmentRequirementsClient({
     startTransition(() => router.refresh());
   };
 
+  const onMarkAsToFollow = async (submissionId: string, value: boolean) => {
+    const result = await markAsToFollowAction(submissionId, value);
+    if (result?.error) throw new Error(result.error);
+    startTransition(() => router.refresh());
+  };
+
   return (
     <RequirementChecklist
       items={serializable.map(toItem)}
@@ -89,6 +100,8 @@ export function StudentEnrollmentRequirementsClient({
       onRemoveFile={onRemoveFile}
       onSubmit={onSubmit}
       onResubmit={onResubmit}
+      onMarkAsToFollow={onMarkAsToFollow}
+      pendingRequestSubmissionIds={pendingRequestSubmissionIds}
       readOnly={false}
       requiredOnly={true}
     />

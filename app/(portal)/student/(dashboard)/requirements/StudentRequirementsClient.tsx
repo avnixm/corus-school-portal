@@ -9,6 +9,7 @@ import {
   submitRequirement,
   resubmitRequirement,
   removeFile,
+  markAsToFollowAction,
 } from "./actions";
 
 type SerializableItem = {
@@ -20,6 +21,7 @@ type SerializableItem = {
     submittedAt: string | null;
     verifiedAt: string | null;
     registrarRemarks: string | null;
+    markAsToFollow?: boolean;
   };
   files: ApplicableRequirement["files"];
 };
@@ -31,6 +33,7 @@ function toItem(s: SerializableItem): ApplicableRequirement {
       ...s.submission,
       submittedAt: s.submission.submittedAt ? new Date(s.submission.submittedAt) : null,
       verifiedAt: s.submission.verifiedAt ? new Date(s.submission.verifiedAt) : null,
+      markAsToFollow: s.submission.markAsToFollow ?? false,
     },
   };
 }
@@ -38,9 +41,11 @@ function toItem(s: SerializableItem): ApplicableRequirement {
 export function StudentRequirementsClient({
   items,
   enrollmentId,
+  pendingRequestSubmissionIds = [],
 }: {
   items: ApplicableRequirement[];
   enrollmentId: string | null;
+  pendingRequestSubmissionIds?: string[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -54,6 +59,7 @@ export function StudentRequirementsClient({
       submittedAt: i.submission.submittedAt?.toISOString() ?? null,
       verifiedAt: i.submission.verifiedAt?.toISOString() ?? null,
       registrarRemarks: i.submission.registrarRemarks,
+      markAsToFollow: i.submission.markAsToFollow,
     },
     files: i.files,
   }));
@@ -97,6 +103,12 @@ export function StudentRequirementsClient({
     startTransition(() => router.refresh());
   };
 
+  const onMarkAsToFollow = async (submissionId: string, value: boolean) => {
+    const result = await markAsToFollowAction(submissionId, value);
+    if (result?.error) throw new Error(result.error);
+    startTransition(() => router.refresh());
+  };
+
   return (
     <RequirementChecklist
       items={localItems.map(toItem)}
@@ -104,6 +116,8 @@ export function StudentRequirementsClient({
       onRemoveFile={onRemoveFile}
       onSubmit={onSubmit}
       onResubmit={onResubmit}
+      onMarkAsToFollow={onMarkAsToFollow}
+      pendingRequestSubmissionIds={pendingRequestSubmissionIds}
       readOnly={false}
     />
   );

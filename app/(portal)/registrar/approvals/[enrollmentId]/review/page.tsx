@@ -6,6 +6,7 @@ import {
   getUserProfileByUserId,
   getSchoolYearsList,
   getTermsList,
+  getRequirementRequestsByEnrollment,
 } from "@/db/queries";
 import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,15 +44,22 @@ export default async function EnrollmentReviewPage({
   const schoolYearName = schoolYears.find((sy) => sy.id === enrollment.schoolYearId)?.name ?? "—";
   const termName = terms.find((t) => t.id === enrollment.termId)?.name ?? "—";
 
-  const applicable = await getApplicableRequirements({
-    studentId: enrollment.studentId,
-    enrollmentId: enrollment.id,
-    appliesTo: "enrollment",
-    program: enrollment.program,
-    yearLevel: enrollment.yearLevel,
-    schoolYearId: enrollment.schoolYearId,
-    termId: enrollment.termId,
-  });
+  const [applicable, requests] = await Promise.all([
+    getApplicableRequirements({
+      studentId: enrollment.studentId,
+      enrollmentId: enrollment.id,
+      appliesTo: "enrollment",
+      program: enrollment.program,
+      yearLevel: enrollment.yearLevel,
+      schoolYearId: enrollment.schoolYearId,
+      termId: enrollment.termId,
+    }),
+    getRequirementRequestsByEnrollment(enrollment.id),
+  ]);
+
+  const pendingRequestSubmissionIds = new Set(
+    requests.filter((r) => r.status === "pending").map((r) => r.submissionId)
+  );
 
   return (
     <div className="space-y-6">
@@ -90,6 +98,7 @@ export default async function EnrollmentReviewPage({
           <EnrollmentReviewContent
             enrollmentId={enrollmentId}
             applicable={applicable}
+            pendingRequestSubmissionIds={Array.from(pendingRequestSubmissionIds)}
           />
         </CardContent>
       </Card>

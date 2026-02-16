@@ -10,6 +10,7 @@ import {
   getRecentAnnouncementsForProgramHead,
   getAttentionNeededSubmissions,
 } from "@/lib/programHead/queries";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import { getActiveSchoolYear, getActiveTerm } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UsersRound, ClipboardCheck, AlertTriangle, ShieldCheck } from "lucide-react";
@@ -189,7 +190,10 @@ export default async function ProgramHeadDashboardPage() {
             <ul className="space-y-2">
               {announcements.map((a) => (
                 <li key={a.id} className="rounded border px-3 py-2 text-sm">
-                  <span className="font-medium text-[#6A0000]">{a.title}</span>
+                  <span className="text-xs font-semibold uppercase text-[#6A0000]">
+                    {getRoleDisplayLabel(a.createdByRole)}
+                  </span>
+                  <span className="ml-2 font-medium text-[#6A0000]">{a.title}</span>
                   <span className="ml-2 text-xs text-neutral-500">
                     {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ""}
                   </span>

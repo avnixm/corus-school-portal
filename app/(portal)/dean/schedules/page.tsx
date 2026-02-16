@@ -1,6 +1,7 @@
 import { listPendingScheduleApprovalsForDean, getSchoolYearsList, getTermsList } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScheduleApprovalTable } from "@/components/dean/schedules/ScheduleApprovalTable";
+import { ScheduleFilters } from "@/components/dean/schedules/ScheduleFilters";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -34,50 +35,7 @@ export default async function DeanScheduleApprovalsPage({
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-neutral-700">School Year</label>
-              <select
-                value={params.schoolYearId || ""}
-                onChange={(e) => {
-                  const url = new URL(window.location.href);
-                  if (e.target.value) {
-                    url.searchParams.set("schoolYearId", e.target.value);
-                  } else {
-                    url.searchParams.delete("schoolYearId");
-                  }
-                  window.location.href = url.toString();
-                }}
-                className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
-              >
-                <option value="">All</option>
-                {schoolYears.map((sy) => (
-                  <option key={sy.id} value={sy.id}>{sy.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium text-neutral-700">Term</label>
-              <select
-                value={params.termId || ""}
-                onChange={(e) => {
-                  const url = new URL(window.location.href);
-                  if (e.target.value) {
-                    url.searchParams.set("termId", e.target.value);
-                  } else {
-                    url.searchParams.delete("termId");
-                  }
-                  window.location.href = url.toString();
-                }}
-                className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
-              >
-                <option value="">All</option>
-                {terms.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <ScheduleFilters schoolYears={schoolYears} terms={terms} />
         </CardContent>
       </Card>
 

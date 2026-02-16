@@ -8,7 +8,8 @@ type Audience = "all" | "students" | "teachers" | "registrar" | "finance" | "pro
 
 export async function createDeanAnnouncement(formData: FormData) {
   const user = await getCurrentUserWithRole();
-  if (!user || (user.role !== "dean" && user.role !== "admin")) {
+  const canCreate = user && ["registrar", "finance", "dean", "admin"].includes(user.role);
+  if (!user || !canCreate) {
     return { error: "Unauthorized" };
   }
   const title = (formData.get("title") as string)?.trim();
@@ -32,7 +33,8 @@ export async function createDeanAnnouncement(formData: FormData) {
 
 export async function updateDeanAnnouncement(id: string, formData: FormData) {
   const user = await getCurrentUserWithRole();
-  if (!user || (user.role !== "dean" && user.role !== "admin")) {
+  const canCreate = user && ["registrar", "finance", "dean", "admin"].includes(user.role);
+  if (!user || !canCreate) {
     return { error: "Unauthorized" };
   }
   const title = (formData.get("title") as string)?.trim();
@@ -49,7 +51,8 @@ export async function updateDeanAnnouncement(id: string, formData: FormData) {
 
 export async function toggleDeanAnnouncementPinned(id: string, pinned: boolean) {
   const user = await getCurrentUserWithRole();
-  if (!user || (user.role !== "dean" && user.role !== "admin")) {
+  const canCreate = user && ["registrar", "finance", "dean", "admin"].includes(user.role);
+  if (!user || !canCreate) {
     return { error: "Unauthorized" };
   }
   await updateAnnouncement(id, { pinned });
@@ -60,7 +63,8 @@ export async function toggleDeanAnnouncementPinned(id: string, pinned: boolean) 
 
 export async function deleteDeanAnnouncement(id: string) {
   const user = await getCurrentUserWithRole();
-  if (!user || (user.role !== "dean" && user.role !== "admin")) {
+  const canCreate = user && ["registrar", "finance", "dean", "admin"].includes(user.role);
+  if (!user || !canCreate) {
     return { error: "Unauthorized" };
   }
   await deleteAnnouncement(id);

@@ -33,18 +33,19 @@ export function CreateUserForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     setError(null);
     setPending(true);
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(form);
     const result = await createUserAction(formData);
     setPending(false);
     if (result?.error) {
       setError(result.error);
       return;
     }
+    form.reset();
     setOpen(false);
     router.refresh();
-    e.currentTarget.reset();
   }
 
   return (

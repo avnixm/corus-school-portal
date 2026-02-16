@@ -332,7 +332,7 @@ async function main() {
     console.log("  Class schedules: 3 with Mon/Wed/Fri");
   }
 
-  // 9. Requirements (idempotent seed: BIRTH_CERT, FORM_137, FORM_138, GOOD_MORAL + enrollment rules)
+  // 9. Requirements (idempotent seed: BIRTH_CERT, FORM_137, GOOD_MORAL + enrollment rules)
   const { seedRequirements } = await import("@/lib/requirements/seed");
   await seedRequirements();
   const allReqs = await db.select().from(requirements);

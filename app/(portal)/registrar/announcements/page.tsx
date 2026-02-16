@@ -1,4 +1,5 @@
 import { getAnnouncementsList } from "@/db/queries";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateAnnouncementForm } from "./CreateAnnouncementForm";
 import { AnnouncementRowActions } from "./AnnouncementRowActions";
@@ -25,7 +26,7 @@ export default async function AnnouncementsPage() {
           Announcements
         </h2>
         <p className="text-sm text-neutral-800">
-          Create and manage announcements.
+          Create and manage announcements. Registrar, Finance, and Dean may post.
         </p>
       </div>
 
@@ -34,7 +35,7 @@ export default async function AnnouncementsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-neutral-900">
-            All announcements ({announcements.length})
+            All announcements ({announcements.length}) — newest first
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -45,7 +46,10 @@ export default async function AnnouncementsPage() {
                 className="flex items-start justify-between rounded-lg border bg-white p-4"
               >
                 <div className="flex-1">
-                  <h3 className="font-semibold text-[#6A0000]">{row.title}</h3>
+                  <span className="text-xs font-semibold uppercase text-[#6A0000]">
+                    {getRoleDisplayLabel(row.createdByRole)}
+                  </span>
+                  <h3 className="mt-1 font-semibold text-[#6A0000]">{row.title}</h3>
                   <p className="mt-1 text-sm text-neutral-800 line-clamp-2">
                     {row.body}
                   </p>

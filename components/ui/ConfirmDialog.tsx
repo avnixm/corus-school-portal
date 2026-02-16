@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Archive, Check, LucideIcon } from "lucide-react";
+import { AlertTriangle, Archive, Check } from "lucide-react";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -20,7 +20,7 @@ type ConfirmDialogProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "default" | "destructive" | "primary";
-  icon?: LucideIcon;
+  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   onConfirm: () => void | Promise<void>;
   pending?: boolean;
 };

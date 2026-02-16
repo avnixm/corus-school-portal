@@ -1,4 +1,5 @@
 import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import { getEnrollmentForStudentActiveTerm } from "@/db/queries";
 import { getAnnouncementsForStudent } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,8 +42,11 @@ export default async function StudentAnnouncementsPage() {
                       Pinned
                     </Badge>
                   )}
-                  <CardTitle className="text-base text-[#6A0000]">{a.title}</CardTitle>
+                  <span className="text-xs font-semibold uppercase text-[#6A0000]">
+                    {getRoleDisplayLabel(a.createdByRole)}
+                  </span>
                 </div>
+                <CardTitle className="mt-3 text-base text-[#6A0000]">{a.title}</CardTitle>
                 <p className="text-xs text-neutral-500">
                   {a.createdAt ? new Date(a.createdAt).toLocaleString() : ""}
                 </p>

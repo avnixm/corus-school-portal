@@ -10,7 +10,8 @@ export async function createAnnouncementAction(formData: FormData) {
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
+  const canCreate = profile && ["registrar", "finance", "dean", "admin"].includes(profile.role);
+  if (!profile || !canCreate) {
     return { error: "Unauthorized" };
   }
 
@@ -34,6 +35,8 @@ export async function createAnnouncementAction(formData: FormData) {
   });
   revalidatePath("/registrar/announcements");
   revalidatePath("/registrar");
+  revalidatePath("/finance/announcements");
+  revalidatePath("/finance");
   return { success: true };
 }
 
@@ -42,7 +45,8 @@ export async function updateAnnouncementAction(id: string, formData: FormData) {
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
+  const canUpdate = profile && ["registrar", "finance", "dean", "admin"].includes(profile.role);
+  if (!profile || !canUpdate) {
     return { error: "Unauthorized" };
   }
 
@@ -60,6 +64,7 @@ export async function updateAnnouncementAction(id: string, formData: FormData) {
 
   await updateAnnouncement(id, { title, body, audience });
   revalidatePath("/registrar/announcements");
+  revalidatePath("/finance/announcements");
   return { success: true };
 }
 
@@ -68,12 +73,15 @@ export async function deleteAnnouncementAction(id: string) {
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const profile = await getUserProfileByUserId(session.user.id);
-  if (!profile || (profile.role !== "registrar" && profile.role !== "admin")) {
+  const canDelete = profile && ["registrar", "finance", "dean", "admin"].includes(profile.role);
+  if (!profile || !canDelete) {
     return { error: "Unauthorized" };
   }
 
   await deleteAnnouncement(id);
   revalidatePath("/registrar/announcements");
   revalidatePath("/registrar");
+  revalidatePath("/finance/announcements");
+  revalidatePath("/finance");
   return { success: true };
 }

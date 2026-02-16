@@ -16,13 +16,19 @@ import {
   getScheduleWithDetailsByEnrollmentId,
 } from "@/db/queries";
 import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
-import { computeRequirementProgress } from "@/lib/requirements/progress";
+import {
+  computeRequirementProgress,
+  getEnrolledStudentMissingRequiredFormNames,
+} from "@/lib/requirements/progress";
 import { getStudentBalance } from "@/lib/finance/queries";
 import { getAssessmentsByEnrollment } from "@/lib/finance/queries";
 import Link from "next/link";
+import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 
 async function getDashboardData(studentId: string) {
   const enrollment = await getEnrollmentForStudentActiveTerm(studentId);
+  const isEnrolled =
+    enrollment?.status === "approved" || enrollment?.status === "enrolled";
   const [
     requirementsProgress,
     efs,
@@ -30,6 +36,7 @@ async function getDashboardData(studentId: string) {
     grades,
     schedule,
     announcements,
+    missingRequiredFormNames,
   ] = await Promise.all([
     enrollment?.id ? computeRequirementProgress(enrollment.id) : Promise.resolve(null),
     enrollment?.id ? getStudentBalance(enrollment.id) : Promise.resolve(null),
@@ -37,10 +44,13 @@ async function getDashboardData(studentId: string) {
     enrollment?.id
       ? getReleasedGradesByStudentAndEnrollment(studentId, enrollment.id)
       : Promise.resolve([]),
-    enrollment?.id && (enrollment.status === "approved" || enrollment.status === "enrolled")
+    enrollment?.id && isEnrolled
       ? getScheduleWithDetailsByEnrollmentId(enrollment.id, 20)
       : Promise.resolve([]),
     getAnnouncementsForStudent(3, enrollment?.program ?? undefined),
+    enrollment?.id && isEnrolled
+      ? getEnrolledStudentMissingRequiredFormNames(enrollment.id)
+      : Promise.resolve([]),
   ]);
 
   const postedAssessment = assessments?.find((a) => a.status === "posted") ?? null;
@@ -56,6 +66,7 @@ async function getDashboardData(studentId: string) {
     grades: grades ?? [],
     todaySchedule,
     announcements: announcements ?? [],
+    missingRequiredFormNames: missingRequiredFormNames ?? [],
   };
 }
 
@@ -72,6 +83,25 @@ export default async function StudentDashboardPage() {
 
   return (
     <div className="space-y-8">
+      {data.missingRequiredFormNames.length > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+          <p className="font-semibold">Required documents to submit</p>
+          <p className="mt-1 text-sm">
+            You must submit the required forms below before you can access Schedule, Billing, and Grades.
+          </p>
+          <ul className="mt-2 list-inside list-disc text-sm">
+            {data.missingRequiredFormNames.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+          <Link href="/student/requirements" className="mt-3 inline-block">
+            <Button size="sm" className="bg-amber-700 hover:bg-amber-800">
+              Go to Forms & Requirements
+            </Button>
+          </Link>
+        </div>
+      )}
+
       <section className="space-y-3">
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
@@ -88,16 +118,16 @@ export default async function StudentDashboardPage() {
         )}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 [&>*]:flex [&>*]:flex-col [&>*]:h-full">
         {/* Enrollment Status */}
-        <Card className="border-[#6A0000]/20">
+        <Card className="flex h-full flex-col border-[#6A0000]/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-[#6A0000]">
               Enrollment
             </CardTitle>
             <ClipboardList className="h-4 w-4 text-[#6A0000]" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-1 flex-col">
             {!data.enrollment ? (
               <>
                 <p className="text-sm text-neutral-600">No enrollment for current term.</p>
@@ -129,12 +159,13 @@ export default async function StudentDashboardPage() {
 
         {/* Requirements Progress */}
         {data.enrollment?.id && data.requirementsProgress != null && (
-          <Link href="/student/requirements">
+          <Link href="/student/requirements" className="flex h-full flex-col">
             <Card
               className={
-                data.requirementsProgress.blocking.length > 0
+                "flex h-full flex-col " +
+              (data.requirementsProgress.blocking.length > 0
                   ? "border-amber-300 bg-amber-50/50 transition-colors hover:bg-amber-50"
-                  : "transition-colors hover:bg-neutral-50"
+                  : "transition-colors hover:bg-neutral-50")
               }
             >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -143,7 +174,7 @@ export default async function StudentDashboardPage() {
                 </CardTitle>
                 <FileCheck className="h-4 w-4 text-[#6A0000]" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-1 flex-col">
                 <div className="text-3xl font-bold text-[#6A0000]">
                   {data.requirementsProgress.verifiedCount} / {data.requirementsProgress.requiredCount || 1} verified
                 </div>
@@ -162,15 +193,15 @@ export default async function StudentDashboardPage() {
 
         {/* Balance Due */}
         {data.enrollment?.id && (
-          <Link href="/student/billing">
-            <Card className="transition-colors hover:bg-neutral-50">
+          <Link href="/student/billing" className="flex h-full flex-col">
+            <Card className="flex h-full flex-col transition-colors hover:bg-neutral-50">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-[#6A0000]">
                   Balance
                 </CardTitle>
                 <CreditCard className="h-4 w-4 text-[#6A0000]" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-1 flex-col">
                 <div className="text-3xl font-bold text-[#6A0000]">
                   ₱{data.postedAssessment ? Number(data.balanceDue ?? 0).toLocaleString() : "—"}
                 </div>
@@ -186,15 +217,15 @@ export default async function StudentDashboardPage() {
         )}
 
         {/* Latest grades (released only) */}
-        <Link href="/student/grades">
-          <Card className="transition-colors hover:bg-neutral-50">
+        <Link href="/student/grades" className="flex h-full flex-col">
+          <Card className="flex h-full flex-col transition-colors hover:bg-neutral-50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-[#6A0000]">
                 Grades
               </CardTitle>
               <NotebookText className="h-4 w-4 text-[#6A0000]" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-1 flex-col">
               <div className="text-3xl font-bold text-[#6A0000]">
                 {data.grades.length > 0 ? data.grades.length : "—"}
               </div>
@@ -256,10 +287,15 @@ export default async function StudentDashboardPage() {
             ) : (
               data.announcements.map((a) => (
                 <div key={a.id} className="rounded-lg border bg-white px-3 py-2 text-sm">
-                  {a.pinned && (
-                    <Badge className="mb-1 text-xs" variant="outline">Pinned</Badge>
-                  )}
-                  <p className="font-medium text-[#6A0000]">{a.title}</p>
+                  <div className="flex items-center gap-2">
+                    {a.pinned && (
+                      <Badge className="text-xs" variant="outline">Pinned</Badge>
+                    )}
+                    <span className="text-xs font-semibold uppercase text-[#6A0000]">
+                      {getRoleDisplayLabel(a.createdByRole)}
+                    </span>
+                  </div>
+                  <p className="mt-3 font-medium text-[#6A0000]">{a.title}</p>
                   <p className="mt-0.5 line-clamp-2 text-xs text-neutral-600">{a.body}</p>
                 </div>
               ))

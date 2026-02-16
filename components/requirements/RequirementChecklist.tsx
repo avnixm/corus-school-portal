@@ -9,6 +9,8 @@ interface RequirementChecklistProps {
   onRemoveFile: (fileId: string) => Promise<void>;
   onSubmit: (submissionId: string) => Promise<void>;
   onResubmit: (submissionId: string) => Promise<void>;
+  onMarkAsToFollow?: (submissionId: string, value: boolean) => Promise<void>;
+  pendingRequestSubmissionIds?: string[];
   readOnly?: boolean;
   requiredOnly?: boolean;
 }
@@ -19,26 +21,31 @@ export function RequirementChecklist({
   onRemoveFile,
   onSubmit,
   onResubmit,
+  onMarkAsToFollow,
+  pendingRequestSubmissionIds = [],
   readOnly,
   requiredOnly,
 }: RequirementChecklistProps) {
   const toShow = requiredOnly ? items.filter((i) => i.rule.isRequired) : items;
   const required = items.filter((i) => i.rule.isRequired);
   const optional = items.filter((i) => !i.rule.isRequired);
+  const pendingSet = new Set(pendingRequestSubmissionIds);
+
+  const cardProps = (item: RequirementItem) => ({
+    onUpload,
+    onRemoveFile,
+    onSubmit,
+    onResubmit,
+    onMarkAsToFollow,
+    readOnly,
+    hasPendingRequest: pendingSet.has(item.submission.id),
+  });
 
   if (requiredOnly) {
     return (
       <div className="space-y-4">
         {toShow.map((item) => (
-          <RequirementCard
-            key={item.submission.id}
-            item={item}
-            onUpload={onUpload}
-            onRemoveFile={onRemoveFile}
-            onSubmit={onSubmit}
-            onResubmit={onResubmit}
-            readOnly={readOnly}
-          />
+          <RequirementCard key={item.submission.id} item={item} {...cardProps(item)} />
         ))}
       </div>
     );
@@ -51,15 +58,7 @@ export function RequirementChecklist({
           <h3 className="mb-3 text-sm font-semibold text-[#6A0000]">Required</h3>
           <div className="space-y-4">
             {required.map((item) => (
-              <RequirementCard
-                key={item.submission.id}
-                item={item}
-                onUpload={onUpload}
-                onRemoveFile={onRemoveFile}
-                onSubmit={onSubmit}
-                onResubmit={onResubmit}
-                readOnly={readOnly}
-              />
+              <RequirementCard key={item.submission.id} item={item} {...cardProps(item)} />
             ))}
           </div>
         </section>
@@ -69,15 +68,7 @@ export function RequirementChecklist({
           <h3 className="mb-3 text-sm font-semibold text-neutral-700">Optional / Later</h3>
           <div className="space-y-4">
             {optional.map((item) => (
-              <RequirementCard
-                key={item.submission.id}
-                item={item}
-                onUpload={onUpload}
-                onRemoveFile={onRemoveFile}
-                onSubmit={onSubmit}
-                onResubmit={onResubmit}
-                readOnly={readOnly}
-              />
+              <RequirementCard key={item.submission.id} item={item} {...cardProps(item)} />
             ))}
           </div>
         </section>

@@ -137,7 +137,10 @@ export default async function EnrollmentApprovalsPage({
                         : "—"}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <EnrollmentApprovalActions enrollmentId={row.id} />
+                      <EnrollmentApprovalActions
+                        enrollmentId={row.id}
+                        requirementsSummary={summaryByEnrollmentId.get(row.id)}
+                      />
                     </td>
                   </tr>
                 ))}

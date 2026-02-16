@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import { updateAnnouncementAction, deleteAnnouncementAction } from "./actions";
 
@@ -32,6 +40,7 @@ export function AnnouncementRowActions({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,10 +60,10 @@ export function AnnouncementRowActions({
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this announcement?")) return;
     setPending(true);
     await deleteAnnouncementAction(announcement.id);
     setPending(false);
+    setDeleteOpen(false);
     router.refresh();
   }
 
@@ -131,13 +140,35 @@ export function AnnouncementRowActions({
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleDelete}
+        onClick={() => setDeleteOpen(true)}
         disabled={pending}
         className="h-8 gap-1 text-red-600 hover:bg-red-50"
       >
         <Trash2 className="h-3 w-3" />
         Delete
       </Button>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete announcement</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{announcement.title}&quot;? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={pending}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {pending ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

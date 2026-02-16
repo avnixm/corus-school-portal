@@ -22,7 +22,10 @@ export async function getEnrollmentRequirementsPolicy(
     (await getSystemSetting("enrollment_allow_submit_before_requirements"))?.value === true;
 
   const required = applicable.filter((a) => a.rule.isRequired);
-  const missingRequired = required.filter((a) => a.submission.status === "missing");
+  // Missing = no file and not marked "to follow"; to-follow allows enrollment submit without the document
+  const missingRequired = required.filter(
+    (a) => a.submission.status === "missing" && !(a.submission.markAsToFollow ?? false)
+  );
   const unverifiedRequired = required.filter(
     (a) => a.submission.status === "submitted" || a.submission.status === "rejected"
   );

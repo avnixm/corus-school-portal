@@ -6,9 +6,12 @@ import { getProfileAndStudentByUserId } from "@/db/queries";
 import {
   getRequirementSubmissionById,
   updateStudentRequirementSubmission,
+  setSubmissionMarkAsToFollow,
   getRequirementFilesBySubmissionId,
   deleteRequirementFile,
   insertRequirementFile,
+  getPendingRequirementRequestsBySubmissionId,
+  markRequirementRequestFulfilled,
 } from "@/db/queries";
 import { insertAuditLog } from "@/db/queries";
 
@@ -81,6 +84,21 @@ export async function removeFile(fileId: string) {
   return { success: true };
 }
 
+export async function markAsToFollowAction(submissionId: string, markAsToFollow: boolean) {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) return { error: "Not authenticated" };
+  const profile = await getProfileAndStudentByUserId(session.user.id);
+  if (!profile?.student) return { error: "Student profile required" };
+  const submission = await getRequirementSubmissionById(submissionId);
+  if (!submission || submission.studentId !== profile.student.id) return { error: "Forbidden" };
+  if (submission.status === "verified") return { error: "Cannot change to-follow for verified submission" };
+  await setSubmissionMarkAsToFollow(submissionId, markAsToFollow);
+  revalidatePath("/student/requirements");
+  revalidatePath("/student/enrollment");
+  revalidatePath("/student");
+  return { success: true };
+}
+
 export async function submitRequirement(submissionId: string) {
   const session = (await auth.getSession())?.data;
   if (!session?.user?.id) return { error: "Not authenticated" };
@@ -93,7 +111,12 @@ export async function submitRequirement(submissionId: string) {
   await updateStudentRequirementSubmission(submissionId, {
     status: "submitted",
     submittedAt: new Date(),
+    markAsToFollow: false,
   });
+  const pendingRequests = await getPendingRequirementRequestsBySubmissionId(submissionId);
+  for (const req of pendingRequests) {
+    await markRequirementRequestFulfilled(req.id);
+  }
   await insertAuditLog({
     actorUserId: session.user.id,
     action: "requirement_submit",
