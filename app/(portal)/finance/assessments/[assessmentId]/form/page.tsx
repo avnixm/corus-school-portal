@@ -23,6 +23,12 @@ export default async function AssessmentFormPage({
   const miscTotal = parseFloat(assessment.miscTotal ?? "0");
   const otherTotal = parseFloat(assessment.otherTotal ?? "0");
   const total = parseFloat(assessment.total ?? "0");
+  const balance = parseFloat(assessment.efsBalance ?? String(total));
+  const assessedDate = assessment.assessedAt ? new Date(assessment.assessedAt).toLocaleDateString("en-PH", { 
+    year: "numeric", 
+    month: "long", 
+    day: "numeric" 
+  }) : null;
 
   return (
     <div className="space-y-4">
@@ -40,6 +46,16 @@ export default async function AssessmentFormPage({
         <header className="mb-8 text-center">
           <h1 className="text-xl font-bold text-[#6A0000]">CORUS</h1>
           <p className="text-sm text-neutral-600">Official Enrollment / Assessment Form</p>
+          {assessment.status === "posted" && assessedDate && (
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                Posted
+              </span>
+              <span className="text-xs text-neutral-600">
+                {assessedDate}
+              </span>
+            </div>
+          )}
         </header>
 
         <section className="mb-6">
@@ -150,6 +166,18 @@ export default async function AssessmentFormPage({
                     <span>TOTAL FEES</span>
                     <span>₱{total.toFixed(2)}</span>
                   </div>
+                  {assessment.status === "posted" && balance !== total && (
+                    <>
+                      <div className="flex justify-between border-t pt-2 text-green-700">
+                        <span>Paid</span>
+                        <span>-₱{(total - balance).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2 font-bold text-[#6A0000]">
+                        <span>BALANCE DUE</span>
+                        <span>₱{balance.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

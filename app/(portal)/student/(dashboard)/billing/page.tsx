@@ -37,11 +37,9 @@ export default async function StudentBillingPage() {
 
   const isApproved =
     enrollment.status === "approved" || enrollment.status === "enrolled";
+  let missingFormNames: string[] = [];
   if (isApproved) {
-    const missingFormNames = await getEnrolledStudentMissingRequiredFormNames(enrollment.id);
-    if (missingFormNames.length > 0) {
-      redirect("/student/requirements?required=1");
-    }
+    missingFormNames = await getEnrolledStudentMissingRequiredFormNames(enrollment.id);
   }
 
   const [efs, assessments, payments, hasHold] = await Promise.all([
@@ -66,6 +64,18 @@ export default async function StudentBillingPage() {
         </p>
       </div>
 
+      {missingFormNames.length > 0 && (
+        <div className="rounded-lg border border-blue-300 bg-blue-50 p-4 text-blue-900">
+          <p className="font-semibold">Complete required documents</p>
+          <p className="mt-1 text-sm">
+            You need to submit these forms before accessing full billing: {missingFormNames.join(", ")}.{" "}
+            <Link href="/student/requirements?required=1" className="font-medium underline">
+              Upload documents →
+            </Link>
+          </p>
+        </div>
+      )}
+
       {hasHold && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <p className="font-semibold">Account hold</p>
@@ -85,6 +95,8 @@ export default async function StudentBillingPage() {
             className={
               status === "cleared"
                 ? "bg-green-100 text-green-800"
+                : status === "paid"
+                  ? "bg-blue-100 text-blue-800"
                 : status === "hold"
                   ? "bg-amber-100 text-amber-800"
                   : ""
@@ -92,6 +104,34 @@ export default async function StudentBillingPage() {
           >
             {status.replace(/_/g, " ")}
           </Badge>
+          <div className="mt-2 text-sm text-neutral-700">
+            {status === "unassessed" && (
+              <p>Finance is preparing your assessment (usually 1–3 business days).</p>
+            )}
+            {status === "assessed" && balance > 0 && (
+              <p>
+                <span className="font-semibold text-[#6A0000]">Balance due: ₱{balance.toLocaleString()}</span>
+                <br />
+                Pay via cashier or authorized payment centers.
+              </p>
+            )}
+            {status === "partially_paid" && balance > 0 && (
+              <p>
+                <span className="font-semibold text-[#6A0000]">Remaining: ₱{balance.toLocaleString()}</span>
+                <br />
+                Pay the remaining balance via cashier.
+              </p>
+            )}
+            {status === "paid" && (
+              <p>Fully paid ✅ Awaiting clearance from Finance.</p>
+            )}
+            {status === "cleared" && (
+              <p>Cleared ✅ You may proceed to view your class schedule.</p>
+            )}
+            {status === "hold" && (
+              <p className="text-amber-800">On hold — contact Finance office for assistance.</p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

@@ -69,12 +69,22 @@ export default async function RegistrarDashboardPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
-          Registrar Dashboard
-        </h2>
-        <p className="mt-1 text-sm text-neutral-800">
-          Overview of enrollment setup, approvals, and announcements.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
+              Registrar Dashboard
+            </h2>
+            <p className="mt-1 text-sm text-neutral-800">
+              Overview of enrollment setup, approvals, and announcements.
+            </p>
+          </div>
+          <Link
+            href="/registrar/workbench"
+            className="rounded-lg border-2 border-[#6A0000] bg-[#6A0000] px-4 py-2 text-sm font-medium text-white hover:bg-[#6A0000]/90"
+          >
+            Open Workbench →
+          </Link>
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

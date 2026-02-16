@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { markClearedAction } from "./actions";
 
 export function MarkClearedButton({
@@ -22,9 +23,10 @@ export function MarkClearedButton({
     startTransition(async () => {
       const result = await markClearedAction(enrollmentId);
       if (result?.error) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
+      toast.success("Enrollment marked as cleared");
       router.refresh();
     });
   }

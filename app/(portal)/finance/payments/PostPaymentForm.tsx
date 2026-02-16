@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   postPaymentAction,
   searchStudentsAction,
@@ -53,6 +54,11 @@ export function PostPaymentForm() {
   const [referenceNo, setReferenceNo] = useState("");
   const [remarks, setRemarks] = useState("");
 
+  const selectedEnrollment = enrollments.find((e) => e.id === enrollmentId);
+  const currentBalance = selectedEnrollment ? parseFloat(selectedEnrollment.balance ?? "0") : 0;
+  const paymentAmount = parseFloat(amount || "0");
+  const newBalance = currentBalance - paymentAmount;
+
   async function handleSearch() {
     if (!search.trim()) return;
     const results = await searchStudentsAction(search);
@@ -85,6 +91,9 @@ export function PostPaymentForm() {
       setError("Enter a valid amount");
       return;
     }
+    if (amt > currentBalance && !confirm("Payment exceeds current balance. Continue with overpayment?")) {
+      return;
+    }
     startTransition(async () => {
       const formData = new FormData();
       formData.set("studentId", selectedStudent.id);
@@ -96,8 +105,10 @@ export function PostPaymentForm() {
       const result = await postPaymentAction(formData);
       if (result?.error) {
         setError(result.error);
+        toast.error(result.error);
         return;
       }
+      toast.success(`Payment of ₱${amt.toFixed(2)} posted successfully`);
       setAmount("");
       setReferenceNo("");
       setRemarks("");
@@ -178,10 +189,30 @@ export function PostPaymentForm() {
                   id="amount"
                   type="number"
                   step="0.01"
+                  min="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
                 />
+                {paymentAmount > 0 && selectedEnrollment && (
+                  <div className="mt-2 space-y-1 text-sm">
+                    <div className="flex justify-between text-neutral-700">
+                      <span>Current balance:</span>
+                      <span>₱{currentBalance.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span>New balance:</span>
+                      <span className={newBalance < 0 ? "text-amber-700" : "text-green-700"}>
+                        ₱{newBalance.toLocaleString()}
+                      </span>
+                    </div>
+                    {newBalance < 0 && (
+                      <p className="text-xs text-amber-700">
+                        ⚠️ Payment exceeds balance (overpayment)
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="method">Method *</Label>

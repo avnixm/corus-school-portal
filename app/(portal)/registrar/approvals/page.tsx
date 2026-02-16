@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { getPendingEnrollmentApprovalsList } from "@/db/queries";
+import { getPendingEnrollmentApprovalsList, getProgramsList } from "@/db/queries";
 import { getEnrollmentRequirementsSummary } from "@/lib/requirements/enrollmentSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EnrollmentApprovalActions } from "./EnrollmentApprovalActions";
-import { EnrollmentApprovalsSearch } from "./EnrollmentApprovalsSearch";
+import { EnrollmentApprovalsFilters } from "./EnrollmentApprovalsFilters";
 import { RequirementsBadge } from "./RequirementsBadge";
+import { getAgeBadgeProps } from "@/lib/ui/age";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +24,30 @@ export const metadata = { title: "Enrollment Approvals" };
 export default async function EnrollmentApprovalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string }>;
+  searchParams: Promise<{ 
+    search?: string;
+    program?: string;
+    yearLevel?: string;
+    reqsStatus?: string;
+  }>;
 }) {
-  const { search } = await searchParams;
-  const enrollments = await getPendingEnrollmentApprovalsList(search);
+  const params = await searchParams;
+  const [programs, allEnrollments] = await Promise.all([
+    getProgramsList(true),
+    getPendingEnrollmentApprovalsList(params.search),
+  ]);
+
+  // Apply client-side filters (since query doesn't support all filters yet)
+  let enrollments = allEnrollments;
+  if (params.program) {
+    enrollments = enrollments.filter(
+      (e) => e.programCode === params.program || e.program === params.program
+    );
+  }
+  if (params.yearLevel) {
+    enrollments = enrollments.filter((e) => e.yearLevel === params.yearLevel);
+  }
+
   const summaries = await Promise.all(
     enrollments.map((row) =>
       getEnrollmentRequirementsSummary({
@@ -40,6 +62,19 @@ export default async function EnrollmentApprovalsPage({
   );
   const summaryByEnrollmentId = new Map(enrollments.map((r, i) => [r.id, summaries[i]]));
 
+  // Apply requirements filter
+  if (params.reqsStatus === "complete") {
+    enrollments = enrollments.filter((e) => {
+      const summary = summaryByEnrollmentId.get(e.id);
+      return summary && summary.required === 0 || (summary && summary.verified >= summary.required);
+    });
+  } else if (params.reqsStatus === "incomplete") {
+    enrollments = enrollments.filter((e) => {
+      const summary = summaryByEnrollmentId.get(e.id);
+      return summary && summary.required > 0 && summary.verified < summary.required;
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -52,7 +87,7 @@ export default async function EnrollmentApprovalsPage({
       </div>
 
       <Suspense fallback={<div className="h-10" />}>
-        <EnrollmentApprovalsSearch />
+        <EnrollmentApprovalsFilters programs={programs} current={params} />
       </Suspense>
 
       <Card>
@@ -66,6 +101,7 @@ export default async function EnrollmentApprovalsPage({
             <table className="min-w-full text-left text-sm text-neutral-900">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
+                  <th className="px-4 py-2">Age</th>
                   <th className="px-4 py-2">Student</th>
                   <th className="px-4 py-2">School Year / Term</th>
                   <th className="px-4 py-2">Program</th>
@@ -78,11 +114,18 @@ export default async function EnrollmentApprovalsPage({
                 </tr>
               </thead>
               <tbody>
-                {enrollments.map((row) => (
+                {enrollments.map((row) => {
+                  const ageProps = getAgeBadgeProps(row.createdAt);
+                  return (
                   <tr
                     key={row.id}
                     className="border-b last:border-0 hover:bg-neutral-50/80"
                   >
+                    <td className="px-4 py-2">
+                      <Badge variant={ageProps.variant} className="text-xs">
+                        {ageProps.label}
+                      </Badge>
+                    </td>
                     <td className="px-4 py-2">
                       <Link
                         href={`/registrar/students/${row.studentId}`}
@@ -145,11 +188,12 @@ export default async function EnrollmentApprovalsPage({
                       />
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {enrollments.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       className="px-4 py-8 text-center text-sm text-neutral-800"
                     >
                       No pending enrollment approvals.

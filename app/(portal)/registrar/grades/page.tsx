@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RegistrarGradesFilters } from "./RegistrarGradesFilters";
+import { GradeRowActions } from "./GradeRowActions";
+import { getAgeBadgeProps } from "@/lib/ui/age";
 
 export const dynamic = "force-dynamic";
 
@@ -59,21 +61,28 @@ export default async function RegistrarGradesPage({
     emptyMsg: string
   ) => (
     <div className="space-y-2">
-      {items.map((s) => (
-        <Link
+      {items.map((s) => {
+        const ageProps = getAgeBadgeProps(s.submittedAt);
+        return (
+        <div
           key={s.id}
-          href={`/registrar/grades/${s.id}`}
           className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
         >
-          <div>
-            <span className="font-medium text-[#6A0000]">
+          <div className="flex-1">
+            <Link
+              href={`/registrar/grades/${s.id}`}
+              className="font-medium text-[#6A0000] hover:underline"
+            >
               {s.subjectCode} — {s.sectionName} ({s.gradingPeriodName})
-            </span>
+            </Link>
             <span className="ml-2 text-xs text-neutral-600">
               {s.teacherFirstName} {s.teacherLastName}
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <Badge variant={ageProps.variant} className="text-xs">
+              {ageProps.label}
+            </Badge>
             <Badge variant="outline" className={statusBadge(s.status)}>
               {s.status}
             </Badge>
@@ -82,9 +91,11 @@ export default async function RegistrarGradesPage({
                 {new Date(s.submittedAt).toLocaleDateString()}
               </span>
             )}
+            <GradeRowActions submissionId={s.id} status={s.status} />
           </div>
-        </Link>
-      ))}
+        </div>
+        );
+      })}
       {items.length === 0 && (
         <p className="py-4 text-center text-sm text-neutral-600">{emptyMsg}</p>
       )}

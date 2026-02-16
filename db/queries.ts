@@ -2761,6 +2761,7 @@ export async function getQueueSubmissions(filters?: {
   termId?: string;
   program?: string;
   search?: string;
+  enrollmentStatus?: string;
 }) {
   const base = db
     .select({
@@ -2778,6 +2779,8 @@ export async function getQueueSubmissions(filters?: {
       yearLevel: enrollments.yearLevel,
       schoolYearId: enrollments.schoolYearId,
       termId: enrollments.termId,
+      enrollmentId: enrollments.id,
+      enrollmentStatus: enrollments.status,
     })
     .from(studentRequirementSubmissions)
     .innerJoin(students, eq(studentRequirementSubmissions.studentId, students.id))
@@ -2789,6 +2792,7 @@ export async function getQueueSubmissions(filters?: {
   if (filters?.schoolYearId) rows = rows.filter((r) => r.schoolYearId === filters.schoolYearId);
   if (filters?.termId) rows = rows.filter((r) => r.termId === filters.termId);
   if (filters?.program) rows = rows.filter((r) => r.program === filters.program);
+  if (filters?.enrollmentStatus) rows = rows.filter((r) => r.enrollmentStatus === filters.enrollmentStatus);
   if (filters?.search?.trim()) {
     const s = filters.search.trim().toLowerCase();
     rows = rows.filter(
@@ -4109,6 +4113,8 @@ export async function getAssessmentFormData(assessmentId: string) {
       otherTotal: assessments.otherTotal,
       total: assessments.total,
       status: assessments.status,
+      assessedAt: assessments.assessedAt,
+      assessedByUserId: assessments.assessedByUserId,
       studentId: students.id,
       studentCode: students.studentCode,
       firstName: students.firstName,
@@ -4123,6 +4129,7 @@ export async function getAssessmentFormData(assessmentId: string) {
       schoolYearName: schoolYears.name,
       termName: terms.name,
       programName: programs.name,
+      efsBalance: enrollmentFinanceStatus.balance,
     })
     .from(assessments)
     .innerJoin(enrollments, eq(assessments.enrollmentId, enrollments.id))
@@ -4130,6 +4137,7 @@ export async function getAssessmentFormData(assessmentId: string) {
     .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
     .innerJoin(terms, eq(enrollments.termId, terms.id))
     .leftJoin(programs, eq(enrollments.programId, programs.id))
+    .leftJoin(enrollmentFinanceStatus, eq(assessments.enrollmentId, enrollmentFinanceStatus.enrollmentId))
     .where(eq(assessments.id, assessmentId))
     .limit(1);
   if (!row) return null;
@@ -4271,6 +4279,9 @@ export async function getAssessmentFormData(assessmentId: string) {
       otherTotal: row.otherTotal,
       total: row.total,
       status: row.status,
+      assessedAt: row.assessedAt,
+      assessedByUserId: row.assessedByUserId,
+      efsBalance: row.efsBalance,
     },
     studentId: row.studentId,
     student: {

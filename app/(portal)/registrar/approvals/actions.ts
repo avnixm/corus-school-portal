@@ -8,6 +8,7 @@ import {
   insertAuditLog,
   createRequirementRequest,
   getRequirementSubmissionById,
+  hasActiveFinanceHoldForEnrollment,
 } from "@/db/queries";
 import { requireRole } from "@/lib/rbac";
 import { getEnrollmentRequirementsSummary } from "@/lib/requirements/enrollmentSummary";
@@ -28,6 +29,15 @@ export async function approveEnrollment(
   const enrollment = await getEnrollmentById(enrollmentId);
   if (!enrollment || enrollment.status !== "pending_approval") {
     return { error: "Enrollment not found or already processed" };
+  }
+
+  // Check for active finance hold
+  const hasHold = await hasActiveFinanceHoldForEnrollment(enrollmentId);
+  if (hasHold) {
+    return {
+      error:
+        "Student has an active Finance Hold. Ask Finance to clear it before approval.",
+    };
   }
 
   const override = options?.override === true;

@@ -7,9 +7,12 @@ import {
   getSchoolYearsList,
   getTermsList,
   getRequirementRequestsByEnrollment,
+  hasActiveFinanceHoldForEnrollment,
 } from "@/db/queries";
 import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle } from "lucide-react";
 import { auth } from "@/lib/auth/server";
 import { EnrollmentReviewContent } from "./EnrollmentReviewContent";
 
@@ -46,7 +49,7 @@ export default async function EnrollmentReviewPage({
   const schoolYearName = schoolYears.find((sy) => sy.id === enrollment.schoolYearId)?.name ?? "—";
   const termName = terms.find((t) => t.id === enrollment.termId)?.name ?? "—";
 
-  const [applicable, requests] = await Promise.all([
+  const [applicable, requests, hasFinanceHold] = await Promise.all([
     getApplicableRequirements({
       studentId: enrollment.studentId,
       enrollmentId: enrollment.id,
@@ -57,6 +60,7 @@ export default async function EnrollmentReviewPage({
       termId: enrollment.termId,
     }),
     getRequirementRequestsByEnrollment(enrollment.id),
+    hasActiveFinanceHoldForEnrollment(enrollmentId),
   ]);
 
   const pendingRequestSubmissionIds = new Set(
@@ -88,6 +92,14 @@ export default async function EnrollmentReviewPage({
           {" · "}
           {schoolYearName} • {termName} · {enrollment.program ?? "—"} Year {enrollment.yearLevel ?? "—"}
         </p>
+        {hasFinanceHold && (
+          <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+            <AlertTriangle className="h-4 w-4 text-red-700" />
+            <span className="text-sm font-medium text-red-700">
+              Finance Hold Active — Approval blocked until Finance clears hold
+            </span>
+          </div>
+        )}
       </div>
 
       <Card>

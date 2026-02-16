@@ -28,7 +28,13 @@ export function QueueFilters({
   schoolYears: SchoolYearRow[];
   terms: TermRow[];
   programs: ProgramRow[];
-  current: { schoolYearId?: string; termId?: string; program?: string; search?: string };
+  current: { 
+    schoolYearId?: string; 
+    termId?: string; 
+    program?: string; 
+    search?: string;
+    enrollmentStatus?: string;
+  };
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -84,6 +90,21 @@ export function QueueFilters({
             {programs.map((p) => (
               <SelectItem key={p.id} value={p.code}>{p.code}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="w-44">
+        <Label>Enrollment status</Label>
+        <Select
+          value={current.enrollmentStatus ?? "__all__"}
+          onValueChange={(v) => update("enrollmentStatus", v === "__all__" ? "" : v)}
+        >
+          <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All</SelectItem>
+            <SelectItem value="pending_approval">Pending approval</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { postAssessmentAction } from "./actions";
+import { toast } from "sonner";
 
 export function PostAssessmentButton({ assessmentId }: { assessmentId: string }) {
   const router = useRouter();
@@ -15,9 +16,10 @@ export function PostAssessmentButton({ assessmentId }: { assessmentId: string })
     startTransition(async () => {
       const result = await postAssessmentAction(assessmentId);
       if (result?.error) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
+      toast.success("Assessment posted successfully");
       router.refresh();
     });
   }

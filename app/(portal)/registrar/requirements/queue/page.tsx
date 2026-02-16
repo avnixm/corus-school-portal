@@ -17,6 +17,7 @@ export default async function RegistrarRequirementsQueuePage({
     termId?: string;
     program?: string;
     search?: string;
+    enrollmentStatus?: string;
   }>;
 }) {
   const params = await searchParams;

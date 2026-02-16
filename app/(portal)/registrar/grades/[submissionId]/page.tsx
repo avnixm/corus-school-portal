@@ -1,11 +1,12 @@
 // path: app/(portal)/registrar/grades/[submissionId]/page.tsx
-import { getGradeSubmissionWithDetails, getGradeEntriesBySubmissionId } from "@/db/queries";
+import { getGradeSubmissionWithDetails, getGradeEntriesBySubmissionId, getAuditLogPage } from "@/db/queries";
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SubmissionActions } from "./SubmissionActions";
+import { Clock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +31,14 @@ export default async function RegistrarSubmissionReviewPage({
   const user = await getCurrentUserWithRole();
   if (!user || (user.role !== "registrar" && user.role !== "admin")) redirect("/not-authorized");
   const { submissionId } = await params;
-  const [details, entries] = await Promise.all([
+  const [details, entries, auditLogs] = await Promise.all([
     getGradeSubmissionWithDetails(submissionId),
     getGradeEntriesBySubmissionId(submissionId),
+    getAuditLogPage({
+      entityType: "grade_submission",
+      entityId: submissionId,
+      limit: 10,
+    }),
   ]);
   if (!details) notFound();
 
@@ -115,6 +121,44 @@ export default async function RegistrarSubmissionReviewPage({
           )}
         </CardContent>
       </Card>
+
+      {auditLogs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#6A0000]">
+              <Clock className="h-4 w-4" />
+              History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {auditLogs.map((log) => {
+                const after = log.after as { remarks?: unknown } | null;
+                const remarks =
+                  after && typeof after.remarks === "string" ? after.remarks : null;
+                return (
+                  <div
+                    key={log.id}
+                    className="flex items-start gap-3 rounded-md border bg-neutral-50/50 px-3 py-2 text-sm"
+                  >
+                    <div className="flex-1">
+                      <span className="font-medium text-[#6A0000]">{log.action}</span>
+                      <span className="ml-2 text-xs text-neutral-600">
+                        {log.createdAt
+                          ? new Date(log.createdAt).toLocaleString()
+                          : "—"}
+                      </span>
+                    </div>
+                    {remarks && (
+                      <span className="text-xs text-neutral-600">{remarks}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

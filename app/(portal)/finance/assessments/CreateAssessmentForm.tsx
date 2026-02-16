@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,12 @@ export function CreateAssessmentForm({
   const [lines, setLines] = useState<AssessmentLineInput[]>([]);
   const [notes, setNotes] = useState("");
 
+  const subtotal = lines.reduce((sum, l) => {
+    const amt = parseFloat(l.amount || "0");
+    const qty = l.qty ?? 1;
+    return sum + amt * qty;
+  }, 0);
+
   function handleEnrollmentChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const id = e.target.value;
     setEnrollmentId(id);
@@ -70,6 +77,14 @@ export function CreateAssessmentForm({
   function updateLine(i: number, updates: Partial<AssessmentLineInput>) {
     const next = [...lines];
     next[i] = { ...next[i], ...updates };
+    // Ensure positive amount and qty >= 1
+    if (updates.amount !== undefined) {
+      const amt = parseFloat(updates.amount);
+      if (amt < 0) next[i].amount = "0";
+    }
+    if (updates.qty !== undefined && updates.qty < 1) {
+      next[i].qty = 1;
+    }
     setLines(next);
   }
 
@@ -82,15 +97,29 @@ export function CreateAssessmentForm({
     }
     const validLines = lines.filter((l) => l.description.trim() && parseFloat(l.amount) > 0);
     if (validLines.length === 0) {
-      setError("Add at least one line with description and amount");
+      setError("Add at least one line with description and amount > 0");
       return;
+    }
+    // Check for invalid amounts or qty
+    for (const line of validLines) {
+      const amt = parseFloat(line.amount);
+      if (amt < 0) {
+        setError("Amount cannot be negative");
+        return;
+      }
+      if ((line.qty ?? 1) < 1) {
+        setError("Quantity must be at least 1");
+        return;
+      }
     }
     startTransition(async () => {
       const result = await createAssessmentAction(enrollmentId, validLines, notes || undefined);
       if (result?.error) {
         setError(result.error);
+        toast.error(result.error);
         return;
       }
+      toast.success("Assessment draft created successfully");
       setOpen(false);
       setEnrollmentId("");
       setLines([]);
@@ -165,6 +194,7 @@ export function CreateAssessmentForm({
                       <Input
                         type="number"
                         step="0.01"
+                        min="0"
                         value={line.amount}
                         onChange={(e) => updateLine(i, { amount: e.target.value })}
                         className="h-8 text-sm"
@@ -191,6 +221,15 @@ export function CreateAssessmentForm({
               <Label htmlFor="notes">Notes</Label>
               <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" className="mt-1 h-10" />
             </div>
+            {lines.length > 0 && (
+              <div className="rounded-lg border border-[#6A0000]/20 bg-[#6A0000]/5 p-3">
+                <p className="text-sm font-medium text-[#6A0000]">Total Preview</p>
+                <p className="mt-1 text-2xl font-bold text-[#6A0000]">
+                  ₱{subtotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="mt-1 text-xs text-neutral-600">{lines.length} line item(s)</p>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setOpen(false); setEnrollmentId(""); setLines([]); setNotes(""); }} disabled={pending}>
                 Cancel

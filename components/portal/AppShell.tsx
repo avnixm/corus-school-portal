@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Sidebar, SidebarItem } from "./Sidebar";
+import { Sidebar, SidebarItem, SidebarConfig } from "./Sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
 import { getStudentNavItems } from "./nav/student";
 import { getAdminNavItems } from "./nav/admin";
-import { getRegistrarNavItems } from "./nav/registrar";
+import { getRegistrarNavItems, getRegistrarNavConfig } from "./nav/registrar";
 import { getFinanceNavItems } from "./nav/finance";
 import { getTeacherNavItems } from "./nav/teacher";
 import { getProgramHeadNavItems } from "./nav/programHead";
@@ -39,10 +39,13 @@ export function AppShell({
   signOutAction,
   children,
 }: AppShellProps) {
+  // For registrar, use the new grouped config
+  const registrarConfig = navVariant === "registrar" ? getRegistrarNavConfig() : undefined;
+  
   const sidebarItems =
     providedItems ??
     (navVariant === "registrar"
-      ? getRegistrarNavItems()
+      ? undefined // Use config instead
       : navVariant === "finance"
       ? getFinanceNavItems()
       : navVariant === "teacher"
@@ -54,7 +57,19 @@ export function AppShell({
       : navVariant === "admin" || role === "admin"
       ? getAdminNavItems()
       : getStudentNavItems());
-  const showSidebar = sidebarItems.length > 0;
+  
+  // Determine portal label based on navVariant or role
+  const portalLabel = 
+    navVariant === "registrar" ? "Registrar Portal" :
+    navVariant === "finance" ? "Finance Portal" :
+    navVariant === "teacher" ? "Teacher Portal" :
+    navVariant === "program_head" ? "Program Head Portal" :
+    navVariant === "dean" ? "Dean Portal" :
+    navVariant === "admin" ? "Admin Portal" :
+    role === "admin" ? "Admin Portal" :
+    "Student Portal";
+  
+  const showSidebar = (sidebarItems && sidebarItems.length > 0) || registrarConfig;
   const displayText = userDisplay ?? (userId ? userId.slice(0, 8) : null);
   const initials = userId ? userId.slice(0, 2).toUpperCase() : "?";
   const [isPending, setIsPending] = React.useState(false);
@@ -72,7 +87,13 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-neutral-50">
-      {showSidebar && <Sidebar items={sidebarItems} />}
+      {showSidebar && (
+        <Sidebar 
+          items={sidebarItems} 
+          config={registrarConfig}
+          portalLabel={portalLabel}
+        />
+      )}
 
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur-md">
