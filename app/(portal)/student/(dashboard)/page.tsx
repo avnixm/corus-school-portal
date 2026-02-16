@@ -24,6 +24,11 @@ import { getStudentBalance } from "@/lib/finance/queries";
 import { getAssessmentsByEnrollment } from "@/lib/finance/queries";
 import Link from "next/link";
 import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
+import { ProfileCompletenessWidget } from "@/components/student/ProfileCompletenessWidget";
+import { computeProfileCompleteness } from "@/lib/student/profileCompleteness";
+import { db } from "@/db";
+import { studentAddresses, students } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 async function getDashboardData(studentId: string) {
   const enrollment = await getEnrollmentForStudentActiveTerm(studentId);
@@ -77,14 +82,40 @@ export default async function StudentDashboardPage() {
   const studentId = user?.studentId && String(user.studentId).trim() ? user.studentId : null;
   if (!studentId) {
     const { redirect } = await import("next/navigation");
-    redirect("/student/setup");
+    redirect("/student/complete-profile");
   }
   const studentName =
     user?.student?.firstName ?? user?.profile?.fullName?.split(" ")[0] ?? "Student";
   const data = await getDashboardData(studentId as string);
 
+  // QW3: Profile completeness check
+  const [fullStudent] = await db
+    .select()
+    .from(students)
+    .where(eq(students.id, studentId as string))
+    .limit(1);
+
+  const [address] = await db
+    .select()
+    .from(studentAddresses)
+    .where(eq(studentAddresses.studentId, studentId as string))
+    .limit(1);
+
+  const profileCompleteness = fullStudent
+    ? computeProfileCompleteness(fullStudent, address ?? null)
+    : null;
+
   return (
     <div className="space-y-8">
+      {/* QW3: Profile completeness widget */}
+      {profileCompleteness && !profileCompleteness.isComplete && (
+        <ProfileCompletenessWidget
+          percentage={profileCompleteness.percentage}
+          missingFields={profileCompleteness.missingFields}
+          isComplete={profileCompleteness.isComplete}
+        />
+      )}
+
       {data.missingRequiredFormNames.length > 0 && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <p className="font-semibold">Required documents to submit</p>

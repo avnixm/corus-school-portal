@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { submitEnrollment, cancelEnrollment } from "./actions";
 
@@ -21,8 +22,12 @@ export function EnrollmentStatusActions({
   function handleSubmit() {
     startTransition(async () => {
       const result = await submitEnrollment(enrollmentId);
-      if (result?.error) alert(result.error);
-      else router.refresh();
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Enrollment submitted for registrar approval");
+        router.refresh();
+      }
     });
   }
 
@@ -30,8 +35,12 @@ export function EnrollmentStatusActions({
     if (!confirm("Cancel this enrollment? You can start a new one for this term if needed.")) return;
     setCancelPending(async () => {
       const result = await cancelEnrollment(enrollmentId);
-      if (result?.error) alert(result.error);
-      else router.refresh();
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Enrollment cancelled");
+        router.refresh();
+      }
     });
   }
 

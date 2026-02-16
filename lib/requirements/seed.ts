@@ -5,57 +5,98 @@ import { db } from "@/lib/db";
 import { requirements, requirementRules } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 
-/** Master requirement definitions only. Which forms are required when (program, year, term) is set by the registrar in Forms & Requirements → Rules. */
+/** Master requirement definitions only. Which forms are required when (program, year, term, studentType) is set by the registrar in Forms & Requirements → Rules. */
 const SEED_REQUIREMENTS = [
   {
-    code: "BIRTH_CERT",
-    name: "Birth Certificate",
+    code: "PSA_BIRTH_CERT",
+    name: "PSA Birth Certificate",
     description: "PSA/NSO authenticated birth certificate",
     instructions:
-      "Upload a clear scan/photo of your PSA/NSO Birth Certificate. Ensure full document is visible.",
+      "Upload a clear scan/photo of your PSA/NSO Birth Certificate. Ensure full document is visible and readable.",
     allowedFileTypes: ["pdf", "jpg", "jpeg", "png"],
     maxFiles: 1,
   },
   {
     code: "FORM_137",
-    name: "Form 137",
+    name: "Form 137 (Permanent Record)",
     description: "Permanent record from previous school",
     instructions:
-      "Upload Form 137 (permanent record). Photo/scan must be readable.",
+      "Upload Form 137 (permanent record). All pages must be clear and readable.",
+    allowedFileTypes: ["pdf", "jpg", "jpeg", "png"],
+    maxFiles: 5,
+  },
+  {
+    code: "FORM_138",
+    name: "Form 138 (Report Card)",
+    description: "Report card from previous school",
+    instructions:
+      "Upload Form 138 (report card) from your last completed school year. All pages must be clear and readable.",
+    allowedFileTypes: ["pdf", "jpg", "jpeg", "png"],
+    maxFiles: 5,
+  },
+  {
+    code: "GOOD_MORAL",
+    name: "Certificate of Good Moral Character",
+    description: "Good moral certificate from previous school",
+    instructions:
+      "Upload a signed Certificate of Good Moral Character from your previous school.",
     allowedFileTypes: ["pdf", "jpg", "jpeg", "png"],
     maxFiles: 1,
   },
   {
-    code: "GOOD_MORAL",
-    name: "Good Moral Certificate",
-    description: "Certificate of good moral character",
+    code: "HONORABLE_DISMISSAL",
+    name: "Honorable Dismissal / Transfer Credentials",
+    description: "Transfer credentials for transferees",
     instructions:
-      "Upload a signed Good Moral Certificate from your previous school.",
+      "Upload your Honorable Dismissal or Transfer Credentials from your previous institution. Required for transferees.",
+    allowedFileTypes: ["pdf", "jpg", "jpeg", "png"],
+    maxFiles: 2,
+  },
+  {
+    code: "MARRIAGE_CERT",
+    name: "Marriage Certificate",
+    description: "PSA/NSO Marriage Certificate (if applicable)",
+    instructions:
+      "Upload PSA/NSO Marriage Certificate if you are married. Required for married students only.",
+    allowedFileTypes: ["pdf", "jpg", "jpeg", "png"],
+    maxFiles: 1,
+  },
+  {
+    code: "ID_PHOTO_2X2",
+    name: "2x2 ID Photo",
+    description: "Recent 2x2 ID photo with white background",
+    instructions:
+      "Upload a recent 2x2 ID photo with white background. Photo must be clear, passport-style, and taken within the last 6 months.",
+    allowedFileTypes: ["jpg", "jpeg", "png"],
+    maxFiles: 1,
+  },
+  {
+    code: "MEDICAL_CERT",
+    name: "Medical / Health Certificate",
+    description: "Medical certificate from licensed physician",
+    instructions:
+      "Upload a medical certificate from a licensed physician. Certificate should be dated within the last 3 months.",
     allowedFileTypes: ["pdf", "jpg", "jpeg", "png"],
     maxFiles: 1,
   },
 ] as const;
 
 /**
- * Idempotent seed: ensures master requirement definitions exist (Birth Certificate, Form 137, Good Moral).
+ * Idempotent seed: ensures PH-specific master requirement definitions exist (PSA Birth Cert, Form 137, Form 138, Good Moral, Honorable Dismissal, Marriage Cert, 2x2 Photo, Medical Cert).
  * Does NOT create any requirement rules. The registrar configures which forms are required and when
- * in Registrar → Forms & Requirements → Rules / applicability (e.g. Form 137 for 1st year, Birth Cert for 1st year).
- * Removes any legacy Form 138 enrollment rule. Safe to run multiple times.
+ * in Registrar → Forms & Requirements → Rules / applicability (e.g. Form 137 for freshmen, Honorable Dismissal for transferees).
+ * Safe to run multiple times.
  */
 export async function seedRequirements(): Promise<void> {
   const existing = await db.select({ id: requirements.id, code: requirements.code }).from(requirements);
   const byCode = new Map(existing.map((r) => [r.code, r.id]));
 
-  const form138Id = byCode.get("FORM_138");
-  if (form138Id) {
+  // Remove legacy BIRTH_CERT in favor of PSA_BIRTH_CERT
+  const legacyBirthCertId = byCode.get("BIRTH_CERT");
+  if (legacyBirthCertId) {
     await db
       .delete(requirementRules)
-      .where(
-        and(
-          eq(requirementRules.requirementId, form138Id),
-          eq(requirementRules.appliesTo, "enrollment")
-        )
-      );
+      .where(eq(requirementRules.requirementId, legacyBirthCertId));
   }
 
   for (const r of SEED_REQUIREMENTS) {

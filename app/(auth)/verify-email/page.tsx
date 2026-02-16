@@ -17,6 +17,8 @@ import { verifyEmailWithOTP, resendVerificationEmail } from "../actions";
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const contactNo = searchParams.get("contactNo") || "";
+  const consent = searchParams.get("consent") || "";
   const [state, formAction, isPending] = useActionState(verifyEmailWithOTP, {
     error: undefined,
   });
@@ -81,6 +83,8 @@ function VerifyEmailContent() {
 
               <form action={formAction} className="space-y-4">
                 <input type="hidden" name="email" value={email} />
+                <input type="hidden" name="contactNo" value={contactNo} />
+                <input type="hidden" name="consent" value={consent} />
                 <div className="space-y-1.5">
                   <label
                     htmlFor="code"

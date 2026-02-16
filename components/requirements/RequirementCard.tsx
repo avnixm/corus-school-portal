@@ -215,24 +215,29 @@ export function RequirementCard({
             )}
             <div className="flex flex-wrap gap-2">
               {submission.status === "missing" && !markAsToFollow && onMarkAsToFollow && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="gap-1 border-amber-400 text-amber-800 hover:bg-amber-50"
-                  disabled={toFollowPending}
-                  onClick={async () => {
-                    setToFollowPending(true);
-                    try {
-                      await onMarkAsToFollow(submission.id, true);
-                    } finally {
-                      setToFollowPending(false);
-                    }
-                  }}
-                >
-                  <Clock className="h-3 w-3" />
-                  Mark as To follow (I&apos;ll submit later)
-                </Button>
+                <div className="w-full">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 border-amber-400 text-amber-800 hover:bg-amber-50"
+                    disabled={toFollowPending}
+                    onClick={async () => {
+                      setToFollowPending(true);
+                      try {
+                        await onMarkAsToFollow(submission.id, true);
+                      } finally {
+                        setToFollowPending(false);
+                      }
+                    }}
+                  >
+                    <Clock className="h-3 w-3" />
+                    Mark as To follow (I&apos;ll submit later)
+                  </Button>
+                  <p className="mt-1.5 text-xs text-amber-700">
+                    You can submit your enrollment without this file, but you must upload and verify it later to access Schedule, Billing, and Grades.
+                  </p>
+                </div>
               )}
               {submission.status === "missing" && files.length > 0 && (
                 <Button

@@ -28,6 +28,13 @@ export async function createOrUpdateDraftEnrollment(formData: FormData): Promise
   const profile = await getProfileAndStudentByUserId(session.user.id);
   if (!profile?.student) return { error: "Student profile required" };
 
+  // QW2: Profile completeness gate
+  if (!profile.student.profileCompletedAt) {
+    return { 
+      error: "Please complete your profile before creating an enrollment. Visit Profile Setup to finish." 
+    };
+  }
+
   const sy = await getActiveSchoolYear();
   const term = await getActiveTerm();
   if (!sy || !term) return { error: "No active school year or term set" };

@@ -99,16 +99,18 @@ export default function RegisterPage() {
 
                 <div className="space-y-1.5">
                   <label
-                    htmlFor="course"
+                    htmlFor="contactNo"
                     className="text-xs font-medium text-neutral-700"
                   >
-                    Program / Course
+                    Mobile number
                   </label>
                   <input
-                    id="course"
-                    name="course"
+                    id="contactNo"
+                    name="contactNo"
+                    type="tel"
                     className="h-9 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-700 shadow-sm outline-none focus-visible:border-[#6A0000] focus-visible:ring-1 focus-visible:ring-[#6A0000]"
-                    placeholder="e.g. BSIT 2"
+                    placeholder="09XX XXX XXXX"
+                    required
                   />
                 </div>
 
@@ -149,21 +151,23 @@ export default function RegisterPage() {
 
                 <div className="flex items-start gap-2 text-xs">
                   <input
-                    id="terms"
+                    id="dataPrivacyConsent"
+                    name="dataPrivacyConsent"
                     type="checkbox"
                     className="mt-0.5 h-3.5 w-3.5 rounded border border-neutral-300 text-[#6A0000] focus-visible:ring-[#6A0000]"
                     required
                   />
                   <label
-                    htmlFor="terms"
+                    htmlFor="dataPrivacyConsent"
                     className="text-neutral-700"
                   >
                     I confirm that the information I provided is correct and I
-                    agree to CORUS&apos;s{" "}
+                    consent to the collection and processing of my personal data
+                    in accordance with the{" "}
                     <span className="font-medium text-[#6A0000]">
-                      terms &amp; privacy policy
-                    </span>
-                    .
+                      Data Privacy Act of 2012
+                    </span>{" "}
+                    and CORUS&apos;s privacy policy.
                   </label>
                 </div>
 

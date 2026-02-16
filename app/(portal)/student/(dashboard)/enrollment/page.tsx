@@ -12,6 +12,7 @@ import { getEnrollmentRequirementsPolicy } from "@/lib/requirements/policy";
 import { ensureEnrollmentRequirementSubmissions } from "@/lib/requirements/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EnrollmentWizard } from "@/app/(portal)/student/(dashboard)/enrollment/EnrollmentWizard";
@@ -126,22 +127,40 @@ export default async function StudentEnrollmentPage() {
           </div>
 
           {isPending && (
-            <p className="text-sm text-amber-800">
-              Wait for registrar review. You will see an update here once your enrollment is processed.
-              You can add or update requirement documents on the{" "}
-              <Link href="/student/requirements" className="font-medium text-[#6A0000] hover:underline">
-                Forms &amp; Requirements
-              </Link>{" "}
-              page while waiting.
-            </p>
+            <div className="space-y-3">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                <p className="font-medium">Enrollment submitted for review</p>
+                <p className="mt-1 text-blue-800">
+                  Your enrollment is being reviewed by the Registrar&apos;s Office. This usually takes 1–3 business days.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link href="/student/requirements">
+                  <Button size="sm" variant="outline" className="border-[#6A0000] text-[#6A0000] hover:bg-[#6A0000]/5">
+                    Update documents →
+                  </Button>
+                </Link>
+                <p className="text-xs text-neutral-600">
+                  You can add or verify required forms while waiting
+                </p>
+              </div>
+            </div>
           )}
           {isRejected && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              <p className="font-medium">Registrar remarks</p>
-              <p className="mt-1">{approval?.remarks ?? "No reason provided. Please contact the registrar for details."}</p>
-              <p className="mt-2 text-red-700">
-                Fix the issues above, then start a new enrollment to resubmit.
-              </p>
+            <div className="space-y-3">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <p className="font-semibold text-red-900">Your enrollment was not approved</p>
+                <p className="mt-2 font-medium">Registrar&apos;s feedback:</p>
+                <p className="mt-1 text-red-900">{approval?.remarks ?? "No specific reason provided. Please contact the Registrar's Office for details."}</p>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-medium">Next steps:</p>
+                <ol className="mt-2 list-inside list-decimal space-y-1 text-amber-800">
+                  <li>Review the feedback above</li>
+                  <li>Fix any missing or incorrect requirements on the <Link href="/student/requirements" className="font-medium text-[#6A0000] hover:underline">Forms &amp; Requirements</Link> page</li>
+                  <li>Click the button below to start a new enrollment and resubmit</li>
+                </ol>
+              </div>
               <NewEnrollmentButton enrollmentId={enrollment.id} />
             </div>
           )}
@@ -152,11 +171,25 @@ export default async function StudentEnrollmentPage() {
           )}
 
           {isDraft && (
-            <EnrollmentStatusActions
-              enrollmentId={enrollment.id}
-              canSubmit={policy.canSubmit}
-              policyMessage={policy.message}
-            />
+            <div className="space-y-3">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm">
+                <p className="font-medium text-neutral-900">Requirements status</p>
+                <p className="mt-1 text-neutral-700">
+                  {applicable.filter(r => r.submission.status === "verified").length} of{" "}
+                  {applicable.filter(r => r.rule.isRequired).length} required forms verified
+                </p>
+                {!policy.canSubmit && (
+                  <p className="mt-2 text-sm text-amber-800">
+                    {policy.message}
+                  </p>
+                )}
+              </div>
+              <EnrollmentStatusActions
+                enrollmentId={enrollment.id}
+                canSubmit={policy.canSubmit}
+                policyMessage={policy.canSubmit ? undefined : "Complete required forms before submitting"}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

@@ -4,6 +4,8 @@ import { getMyStudentProfile } from "@/db/queries";
 import { ProfileHeader } from "@/components/student/profile/ProfileHeader";
 import { IdentityCard } from "@/components/student/profile/IdentityCard";
 import { DetailsCard } from "@/components/student/profile/DetailsCard";
+import { ProfileCompletenessWidget } from "@/components/student/ProfileCompletenessWidget";
+import { computeProfileCompleteness } from "@/lib/student/profileCompleteness";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,7 @@ export const metadata = { title: "Profile" };
 export default async function StudentProfilePage() {
   const current = await getCurrentStudent();
   if (!current?.studentId) {
-    redirect("/student/setup");
+    redirect("/student/complete-profile");
   }
 
   const data = await getMyStudentProfile(current.studentId);
@@ -40,19 +42,24 @@ export default async function StudentProfilePage() {
   const name = fullName(
     student.firstName,
     student.middleName,
-    student.lastName
+    student.lastName,
+    student.suffix
   );
 
-  const addressLine1 = address?.street ?? null;
-  const addressLine2 = null;
-  const city = address?.municipality ?? null;
-  const province = address?.province ?? null;
-  const barangay = address?.barangay ?? null;
-  const zipCode = null;
+  const sexGender = student.sex ?? student.gender;
+  const profileCompleteness = computeProfileCompleteness(student, address ?? null);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
       <ProfileHeader />
+
+      {!profileCompleteness.isComplete && (
+        <ProfileCompletenessWidget
+          percentage={profileCompleteness.percentage}
+          missingFields={profileCompleteness.missingFields}
+          isComplete={profileCompleteness.isComplete}
+        />
+      )}
 
       <IdentityCard
         fullName={name}
@@ -70,31 +77,43 @@ export default async function StudentProfilePage() {
         <DetailsCard
           title="Personal Details"
           items={[
-            { label: "Sex", value: null },
-            { label: "Birth date", value: student.birthday ?? null },
-            { label: "Civil status", value: null },
-            { label: "Nationality", value: null },
+            { label: "Full name", value: name },
+            { label: "Date of birth", value: student.birthday ?? null },
+            { label: "Sex / Gender", value: sexGender },
+            { label: "Religion", value: student.religion },
+            { label: "Place of birth", value: student.placeOfBirth },
+            { label: "Citizenship", value: student.citizenship },
+            { label: "Civil status", value: student.civilStatus },
+            { label: "LRN", value: student.lrn },
+          ]}
+        />
+
+        <DetailsCard
+          title="Contact"
+          items={[
+            { label: "Email", value: student.email ?? current.profile.email },
+            { label: "Mobile", value: student.contactNo },
+            { label: "Alternate contact", value: student.alternateContact },
           ]}
         />
 
         <DetailsCard
           title="Address"
           items={[
-            { label: "Address line 1", value: addressLine1 },
-            { label: "Address line 2", value: addressLine2 },
-            { label: "Barangay", value: barangay },
-            { label: "City", value: city },
-            { label: "Province", value: province },
-            { label: "ZIP", value: zipCode },
+            { label: "Street / House no.", value: address?.street ?? null },
+            { label: "Barangay", value: address?.barangay ?? null },
+            { label: "City / Municipality", value: address?.municipality ?? null },
+            { label: "Province", value: address?.province ?? null },
+            { label: "ZIP code", value: address?.zipCode ?? null },
           ]}
         />
 
         <DetailsCard
-          title="Guardian / Emergency Contact"
+          title="Guardian"
           items={[
             { label: "Name", value: student.guardianName },
             { label: "Relationship", value: student.guardianRelationship },
-            { label: "Phone", value: student.guardianMobile },
+            { label: "Mobile", value: student.guardianMobile },
           ]}
         />
 
@@ -103,6 +122,10 @@ export default async function StudentProfilePage() {
           items={[
             { label: "Program", value: student.program ?? student.programName },
             { label: "Year level", value: student.yearLevel },
+            { label: "Student type", value: student.studentType },
+            { label: "Previous school", value: student.lastSchoolId },
+            { label: "Last grade completed", value: student.lastSchoolYearCompleted },
+            { label: "SHS strand", value: student.shsStrand },
           ]}
         />
       </div>

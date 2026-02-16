@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { RequirementChecklist } from "@/components/requirements/RequirementChecklist";
 import type { ApplicableRequirement } from "@/lib/requirements/getApplicableRequirements";
 import {
@@ -80,8 +81,10 @@ export function StudentRequirementsClient({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
+      toast.error(data.error || "Upload failed");
       throw new Error(data.error || "Upload failed");
     }
+    toast.success("File uploaded successfully");
     startTransition(() => router.refresh());
   };
 
@@ -93,13 +96,21 @@ export function StudentRequirementsClient({
 
   const onSubmit = async (submissionId: string) => {
     const result = await submitRequirement(submissionId);
-    if (result?.error) throw new Error(result.error);
+    if (result?.error) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
+    toast.success("Requirement submitted for verification");
     startTransition(() => router.refresh());
   };
 
   const onResubmit = async (submissionId: string) => {
     const result = await resubmitRequirement(submissionId);
-    if (result?.error) throw new Error(result.error);
+    if (result?.error) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
+    toast.success("Requirement resubmitted for verification");
     startTransition(() => router.refresh());
   };
 

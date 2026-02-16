@@ -16,12 +16,17 @@ export async function register(
 ): Promise<AuthState> {
   const fullName = (formData.get("fullName") as string)?.trim();
   const email = (formData.get("email") as string)?.trim().toLowerCase();
-  const course = (formData.get("course") as string)?.trim();
+  const contactNo = (formData.get("contactNo") as string)?.trim();
+  const dataPrivacyConsent = formData.get("dataPrivacyConsent") === "on";
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
 
-  if (!fullName || !email || !password) {
+  if (!fullName || !email || !contactNo || !password) {
     return { error: "All fields are required" };
+  }
+
+  if (!dataPrivacyConsent) {
+    return { error: "You must consent to data privacy terms to register" };
   }
 
   if (password !== confirmPassword) {
@@ -42,9 +47,10 @@ export async function register(
     return { error: signUpResult.error?.message || "Sign up failed" };
   }
 
-  // Do NOT create user_profile here - wait until email is verified (OTP).
-  // This prevents bots from creating accounts without verifying email.
-  redirect("/verify-email?email=" + encodeURIComponent(email));
+  // Store contactNo + consent in URL params so we can save after OTP verification
+  redirect("/verify-email?email=" + encodeURIComponent(email) + 
+    "&contactNo=" + encodeURIComponent(contactNo) +
+    "&consent=true");
 }
 
 function isEmailNotVerifiedError(message: string): boolean {
@@ -149,11 +155,17 @@ export async function verifyEmailWithOTP(
   if (session?.user?.id) {
     const existing = await getUserProfileByUserId(session.user.id);
     if (!existing) {
+      // Extract contactNo and consent from query params (passed from register)
+      const contactNo = formData.get("contactNo") as string | null;
+      const hasConsent = formData.get("consent") === "true";
+      
       await createUserProfile({
         userId: session.user.id,
         email,
         fullName: session.user.name ?? undefined,
         role: "student",
+        contactNo: contactNo || undefined,
+        dataPrivacyConsentAt: hasConsent ? new Date() : undefined,
       });
     }
   }

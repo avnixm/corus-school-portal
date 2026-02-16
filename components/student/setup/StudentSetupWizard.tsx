@@ -22,7 +22,7 @@ import {
   type ProfileStepPayload,
 } from "@/app/(portal)/student/complete-profile/actions";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 8;
 
 type ProfileInitialOk = {
   ok: true;
@@ -31,19 +31,39 @@ type ProfileInitialOk = {
     firstName: string;
     middleName: string | null;
     lastName: string;
+    suffix: string | null;
     email: string | null;
     contactNo: string | null;
+    alternateContact: string | null;
     birthday: string | null;
+    sex: string | null;
+    gender: string | null;
+    religion: string | null;
+    placeOfBirth: string | null;
+    citizenship: string | null;
+    civilStatus: string | null;
+    lrn: string | null;
     addressStreet: string | null;
     addressBarangay: string | null;
     addressMunicipality: string | null;
     addressProvince: string | null;
+    addressZip: string | null;
+    mailingStreet: string | null;
+    mailingBarangay: string | null;
+    mailingMunicipality: string | null;
+    mailingProvince: string | null;
+    mailingZip: string | null;
+    sameAsMailing: boolean | null;
+    emergencyName: string | null;
+    emergencyRelationship: string | null;
+    emergencyMobile: string | null;
     guardianName: string | null;
     guardianRelationship: string | null;
     guardianMobile: string | null;
     studentType: string | null;
     lastSchoolId: string | null;
     lastSchoolYearCompleted: string | null;
+    shsStrand: string | null;
   };
 };
 
@@ -51,60 +71,78 @@ type WizardState = {
   firstName: string;
   middleName: string;
   lastName: string;
+  suffix: string;
   birthday: string;
+  sex: string;
+  gender: string;
+  religion: string;
+  placeOfBirth: string;
+  citizenship: string;
+  civilStatus: string;
+  lrn: string;
   email: string;
   mobile: string;
+  alternateContact: string;
   addressLine1: string;
   barangay: string;
   city: string;
   province: string;
   zip: string;
+  sameAsMailing: boolean;
+  mailingAddressLine1: string;
+  mailingBarangay: string;
+  mailingCity: string;
+  mailingProvince: string;
+  mailingZip: string;
+  emergencyName: string;
+  emergencyRelationship: string;
+  emergencyMobile: string;
   guardianName: string;
   guardianRelationship: string;
   guardianMobile: string;
   studentType: string;
   previousSchool: string;
   lastGradeCompleted: string;
+  shsStrand: string;
 };
 
-const initialState = (init: {
-  student: {
-    firstName: string;
-    middleName: string | null;
-    lastName: string;
-    email: string | null;
-    contactNo: string | null;
-    birthday: string | null;
-    addressStreet: string | null;
-    addressBarangay: string | null;
-    addressMunicipality: string | null;
-    addressProvince: string | null;
-    guardianName: string | null;
-    guardianRelationship: string | null;
-    guardianMobile: string | null;
-    studentType: string | null;
-    lastSchoolId: string | null;
-    lastSchoolYearCompleted: string | null;
-  };
-  email: string;
-}): WizardState => ({
+const initialState = (init: ProfileInitialOk): WizardState => ({
   firstName: init.student.firstName === "—" ? "" : init.student.firstName,
   middleName: init.student.middleName ?? "",
   lastName: init.student.lastName === "—" ? "" : init.student.lastName,
+  suffix: init.student.suffix ?? "",
   birthday: init.student.birthday ?? "",
+  sex: init.student.sex ?? init.student.gender ?? "",
+  gender: init.student.gender ?? init.student.sex ?? "",
+  religion: init.student.religion ?? "",
+  placeOfBirth: init.student.placeOfBirth ?? "",
+  citizenship: init.student.citizenship ?? "Filipino",
+  civilStatus: init.student.civilStatus ?? "",
+  lrn: init.student.lrn ?? "",
   email: init.student.email ?? init.email ?? "",
   mobile: init.student.contactNo ?? "",
+  alternateContact: init.student.alternateContact ?? "",
   addressLine1: init.student.addressStreet ?? "",
   barangay: init.student.addressBarangay ?? "",
   city: init.student.addressMunicipality ?? "",
   province: init.student.addressProvince ?? "",
-  zip: "",
+  zip: init.student.addressZip ?? "",
+  sameAsMailing: init.student.sameAsMailing ?? true,
+  mailingAddressLine1: init.student.mailingStreet ?? "",
+  mailingBarangay: init.student.mailingBarangay ?? "",
+  mailingCity: init.student.mailingMunicipality ?? "",
+  mailingProvince: init.student.mailingProvince ?? "",
+  mailingZip: init.student.mailingZip ?? "",
+  emergencyName: init.student.emergencyName ?? "",
+  emergencyRelationship: init.student.emergencyRelationship ?? "",
+  emergencyMobile: init.student.emergencyMobile ?? "",
   guardianName: init.student.guardianName ?? "",
   guardianRelationship: init.student.guardianRelationship ?? "",
   guardianMobile: init.student.guardianMobile ?? "",
   studentType: init.student.studentType ?? "",
   previousSchool: init.student.lastSchoolId ?? "",
   lastGradeCompleted: init.student.lastSchoolYearCompleted ?? "",
+  shsStrand: init.student.shsStrand ?? "",
 });
 
 export function StudentSetupWizard({ initialData }: { initialData: ProfileInitialOk }) {
@@ -163,6 +201,13 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
           middleName: state.middleName || null,
           lastName: state.lastName,
           birthday: state.birthday,
+          sex: state.sex as "Male" | "Female" | "Other",
+          gender: state.sex as "Male" | "Female" | "Other",
+          religion: state.religion,
+          placeOfBirth: state.placeOfBirth,
+          citizenship: state.citizenship,
+          civilStatus: state.civilStatus,
+          lrn: state.lrn,
         },
       };
       const ok = await saveStep(payload);
@@ -182,7 +227,7 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
           barangay: state.barangay,
           city: state.city,
           province: state.province,
-          zip: state.zip || null,
+          zip: state.zip,
         },
       };
       const ok = await saveStep(payload);
@@ -203,8 +248,9 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
         step: 5,
         data: {
           studentType: state.studentType as "New" | "Transferee" | "Returnee",
-          previousSchool: state.previousSchool || null,
-          lastGradeCompleted: state.lastGradeCompleted || null,
+          previousSchool: state.previousSchool,
+          lastGradeCompleted: state.lastGradeCompleted,
+          shsStrand: state.shsStrand,
         },
       };
       const ok = await saveStep(payload);
@@ -217,7 +263,13 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
       return !!(
         state.firstName.trim() &&
         state.lastName.trim() &&
-        state.birthday
+        state.birthday &&
+        (state.sex === "Male" || state.sex === "Female" || state.sex === "Other") &&
+        state.religion.trim() &&
+        state.placeOfBirth.trim() &&
+        state.citizenship.trim() &&
+        state.civilStatus.trim() &&
+        /^\d{12}$/.test(state.lrn.trim())
       );
     if (step === 2) return !!(state.email.trim() && state.mobile.trim());
     if (step === 3)
@@ -225,7 +277,8 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
         state.addressLine1.trim() &&
         state.barangay.trim() &&
         state.city.trim() &&
-        state.province.trim()
+        state.province.trim() &&
+        /^\d{4}$/.test(state.zip.trim())
       );
     if (step === 4)
       return !!(
@@ -233,7 +286,13 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
         state.guardianRelationship.trim() &&
         state.guardianMobile.trim()
       );
-    if (step === 5) return !!state.studentType;
+    if (step === 5)
+      return !!(
+        state.studentType &&
+        state.previousSchool.trim() &&
+        state.lastGradeCompleted.trim() &&
+        state.shsStrand.trim()
+      );
     return true;
   };
 
@@ -278,10 +337,12 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
               <CardTitle className="text-lg text-neutral-900">
                 {step === 1 && "Personal Details"}
                 {step === 2 && "Contact Details"}
-                {step === 3 && "Address"}
-                {step === 4 && "Guardian / Emergency Contact"}
-                {step === 5 && "Academic Background"}
-                {step === 6 && "Review & Submit"}
+                {step === 3 && "Permanent Address"}
+                {step === 4 && "Mailing Address"}
+                {step === 5 && "Emergency Contact"}
+                {step === 6 && "Guardian / Parent"}
+                {step === 7 && "Academic Background"}
+                {step === 8 && "Review & Submit"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pb-6">
@@ -333,6 +394,24 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                     />
                   </div>
                   <div>
+                    <Label htmlFor="suffix">Suffix</Label>
+                    <Select
+                      value={state.suffix || "_none"}
+                      onValueChange={(v) => setState((s) => ({ ...s, suffix: v === "_none" ? "" : v }))}
+                    >
+                      <SelectTrigger className={inputClass}>
+                        <SelectValue placeholder="Select (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">None</SelectItem>
+                        <SelectItem value="Jr.">Jr.</SelectItem>
+                        <SelectItem value="Sr.">Sr.</SelectItem>
+                        <SelectItem value="III">III</SelectItem>
+                        <SelectItem value="IV">IV</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label htmlFor="birthday">Date of birth *</Label>
                     <Input
                       id="birthday"
@@ -342,6 +421,92 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                       onChange={(e) =>
                         setState((s) => ({ ...s, birthday: e.target.value }))
                       }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sex">Sex / Gender *</Label>
+                    <Select
+                      value={state.sex}
+                      onValueChange={(v) => setState((s) => ({ ...s, sex: v, gender: v }))}
+                    >
+                      <SelectTrigger className={inputClass}>
+                        <SelectValue placeholder="Select sex / gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="religion">Religion *</Label>
+                    <Input
+                      id="religion"
+                      className={inputClass}
+                      value={state.religion}
+                      onChange={(e) =>
+                        setState((s) => ({ ...s, religion: e.target.value }))
+                      }
+                      placeholder="e.g. Roman Catholic, Islam"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="placeOfBirth">Place of birth *</Label>
+                    <Input
+                      id="placeOfBirth"
+                      className={inputClass}
+                      value={state.placeOfBirth}
+                      onChange={(e) =>
+                        setState((s) => ({ ...s, placeOfBirth: e.target.value }))
+                      }
+                      placeholder="e.g. Manila, Cebu City"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="citizenship">Citizenship *</Label>
+                    <Input
+                      id="citizenship"
+                      className={inputClass}
+                      value={state.citizenship}
+                      onChange={(e) =>
+                        setState((s) => ({ ...s, citizenship: e.target.value }))
+                      }
+                      placeholder="e.g. Filipino"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="civilStatus">Civil status *</Label>
+                    <Select
+                      value={state.civilStatus}
+                      onValueChange={(v) =>
+                        setState((s) => ({ ...s, civilStatus: v }))
+                      }
+                    >
+                      <SelectTrigger className={inputClass}>
+                        <SelectValue placeholder="Select civil status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Single">Single</SelectItem>
+                        <SelectItem value="Married">Married</SelectItem>
+                        <SelectItem value="Widowed">Widowed</SelectItem>
+                        <SelectItem value="Separated">Separated</SelectItem>
+                        <SelectItem value="Divorced">Divorced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="lrn">LRN (Learner Reference Number) *</Label>
+                    <Input
+                      id="lrn"
+                      className={inputClass}
+                      value={state.lrn}
+                      onChange={(e) =>
+                        setState((s) => ({ ...s, lrn: e.target.value.replace(/\D/g, "").slice(0, 12) }))
+                      }
+                      placeholder="12-digit LRN"
+                      maxLength={12}
+                      pattern="\d{12}"
                     />
                   </div>
                 </div>
@@ -441,7 +606,7 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                       />
                     </div>
                     <div>
-                      <Label htmlFor="zip">ZIP code</Label>
+                      <Label htmlFor="zip">ZIP code *</Label>
                       <Input
                         id="zip"
                         className={inputClass}
@@ -449,7 +614,10 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                         onChange={(e) =>
                           setState((s) => ({ ...s, zip: e.target.value }))
                         }
-                        placeholder="Optional"
+                        placeholder="e.g. 1000"
+                        maxLength={4}
+                        pattern="\d{4}"
+                        title="4-digit Philippine ZIP code"
                       />
                     </div>
                   </div>
@@ -530,7 +698,7 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="previousSchool">Previous school</Label>
+                    <Label htmlFor="previousSchool">Previous school *</Label>
                     <Input
                       id="previousSchool"
                       className={inputClass}
@@ -541,12 +709,12 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                           previousSchool: e.target.value,
                         }))
                       }
-                      placeholder="Optional"
+                      placeholder="e.g. NECS, ABC High School"
                     />
                   </div>
                   <div>
                     <Label htmlFor="lastGradeCompleted">
-                      Last grade completed
+                      Last grade completed *
                     </Label>
                     <Input
                       id="lastGradeCompleted"
@@ -561,6 +729,27 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                       placeholder="e.g. Grade 12"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="shsStrand">SHS strand *</Label>
+                    <Select
+                      value={state.shsStrand}
+                      onValueChange={(v) =>
+                        setState((s) => ({ ...s, shsStrand: v }))
+                      }
+                    >
+                      <SelectTrigger className={inputClass}>
+                        <SelectValue placeholder="Select SHS strand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="STEM">STEM</SelectItem>
+                        <SelectItem value="HUMSS">HUMSS</SelectItem>
+                        <SelectItem value="ABM">ABM</SelectItem>
+                        <SelectItem value="GAS">GAS</SelectItem>
+                        <SelectItem value="TVL">TVL</SelectItem>
+                        <SelectItem value="N/A">N/A (Not from SHS)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
 
@@ -574,6 +763,13 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                           middleName: state.middleName || null,
                           lastName: state.lastName,
                           birthday: state.birthday || null,
+                          sex: state.sex || null,
+                          gender: state.sex || null,
+                          religion: state.religion || null,
+                          placeOfBirth: state.placeOfBirth || null,
+                          citizenship: state.citizenship || null,
+                          civilStatus: state.civilStatus || null,
+                          lrn: state.lrn || null,
                         },
                         contact: { email: state.email, mobile: state.mobile },
                         address: {
@@ -581,6 +777,7 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                           barangay: state.barangay,
                           city: state.city,
                           province: state.province,
+                          zip: state.zip || null,
                         },
                         guardian: {
                           guardianName: state.guardianName,
@@ -591,6 +788,7 @@ export function StudentSetupWizard({ initialData }: { initialData: ProfileInitia
                           studentType: state.studentType,
                           previousSchool: state.previousSchool || null,
                           lastGradeCompleted: state.lastGradeCompleted || null,
+                          shsStrand: state.shsStrand || null,
                         },
                       } as ReviewData
                     }

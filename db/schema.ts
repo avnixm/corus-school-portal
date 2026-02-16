@@ -56,6 +56,10 @@ export const userProfile = pgTable(
     employeeNo: varchar("employee_no", { length: 32 }),
     position: varchar("position", { length: 128 }),
     departmentProgramId: uuid("department_program_id").references(() => programs.id),
+    /** Contact number collected at sign-up */
+    contactNo: varchar("contact_no", { length: 32 }),
+    /** Data Privacy Act consent timestamp */
+    dataPrivacyConsentAt: timestamp("data_privacy_consent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
@@ -176,20 +180,31 @@ export const students = pgTable("students", {
   firstName: varchar("first_name", { length: 128 }).notNull(),
   middleName: varchar("middle_name", { length: 128 }),
   lastName: varchar("last_name", { length: 128 }).notNull(),
+  suffix: varchar("suffix", { length: 16 }), // Jr., III, IV, Sr.
   email: varchar("email", { length: 255 }),
   contactNo: varchar("contact_no", { length: 32 }),
+  alternateContact: varchar("alternate_contact", { length: 32 }),
   birthday: date("birthday"),
+  sex: varchar("sex", { length: 16 }), // Male, Female (sex at birth)
+  gender: varchar("gender", { length: 32 }), // Male, Female, Other (gender identity)
+  religion: varchar("religion", { length: 128 }),
+  placeOfBirth: varchar("place_of_birth", { length: 128 }),
+  citizenship: varchar("citizenship", { length: 64 }),
+  civilStatus: varchar("civil_status", { length: 32 }), // Single, Married, Widowed, etc.
+  lrn: varchar("lrn", { length: 16 }), // Learner Reference Number (12 digits)
   program: varchar("program", { length: 64 }), // e.g. BSIT
   yearLevel: varchar("year_level", { length: 32 }),
   lastSchoolId: varchar("last_school_id", { length: 64 }),
   lastSchoolYearCompleted: varchar("last_school_year_completed", {
     length: 32,
   }),
+  shsStrand: varchar("shs_strand", { length: 64 }), // STEM, HUMSS, ABM, etc.
   guardianName: varchar("guardian_name", { length: 255 }),
   guardianRelationship: varchar("guardian_relationship", { length: 64 }),
   guardianMobile: varchar("guardian_mobile", { length: 32 }),
+  guardianConsentAt: timestamp("guardian_consent_at", { withTimezone: true }),
   photoUrl: varchar("photo_url", { length: 512 }),
-  studentType: varchar("student_type", { length: 32 }), // New / Transferee / Returnee
+  studentType: varchar("student_type", { length: 32 }), // freshman | old | transferee | returnee | cross_enrollee | second_degree
   profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -1115,6 +1130,7 @@ export const requirementRules = pgTable(
     appliesTo: requirementAppliesToEnum("applies_to").notNull().default("enrollment"),
     program: varchar("program", { length: 64 }),
     yearLevel: varchar("year_level", { length: 32 }),
+    studentType: varchar("student_type", { length: 32 }), // freshman | old | transferee | returnee | cross_enrollee | second_degree
     schoolYearId: uuid("school_year_id").references(() => schoolYears.id),
     termId: uuid("term_id").references(() => terms.id),
     isRequired: boolean("is_required").notNull().default(true),
@@ -1128,6 +1144,7 @@ export const requirementRules = pgTable(
       table.appliesTo,
       table.program,
       table.yearLevel,
+      table.studentType,
       table.schoolYearId,
       table.termId
     ),
@@ -1330,15 +1347,49 @@ export const pendingStudentApplications = pgTable(
   }
 );
 
+export const addressTypeEnum = pgEnum("address_type", ["permanent", "mailing"]);
+
+export const studentEmergencyContacts = pgTable("student_emergency_contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id")
+    .notNull()
+    .references(() => students.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  relationship: varchar("relationship", { length: 64 }).notNull(),
+  mobile: varchar("mobile", { length: 32 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const previousSchoolLevelEnum = pgEnum("previous_school_level", ["jhs", "shs", "college"]);
+
+export const studentPreviousSchools = pgTable("student_previous_schools", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id")
+    .notNull()
+    .references(() => students.id),
+  level: previousSchoolLevelEnum("level").notNull(),
+  schoolName: varchar("school_name", { length: 255 }).notNull(),
+  schoolAddress: varchar("school_address", { length: 512 }),
+  yearsAttended: varchar("years_attended", { length: 64 }),
+  yearGraduated: varchar("year_graduated", { length: 16 }),
+  strand: varchar("strand", { length: 64 }), // SHS only (STEM, HUMSS, ABM, etc.)
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 export const studentAddresses = pgTable("student_addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
   studentId: uuid("student_id")
     .notNull()
     .references(() => students.id),
+  addressType: addressTypeEnum("address_type").notNull().default("permanent"),
   street: varchar("street", { length: 255 }),
   province: varchar("province", { length: 128 }),
   municipality: varchar("municipality", { length: 128 }),
   barangay: varchar("barangay", { length: 128 }),
+  zipCode: varchar("zip_code", { length: 16 }),
+  sameAsPermanent: boolean("same_as_permanent").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

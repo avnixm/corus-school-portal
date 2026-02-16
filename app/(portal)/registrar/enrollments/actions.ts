@@ -8,6 +8,7 @@ import {
   approveEnrollmentById,
   rejectEnrollmentById,
   updateEnrollmentSection,
+  pickBalancedSectionForEnrollment,
 } from "@/db/queries";
 import { requireRole } from "@/lib/rbac";
 import { finalizeEnrollmentClasses } from "@/lib/enrollment/finalizeEnrollmentClasses";
@@ -21,7 +22,7 @@ export async function createEnrollmentAction(formData: FormData) {
   const termId = (formData.get("termId") as string)?.trim();
   const programId = (formData.get("programId") as string)?.trim();
   const yearLevel = (formData.get("yearLevel") as string)?.trim() || null;
-  const sectionId = (formData.get("sectionId") as string)?.trim() || null;
+  let sectionId = (formData.get("sectionId") as string)?.trim() || null;
 
   if (!studentId || !schoolYearId || !termId || !programId) {
     return { error: "Student, school year, term, and program are required" };
@@ -29,6 +30,18 @@ export async function createEnrollmentAction(formData: FormData) {
 
   const programRow = await getProgramById(programId);
   if (!programRow) return { error: "Invalid program" };
+
+  // If registrar didn't pick a specific block/section, auto-assign one
+  // based on program + year level + school year + term, keeping blocks balanced.
+  if (!sectionId && yearLevel) {
+    sectionId =
+      (await pickBalancedSectionForEnrollment({
+        programId,
+        yearLevel,
+        schoolYearId,
+        termId,
+      })) ?? null;
+  }
 
   try {
     await createEnrollment({

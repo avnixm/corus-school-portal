@@ -44,11 +44,11 @@ function ReviewSection({ title, data, onEdit }: ReviewSectionProps) {
 }
 
 export type ReviewData = {
-  personal: { firstName: string; middleName?: string | null; lastName: string; birthday: string | null };
+  personal: { firstName: string; middleName?: string | null; lastName: string; birthday: string | null; sex?: string | null; gender?: string | null; religion?: string | null; placeOfBirth?: string | null; citizenship?: string | null; civilStatus?: string | null; lrn?: string | null };
   contact: { email: string; mobile: string };
-  address: { addressLine1: string; barangay: string; city: string; province: string };
+  address: { addressLine1: string; barangay: string; city: string; province: string; zip?: string | null };
   guardian: { guardianName: string; guardianRelationship: string; guardianMobile: string };
-  academic: { studentType: string; previousSchool?: string | null; lastGradeCompleted?: string | null };
+  academic: { studentType: string; previousSchool?: string | null; lastGradeCompleted?: string | null; shsStrand?: string | null };
 };
 
 export function ReviewCard({
@@ -65,6 +65,12 @@ export function ReviewCard({
         data={[
           { label: "Name", value: [data.personal.firstName, data.personal.middleName, data.personal.lastName].filter(Boolean).join(" ") },
           { label: "Date of birth", value: data.personal.birthday ?? undefined },
+          { label: "Sex / Gender", value: data.personal.sex ?? data.personal.gender ?? undefined },
+          { label: "Religion", value: data.personal.religion ?? undefined },
+          { label: "Place of birth", value: data.personal.placeOfBirth ?? undefined },
+          { label: "Citizenship", value: data.personal.citizenship ?? undefined },
+          { label: "Civil status", value: data.personal.civilStatus ?? undefined },
+          { label: "LRN", value: data.personal.lrn ?? undefined },
         ]}
         onEdit={() => onEditStep(1)}
       />
@@ -83,6 +89,7 @@ export function ReviewCard({
           { label: "Barangay", value: data.address.barangay },
           { label: "City", value: data.address.city },
           { label: "Province", value: data.address.province },
+          { label: "ZIP code", value: data.address.zip ?? undefined },
         ]}
         onEdit={() => onEditStep(3)}
       />
@@ -101,6 +108,7 @@ export function ReviewCard({
           { label: "Student type", value: data.academic.studentType },
           { label: "Previous school", value: data.academic.previousSchool ?? undefined },
           { label: "Last grade completed", value: data.academic.lastGradeCompleted ?? undefined },
+          { label: "SHS strand", value: data.academic.shsStrand ?? undefined },
         ]}
         onEdit={() => onEditStep(5)}
       />

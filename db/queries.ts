@@ -81,6 +81,8 @@ export async function createUserProfile(values: {
   fullName?: string | null;
   role: Role;
   emailVerificationBypassed?: boolean;
+  contactNo?: string;
+  dataPrivacyConsentAt?: Date;
 }) {
   return db.insert(userProfile).values({
     ...values,
@@ -592,11 +594,24 @@ export async function getMyStudentProfile(studentId: string) {
       firstName: students.firstName,
       middleName: students.middleName,
       lastName: students.lastName,
+      suffix: students.suffix,
       email: students.email,
       contactNo: students.contactNo,
+      alternateContact: students.alternateContact,
       birthday: students.birthday,
+      sex: students.sex,
+      gender: students.gender,
+      religion: students.religion,
+      placeOfBirth: students.placeOfBirth,
+      citizenship: students.citizenship,
+      civilStatus: students.civilStatus,
+      lrn: students.lrn,
       program: students.program,
       yearLevel: students.yearLevel,
+      studentType: students.studentType,
+      lastSchoolId: students.lastSchoolId,
+      lastSchoolYearCompleted: students.lastSchoolYearCompleted,
+      shsStrand: students.shsStrand,
       guardianName: students.guardianName,
       guardianRelationship: students.guardianRelationship,
       guardianMobile: students.guardianMobile,
@@ -1957,6 +1972,61 @@ export async function getSectionsList(filters?: { programId?: string; yearLevel?
     const rows = condsFallback.length > 0 ? await base.where(and(...condsFallback)) : await base;
     return rows.map((r) => ({ ...r, programId: null as string | null }));
   }
+}
+
+/**
+ * Pick a section for an enrollment to keep blocks balanced by size.
+ *
+ * Strategy:
+ * - Consider only sections for the same program + year level.
+ * - Count current enrollments for each section in the same school year + term
+ *   (pending_approval / preregistered / approved / enrolled).
+ * - Return the section with the smallest count (ties break by section name).
+ *
+ * This means BSIT 1st year A/B stay roughly equal, and we avoid leaving
+ * one block half-empty while another is nearly full.
+ */
+export async function pickBalancedSectionForEnrollment(params: {
+  programId: string;
+  yearLevel: string | null;
+  schoolYearId: string;
+  termId: string;
+}): Promise<string | null> {
+  const { programId, yearLevel, schoolYearId, termId } = params;
+
+  if (!yearLevel) return null;
+
+  const rows = await db
+    .select({
+      id: sections.id,
+      studentCount: sql<number>`count(${enrollments.id})`,
+    })
+    .from(sections)
+    .leftJoin(
+      enrollments,
+      and(
+        eq(enrollments.sectionId, sections.id),
+        eq(enrollments.schoolYearId, schoolYearId),
+        eq(enrollments.termId, termId),
+        inArray(enrollments.status, [
+          "pending_approval",
+          "preregistered",
+          "approved",
+          "enrolled",
+        ])
+      )
+    )
+    .where(
+      and(
+        eq(sections.programId, programId),
+        eq(sections.yearLevel, yearLevel)
+      )
+    )
+    .groupBy(sections.id)
+    .orderBy(sql`count(${enrollments.id})`, asc(sections.name));
+
+  if (!rows.length) return null;
+  return rows[0]?.id ?? null;
 }
 
 export async function createSection(values: {

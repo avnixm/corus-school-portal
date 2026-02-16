@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createOrUpdateDraftEnrollment } from "./actions";
@@ -51,8 +52,10 @@ export function EnrollmentWizard({
     setPending(false);
     if (result?.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Enrollment draft saved successfully");
     router.refresh();
   }
 
