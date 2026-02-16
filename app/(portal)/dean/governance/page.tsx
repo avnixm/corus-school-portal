@@ -5,6 +5,8 @@ import { GovernanceFlagForm } from "./GovernanceFlagForm";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Governance" };
+
 export default async function DeanGovernancePage({
   searchParams,
 }: {

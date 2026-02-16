@@ -14,6 +14,8 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Billing" };
+
 export default async function StudentBillingPage() {
   const current = await getCurrentStudent();
   if (!current) redirect("/student");

@@ -19,6 +19,8 @@ function periodStatusBadge(status: string) {
   return map[status] ?? "border-neutral-300";
 }
 
+export const metadata = { title: "Classes" };
+
 export default async function TeacherClassesPage({
   searchParams,
 }: {

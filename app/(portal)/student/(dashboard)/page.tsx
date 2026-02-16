@@ -70,6 +70,8 @@ async function getDashboardData(studentId: string) {
   };
 }
 
+export const metadata = { title: "Dashboard" };
+
 export default async function StudentDashboardPage() {
   const user = await getCurrentStudent();
   const studentId = user?.studentId && String(user.studentId).trim() ? user.studentId : null;

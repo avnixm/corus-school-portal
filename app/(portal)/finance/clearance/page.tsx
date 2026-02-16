@@ -14,6 +14,8 @@ function fullName(r: {
   return [r.firstName, r.middleName, r.lastName].filter(Boolean).join(" ");
 }
 
+export const metadata = { title: "Clearance" };
+
 export default async function ClearancePage() {
   const [rows, holdEnrollmentIds] = await Promise.all([
     getEnrollmentsForClearance(),

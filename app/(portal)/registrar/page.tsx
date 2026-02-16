@@ -35,6 +35,8 @@ function fullName(row: {
   return [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" ");
 }
 
+export const metadata = { title: "Dashboard" };
+
 export default async function RegistrarDashboardPage() {
   const [
     pendingEnrollmentCount,

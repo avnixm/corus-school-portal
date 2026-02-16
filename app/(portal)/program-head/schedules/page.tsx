@@ -15,6 +15,8 @@ import { ScheduleFilters } from "@/app/(portal)/registrar/schedules/ScheduleFilt
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Schedules" };
+
 export default async function ProgramHeadSchedulesPage({
   searchParams,
 }: {

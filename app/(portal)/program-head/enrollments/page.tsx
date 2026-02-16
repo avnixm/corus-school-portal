@@ -9,6 +9,8 @@ import { EnrollmentsFilters } from "./EnrollmentsFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Enrollments" };
+
 export default async function ProgramHeadEnrollmentsPage({
   searchParams,
 }: {

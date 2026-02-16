@@ -7,6 +7,8 @@ import { AdviserAssignmentRow } from "./AdviserAssignmentRow";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Advisers" };
+
 export default async function AdvisersPage({
   searchParams,
 }: {

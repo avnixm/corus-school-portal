@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 const DAYS_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+export const metadata = { title: "Schedule" };
+
 export default async function StudentSchedulePage() {
   const current = await getCurrentStudent();
   if (!current) redirect("/student");

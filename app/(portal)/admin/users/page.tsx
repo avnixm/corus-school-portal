@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getUsersListSearch } from "@/db/queries";
 import { auth } from "@/lib/auth/server";
@@ -13,6 +14,8 @@ import { UserManagementSearch } from "./UserManagementSearch";
 import { SetActiveButton } from "./SetActiveButton";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Users" };
 
 type SearchParams = Promise<{ q?: string; role?: string }>;
 

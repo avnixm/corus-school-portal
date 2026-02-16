@@ -11,6 +11,8 @@ import { DeanFinanceFilters } from "./DeanFinanceFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Finance" };
+
 export default async function DeanFinancePage({
   searchParams,
 }: {

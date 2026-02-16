@@ -30,6 +30,8 @@ async function getSubjectsList() {
   }
 }
 
+export const metadata = { title: "Academics" };
+
 export default async function DeanAcademicsPage({
   searchParams,
 }: {

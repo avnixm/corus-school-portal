@@ -4,6 +4,8 @@ import { StudentSetupWizard } from "@/components/student/setup/StudentSetupWizar
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Complete Profile" };
+
 export default async function CompleteProfilePage() {
   const initial = await getProfileInitial();
 

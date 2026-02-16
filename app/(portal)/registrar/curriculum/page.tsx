@@ -20,6 +20,8 @@ export const dynamic = "force-dynamic";
 
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
+export const metadata = { title: "Curriculum" };
+
 export default async function RegistrarCurriculumPage({
   searchParams,
 }: {

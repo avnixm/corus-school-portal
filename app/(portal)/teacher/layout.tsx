@@ -1,5 +1,8 @@
 // path: app/(portal)/teacher/layout.tsx
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Teacher" };
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/portal/AppShell";
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";

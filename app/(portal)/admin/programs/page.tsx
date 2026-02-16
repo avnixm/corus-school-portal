@@ -6,6 +6,8 @@ import { ProgramHeadAssignmentsSection } from "./ProgramHeadAssignmentsSection";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Programs" };
+
 export default async function AdminProgramsPage() {
   const [programsList, assignments, programHeads] = await Promise.all([
     getProgramsList(),

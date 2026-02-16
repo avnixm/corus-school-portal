@@ -6,6 +6,8 @@ import { roleHomePath } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Dashboard" };
+
 export default async function DashboardPage() {
   const user = await getCurrentUserWithRole();
 

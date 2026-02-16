@@ -1,69 +1,110 @@
-import { getCurrentUserWithStudent } from "@/lib/auth/getCurrentStudent";
+import { redirect } from "next/navigation";
+import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
+import { getMyStudentProfile } from "@/db/queries";
+import { ProfileHeader } from "@/components/student/profile/ProfileHeader";
+import { IdentityCard } from "@/components/student/profile/IdentityCard";
+import { DetailsCard } from "@/components/student/profile/DetailsCard";
 
-export default async function ProfilePage() {
-  const data = await getCurrentUserWithStudent();
+export const dynamic = "force-dynamic";
 
-  if (!data) {
+function fullName(
+  firstName: string,
+  middleName: string | null,
+  lastName: string,
+  suffix?: string | null
+): string {
+  const parts = [firstName, middleName, lastName].filter(Boolean);
+  const name = parts.join(" ");
+  return suffix ? `${name} ${suffix}` : name;
+}
+
+export const metadata = { title: "Profile" };
+
+export default async function StudentProfilePage() {
+  const current = await getCurrentStudent();
+  if (!current?.studentId) {
+    redirect("/student/setup");
+  }
+
+  const data = await getMyStudentProfile(current.studentId);
+  if (!data?.student) {
     return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">Profile</h2>
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+        <h2 className="text-2xl font-semibold text-[#6A0000]">Profile</h2>
         <p className="text-sm text-neutral-700">Unable to load profile.</p>
       </div>
     );
   }
 
-  const { profile, student } = data;
-  const fullName =
-    profile.fullName ??
-    ([student?.firstName, student?.lastName].filter(Boolean).join(" ") || "—");
+  const { student, address, idPhotoFileId } = data;
+  const name = fullName(
+    student.firstName,
+    student.middleName,
+    student.lastName
+  );
+
+  const addressLine1 = address?.street ?? null;
+  const addressLine2 = null;
+  const city = address?.municipality ?? null;
+  const province = address?.province ?? null;
+  const barangay = address?.barangay ?? null;
+  const zipCode = null;
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">Profile</h2>
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-3 rounded-xl border bg-white/80 p-4 text-sm">
-          <h3 className="text-sm font-semibold text-[#6A0000]">
-            Account
-          </h3>
-          <p>
-            <span className="text-neutral-700">Name: </span>
-            <span className="text-[#6A0000] font-medium">{fullName}</span>
-          </p>
-          <p>
-            <span className="text-neutral-700">Email: </span>
-            <span className="text-[#6A0000] font-medium">{profile.email ?? "—"}</span>
-          </p>
-          <p>
-            <span className="text-neutral-700">Role: </span>
-            <span className="text-[#6A0000] font-medium">{profile.role}</span>
-          </p>
-        </div>
-        <div className="space-y-3 rounded-xl border bg-white/80 p-4 text-sm">
-          <h3 className="text-sm font-semibold text-[#6A0000]">
-            Student Information
-          </h3>
-          {student ? (
-            <>
-              <p>
-                <span className="text-neutral-700">Student Code: </span>
-                <span className="text-[#6A0000] font-medium">{student.studentCode ?? "—"}</span>
-              </p>
-              <p>
-                <span className="text-neutral-700">Program: </span>
-                <span className="text-[#6A0000] font-medium">{student.program ?? "—"}</span>
-              </p>
-              <p>
-                <span className="text-neutral-700">Year Level: </span>
-                <span className="text-[#6A0000] font-medium">{student.yearLevel ?? "—"}</span>
-              </p>
-            </>
-          ) : (
-            <p className="text-neutral-600">
-              No student record linked to your account yet. Contact the registrar
-              to complete your enrollment.
-            </p>
-          )}
-        </div>
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+      <ProfileHeader />
+
+      <IdentityCard
+        fullName={name}
+        studentCode={student.studentCode}
+        program={student.program}
+        programName={student.programName}
+        yearLevel={student.yearLevel}
+        status={null}
+        email={student.email ?? current.profile.email}
+        phone={student.contactNo}
+        photoUrl={student.photoUrl ?? (idPhotoFileId ? `/api/uploads/requirements/${idPhotoFileId}/view` : null)}
+      />
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        <DetailsCard
+          title="Personal Details"
+          items={[
+            { label: "Sex", value: null },
+            { label: "Birth date", value: student.birthday ?? null },
+            { label: "Civil status", value: null },
+            { label: "Nationality", value: null },
+          ]}
+        />
+
+        <DetailsCard
+          title="Address"
+          items={[
+            { label: "Address line 1", value: addressLine1 },
+            { label: "Address line 2", value: addressLine2 },
+            { label: "Barangay", value: barangay },
+            { label: "City", value: city },
+            { label: "Province", value: province },
+            { label: "ZIP", value: zipCode },
+          ]}
+        />
+
+        <DetailsCard
+          title="Guardian / Emergency Contact"
+          items={[
+            { label: "Name", value: student.guardianName },
+            { label: "Relationship", value: student.guardianRelationship },
+            { label: "Phone", value: student.guardianMobile },
+          ]}
+        />
+
+        <DetailsCard
+          title="Academic Info"
+          items={[
+            { label: "Program", value: student.program ?? student.programName },
+            { label: "Year level", value: student.yearLevel },
+          ]}
+        />
       </div>
     </div>
   );

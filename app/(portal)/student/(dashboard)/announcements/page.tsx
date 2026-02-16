@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Announcements" };
+
 export default async function StudentAnnouncementsPage() {
   const current = await getCurrentStudent();
   if (!current) redirect("/student");

@@ -9,6 +9,8 @@ import { DeanEnrollmentsFilters } from "./DeanEnrollmentsFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Enrollments" };
+
 export default async function DeanEnrollmentsPage({
   searchParams,
 }: {

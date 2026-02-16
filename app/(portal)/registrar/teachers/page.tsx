@@ -4,6 +4,8 @@ import { TeacherTable } from "@/components/registrar/teachers/TeacherTable";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Teachers" };
+
 export default async function RegistrarTeachersPage() {
   const [teachers, programs] = await Promise.all([
     listTeachersWithDepartmentAndCapabilityCount(),

@@ -8,6 +8,8 @@ import { ProgramScopeForm } from "./ProgramScopeForm";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Settings" };
+
 export default async function ProgramHeadSettingsPage() {
   const user = await getCurrentUserWithRole();
   if (!user) return null;

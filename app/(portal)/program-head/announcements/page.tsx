@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Announcements" };
+
 export default async function ProgramHeadAnnouncementsPage() {
   const user = await getCurrentUserWithRole();
   if (!user) return null;

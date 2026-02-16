@@ -5,6 +5,8 @@ import { DeanCapabilityReview } from "./DeanCapabilityReview";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Capability Review" };
+
 export default async function DeanCapabilityReviewPage({
   params,
 }: {

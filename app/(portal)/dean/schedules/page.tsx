@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Schedule Approvals" };
+
 export default async function DeanScheduleApprovalsPage({
   searchParams,
 }: {

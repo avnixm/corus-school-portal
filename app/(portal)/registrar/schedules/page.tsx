@@ -12,6 +12,8 @@ import { ScheduleFilters } from "./ScheduleFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Schedules" };
+
 export default async function SchedulesPage({
   searchParams,
 }: {

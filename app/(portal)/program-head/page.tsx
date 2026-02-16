@@ -17,6 +17,8 @@ import { UsersRound, ClipboardCheck, AlertTriangle, ShieldCheck } from "lucide-r
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Dashboard" };
+
 export default async function ProgramHeadDashboardPage() {
   const user = await getCurrentUserWithRole();
   if (!user) return null;

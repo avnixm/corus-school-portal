@@ -18,6 +18,8 @@ function getSettingValueStr(row: { value: unknown } | null): string | null {
   return v != null ? String(v) : null;
 }
 
+export const metadata = { title: "Health" };
+
 export default async function AdminHealthPage() {
   const [sySetting, termSetting, schoolYears, termsList] = await Promise.all([
     getSystemSetting("active_school_year_id"),

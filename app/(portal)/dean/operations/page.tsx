@@ -12,6 +12,8 @@ import { DeanOperationsFilters } from "./DeanOperationsFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Operations" };
+
 export default async function DeanOperationsPage({
   searchParams,
 }: {

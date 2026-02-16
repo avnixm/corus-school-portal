@@ -8,6 +8,8 @@ import { FeeApprovalRow } from "./FeeApprovalRow";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Fees" };
+
 export default async function ProgramHeadFeesPage() {
   const session = (await auth.getSession())?.data;
   const userId = session?.user?.id;

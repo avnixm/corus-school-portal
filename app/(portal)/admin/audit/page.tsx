@@ -15,6 +15,8 @@ type SearchParams = Promise<{
   page?: string;
 }>;
 
+export const metadata = { title: "Audit Log" };
+
 export default async function AdminAuditPage({
   searchParams,
 }: {

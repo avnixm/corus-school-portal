@@ -6,6 +6,8 @@ import { TeacherCapabilitiesClient } from "./TeacherCapabilitiesClient";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Teacher Capabilities" };
+
 export default async function ProgramHeadTeacherCapabilitiesPage() {
   const session = (await auth.getSession())?.data;
   const userId = session?.user?.id;

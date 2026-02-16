@@ -10,6 +10,8 @@ import type { FeeSetupLine } from "@/lib/fees/types";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Fee Setup" };
+
 export default async function ProgramHeadFeeSetupDetailPage({
   params,
 }: {

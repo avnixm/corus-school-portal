@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Student" };
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/portal/AppShell";
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";

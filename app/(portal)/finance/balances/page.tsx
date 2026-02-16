@@ -6,6 +6,8 @@ import { BalanceFilters } from "./BalanceFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Balances" };
+
 function fullName(row: {
   firstName: string;
   middleName?: string | null;

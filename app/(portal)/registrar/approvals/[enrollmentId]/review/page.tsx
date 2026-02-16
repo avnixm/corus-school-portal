@@ -20,6 +20,8 @@ function fullName(row: { firstName: string; middleName?: string | null; lastName
   return [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" ");
 }
 
+export const metadata = { title: "Enrollment Review" };
+
 export default async function EnrollmentReviewPage({
   params,
 }: {

@@ -11,6 +11,8 @@ import { StudentRequirementsClient } from "./StudentRequirementsClient";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Requirements" };
+
 export default async function StudentRequirementsPage({
   searchParams,
 }: {

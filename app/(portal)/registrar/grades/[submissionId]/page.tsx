@@ -20,6 +20,8 @@ function statusBadge(status: string) {
   return map[status] ?? "";
 }
 
+export const metadata = { title: "Submission Review" };
+
 export default async function RegistrarSubmissionReviewPage({
   params,
 }: {

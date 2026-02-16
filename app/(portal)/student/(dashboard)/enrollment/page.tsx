@@ -20,6 +20,8 @@ import { NewEnrollmentButton } from "@/app/(portal)/student/(dashboard)/enrollme
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Enrollment" };
+
 export default async function StudentEnrollmentPage() {
   const current = await getCurrentStudent();
   if (!current) redirect("/student");

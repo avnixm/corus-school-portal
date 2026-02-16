@@ -7,6 +7,8 @@ import { PrintButton } from "@/app/(portal)/finance/assessments/[assessmentId]/f
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Assessment Form" };
+
 export default async function StudentAssessmentFormPage({
   params,
 }: {

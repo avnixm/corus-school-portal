@@ -583,6 +583,83 @@ export async function insertStudentAddress(values: {
   return db.insert(studentAddresses).values(values);
 }
 
+/** Full student profile for /student/profile page: student + address + program */
+export async function getMyStudentProfile(studentId: string) {
+  const [student] = await db
+    .select({
+      id: students.id,
+      studentCode: students.studentCode,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      email: students.email,
+      contactNo: students.contactNo,
+      birthday: students.birthday,
+      program: students.program,
+      yearLevel: students.yearLevel,
+      guardianName: students.guardianName,
+      guardianRelationship: students.guardianRelationship,
+      guardianMobile: students.guardianMobile,
+      photoUrl: students.photoUrl,
+      programName: programs.name,
+    })
+    .from(students)
+    .leftJoin(programs, eq(students.program, programs.code))
+    .where(eq(students.id, studentId))
+    .limit(1);
+
+  if (!student) return null;
+
+  const [address] = await db
+    .select()
+    .from(studentAddresses)
+    .where(eq(studentAddresses.studentId, studentId))
+    .limit(1);
+
+  // Fallback: 2x2 photo from requirement uploads (e.g. "2x2 ID Photo" requirement)
+  const photoFile = await db
+    .select({ id: requirementFiles.id, storageKey: requirementFiles.storageKey })
+    .from(requirementFiles)
+    .innerJoin(
+      studentRequirementSubmissions,
+      eq(requirementFiles.submissionId, studentRequirementSubmissions.id)
+    )
+    .innerJoin(
+      requirements,
+      eq(studentRequirementSubmissions.requirementId, requirements.id)
+    )
+    .where(
+      and(
+        eq(studentRequirementSubmissions.studentId, studentId),
+        inArray(studentRequirementSubmissions.status, ["submitted", "verified"]),
+        or(
+          sql`lower(${requirements.code}) like '%photo%'`,
+          sql`lower(${requirements.code}) like '%2x2%'`,
+          sql`lower(${requirements.name}) like '%2x2%'`,
+          sql`lower(${requirements.name}) like '%id photo%'`,
+          sql`lower(${requirements.name}) like '%photo%'`
+        ),
+        sql`${requirementFiles.fileType} like 'image/%'`
+      )
+    )
+    .orderBy(desc(requirementFiles.uploadedAt))
+    .limit(1);
+
+  let idPhotoFileId: string | null = null;
+  if (photoFile[0]) {
+    const { requirementFileExists } = await import("@/lib/uploads");
+    if (await requirementFileExists(photoFile[0].storageKey)) {
+      idPhotoFileId = photoFile[0].id;
+    }
+  }
+
+  return {
+    student,
+    address: address ?? null,
+    idPhotoFileId,
+  };
+}
+
 // ============ Student Portal - Dashboard ============
 
 export async function getEnrollmentByStudentId(studentId: string) {

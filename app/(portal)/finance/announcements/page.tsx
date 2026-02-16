@@ -16,6 +16,8 @@ const AUDIENCE_LABELS: Record<string, string> = {
   dean: "Dean",
 };
 
+export const metadata = { title: "Announcements" };
+
 export default async function FinanceAnnouncementsPage() {
   const announcements = await getAnnouncementsList();
 

@@ -21,6 +21,8 @@ function statusBadge(status: string) {
   return map[status] ?? "";
 }
 
+export const metadata = { title: "Submissions" };
+
 export default async function TeacherSubmissionsPage() {
   const ctx = await ensureTeacherForCurrentUser();
   if (!ctx) {

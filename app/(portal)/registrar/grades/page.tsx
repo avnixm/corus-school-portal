@@ -27,6 +27,8 @@ function statusBadge(status: string) {
   return map[status] ?? "";
 }
 
+export const metadata = { title: "Grades" };
+
 export default async function RegistrarGradesPage({
   searchParams,
 }: {

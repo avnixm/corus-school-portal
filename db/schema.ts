@@ -188,6 +188,7 @@ export const students = pgTable("students", {
   guardianName: varchar("guardian_name", { length: 255 }),
   guardianRelationship: varchar("guardian_relationship", { length: 64 }),
   guardianMobile: varchar("guardian_mobile", { length: 32 }),
+  photoUrl: varchar("photo_url", { length: 512 }),
   studentType: varchar("student_type", { length: 32 }), // New / Transferee / Returnee
   profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),

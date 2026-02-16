@@ -11,6 +11,8 @@ import { PostAssessmentButton } from "./PostAssessmentButton";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Assessments" };
+
 function fullName(r: {
   firstName: string;
   middleName?: string | null;

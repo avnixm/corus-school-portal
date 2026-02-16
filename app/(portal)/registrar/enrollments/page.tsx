@@ -22,6 +22,8 @@ function fullName(row: {
   return [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" ");
 }
 
+export const metadata = { title: "Enrollments" };
+
 export default async function EnrollmentsPage({
   searchParams,
 }: {

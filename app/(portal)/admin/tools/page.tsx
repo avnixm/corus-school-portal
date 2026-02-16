@@ -3,6 +3,8 @@ import { ToolsActions } from "./ToolsActions";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Tools" };
+
 export default async function AdminToolsPage() {
   return (
     <div className="space-y-6">

@@ -5,6 +5,8 @@ import { ProgramRowActions } from "./ProgramRowActions";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Programs" };
+
 export default async function ProgramsPage({
   searchParams,
 }: {

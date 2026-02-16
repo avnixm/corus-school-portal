@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 
 const OVERLOAD_THRESHOLD = 40;
 
+export const metadata = { title: "Sections" };
+
 export default async function ProgramHeadSectionsPage({
   searchParams,
 }: {

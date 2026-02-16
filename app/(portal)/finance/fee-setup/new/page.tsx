@@ -5,6 +5,8 @@ import { CreateFeeSetupForm } from "../CreateFeeSetupForm";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "New Fee Setup" };
+
 export default async function NewFeeSetupPage() {
   const [programs, schoolYears, terms] = await Promise.all([
     getProgramsList(true),

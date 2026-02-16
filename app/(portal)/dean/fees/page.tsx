@@ -6,6 +6,8 @@ import { DeanFeeApprovalRow } from "./DeanFeeApprovalRow";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Fees" };
+
 export default async function DeanFeesPage() {
   const setups = await getFeeSetupsPendingDean();
 

@@ -12,6 +12,8 @@ import { FeeSetupEditor } from "../FeeSetupEditor";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Edit Fee Setup" };
+
 export default async function FeeSetupEditPage({
   params,
 }: {

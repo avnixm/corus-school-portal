@@ -13,6 +13,8 @@ import { MarkVerifiedButton } from "../MarkVerifiedButton";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "User" };
+
 export default async function AdminUserDetailPage({
   params,
 }: {

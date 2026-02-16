@@ -1,6 +1,9 @@
 // path: app/not-authorized/page.tsx
 
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = { title: "Not Authorized" };
 
 export default function NotAuthorizedPage() {
   return (

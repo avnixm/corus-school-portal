@@ -3,6 +3,8 @@ import { PostPaymentForm } from "./PostPaymentForm";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Payments" };
+
 export default async function PaymentsPage() {
   return (
     <div className="space-y-8">

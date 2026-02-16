@@ -4,6 +4,8 @@ import { DeanAnnouncementsList } from "./DeanAnnouncementsList";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Announcements" };
+
 export default async function DeanAnnouncementsPage() {
   const announcements = await getDeanRecentAnnouncements(100);
 

@@ -8,6 +8,8 @@ import { ClearanceFilters } from "./ClearanceFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Clearance" };
+
 function fullName(r: { firstName: string; middleName?: string | null; lastName: string }) {
   return [r.firstName, r.middleName, r.lastName].filter(Boolean).join(" ");
 }

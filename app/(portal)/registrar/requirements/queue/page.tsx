@@ -7,6 +7,8 @@ import { QueueTable } from "./QueueTable";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Requirements Queue" };
+
 export default async function RegistrarRequirementsQueuePage({
   searchParams,
 }: {

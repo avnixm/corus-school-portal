@@ -34,6 +34,8 @@ async function getSubjectsList() {
   }
 }
 
+export const metadata = { title: "Grades" };
+
 export default async function ProgramHeadGradesPage({
   searchParams,
 }: {

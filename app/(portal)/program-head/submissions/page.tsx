@@ -30,6 +30,8 @@ function statusClass(s: string) {
   return map[s] ?? "bg-neutral-100 text-neutral-800";
 }
 
+export const metadata = { title: "Submissions" };
+
 export default async function ProgramHeadSubmissionsPage({
   searchParams,
 }: {

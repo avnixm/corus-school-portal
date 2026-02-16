@@ -7,6 +7,8 @@ import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
 import { getEnrolledStudentMissingRequiredFormNames } from "@/lib/requirements/progress";
 import { redirect } from "next/navigation";
 
+export const metadata = { title: "Grades" };
+
 export default async function GradesPage() {
   const current = await getCurrentStudent();
   const studentId = current?.studentId;

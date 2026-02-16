@@ -6,6 +6,8 @@ import { PrintButton } from "./PrintButton";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Assessment Form" };
+
 export default async function AssessmentFormPage({
   params,
 }: {

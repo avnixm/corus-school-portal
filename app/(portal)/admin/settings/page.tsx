@@ -31,6 +31,8 @@ function getValueAsGradingPeriods(val: unknown): { name: string; sort_order: num
   }));
 }
 
+export const metadata = { title: "Settings" };
+
 export default async function AdminSettingsPage() {
   const [syList, termsList, sySetting, termSetting, passSetting, maxSectionSetting, gradingSetting] =
     await Promise.all([

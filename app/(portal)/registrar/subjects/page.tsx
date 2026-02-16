@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ programId?: string; tab?: string }>;
 
+export const metadata = { title: "Subjects" };
+
 export default async function SubjectsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const programId = params.programId ?? null;

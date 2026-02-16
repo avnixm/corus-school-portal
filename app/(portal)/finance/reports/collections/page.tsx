@@ -12,6 +12,8 @@ const METHOD_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+export const metadata = { title: "Collections Report" };
+
 export default async function CollectionsReportPage({
   searchParams,
 }: {

@@ -7,6 +7,8 @@ import { RequirementsRulesTab } from "./RequirementsRulesTab";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Requirements" };
+
 export default async function RegistrarRequirementsPage() {
   const [schoolYears, terms] = await Promise.all([
     getSchoolYearsList(),

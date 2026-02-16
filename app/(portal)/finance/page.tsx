@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Dashboard" };
+
 export default async function FinanceDashboardPage() {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);

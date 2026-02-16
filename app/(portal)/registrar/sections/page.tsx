@@ -7,6 +7,8 @@ import { SectionFilters } from "./SectionFilters";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Sections" };
+
 export default async function SectionsPage({
   searchParams,
 }: {

@@ -15,6 +15,8 @@ import { ProgramFeeRuleRowActions } from "./ProgramFeeRuleRowActions";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Fee Setup" };
+
 export default async function FeeSetupPage() {
   const [feeItems, programFeeRules, schoolYears, terms, feeSetups] =
     await Promise.all([

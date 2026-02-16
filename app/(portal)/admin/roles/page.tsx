@@ -31,6 +31,8 @@ const PERMISSIONS = [
   { action: "View program analytics", admin: true, registrar: true, finance: false, teacher: false, student: false, program_head: true, dean: true },
 ];
 
+export const metadata = { title: "Roles" };
+
 export default async function AdminRolesPage() {
   return (
     <div className="space-y-6">

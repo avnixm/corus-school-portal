@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Settings" };
+
 export default function DeanSettingsPage() {
   return (
     <div className="space-y-8">

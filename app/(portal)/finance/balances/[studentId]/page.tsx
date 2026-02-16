@@ -16,6 +16,8 @@ function fullName(row: {
   return [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" ");
 }
 
+export const metadata = { title: "Student Balance" };
+
 export default async function StudentBalanceDetailPage({
   params,
 }: {

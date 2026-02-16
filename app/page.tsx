@@ -4,7 +4,10 @@ import Header from "@/components/landing/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, FileText, CreditCard, Megaphone } from "lucide-react";
 import { getAnnouncementsForStudent } from "@/db/queries";
+import type { Metadata } from "next";
 import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
+
+export const metadata: Metadata = { title: "Home" };
 
 export default async function LandingPage() {
   let announcements: Awaited<ReturnType<typeof getAnnouncementsForStudent>> = [];

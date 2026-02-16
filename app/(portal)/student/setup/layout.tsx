@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Student Profile Setup" };
 import { AppShell } from "@/components/portal/AppShell";
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";
 import { signOutAction } from "@/app/actions/auth";

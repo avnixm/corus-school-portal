@@ -21,6 +21,8 @@ function statusBadge(status: string) {
   return <Badge variant="outline" className={s.class}>{s.label}</Badge>;
 }
 
+export const metadata = { title: "Gradebook" };
+
 export default async function TeacherGradebookPage({
   params,
 }: {

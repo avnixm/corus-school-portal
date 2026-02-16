@@ -16,6 +16,8 @@ import { UsersRound, ClipboardCheck, AlertCircle, ShieldCheck, Wallet } from "lu
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Dashboard" };
+
 export default async function DeanDashboardPage() {
   const activeSy = await getActiveSchoolYear();
   const activeTerm = await getActiveTerm();

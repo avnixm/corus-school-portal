@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -12,6 +13,8 @@ import {
 import { roleLabel } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function AdminDashboardPage() {
   const [users, last24h, roleChanges, syIdSetting, termIdSetting, schoolYears, termsList] =

@@ -5,6 +5,8 @@ import { DeanCapabilityTabs } from "./DeanCapabilityTabs";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Teacher Capabilities" };
+
 export default async function DeanTeacherCapabilitiesPage() {
   const [submitted, approved, rejected] = await Promise.all([
     listCapabilityPackagesByStatus("submitted"),
