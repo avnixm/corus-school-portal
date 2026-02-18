@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { RequirementChecklist } from "@/components/requirements/RequirementChecklist";
 import type { ApplicableRequirement } from "@/lib/requirements/getApplicableRequirements";
 import { submitRequirement, resubmitRequirement, removeFile, markAsToFollowAction } from "../requirements/actions";
@@ -64,32 +65,47 @@ export function StudentEnrollmentRequirementsClient({
     const res = await fetch("/api/uploads/requirements", { method: "POST", body: formData });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Upload failed");
+      const error = data.error || "Upload failed";
+      toast.error(error);
+      throw new Error(error);
     }
+    toast.success("File uploaded successfully");
     startTransition(() => router.refresh());
   };
 
   const onRemoveFile = async (fileId: string) => {
     const result = await removeFile(fileId);
-    if (result?.error) throw new Error(result.error);
+    if (result?.error) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
     startTransition(() => router.refresh());
   };
 
   const onSubmit = async (submissionId: string) => {
     const result = await submitRequirement(submissionId);
-    if (result?.error) throw new Error(result.error);
+    if (result?.error) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
     startTransition(() => router.refresh());
   };
 
   const onResubmit = async (submissionId: string) => {
     const result = await resubmitRequirement(submissionId);
-    if (result?.error) throw new Error(result.error);
+    if (result?.error) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
     startTransition(() => router.refresh());
   };
 
   const onMarkAsToFollow = async (submissionId: string, value: boolean) => {
     const result = await markAsToFollowAction(submissionId, value);
-    if (result?.error) throw new Error(result.error);
+    if (result?.error) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
     startTransition(() => router.refresh());
   };
 

@@ -24,44 +24,68 @@ export function ToolsActions({
     setError(null);
     setMessage(null);
     setPending("grading");
-    const result = await createDefaultGradingPeriodsAction();
-    setPending(null);
-    if (result?.error) setError(result.error);
-    else setMessage(result?.message ?? "Done");
-    router.refresh();
+    try {
+      const result = await createDefaultGradingPeriodsAction();
+      if (result?.error) setError(result.error);
+      else setMessage(result?.message ?? "Done");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create grading periods.";
+      setError(message);
+    } finally {
+      setPending(null);
+    }
   }
 
   async function runSeedFees() {
     setError(null);
     setMessage(null);
     setPending("fees");
-    const result = await createDefaultFeeItemsAction();
-    setPending(null);
-    if (result?.error) setError(result.error);
-    else setMessage(result?.message ?? "Done");
-    router.refresh();
+    try {
+      const result = await createDefaultFeeItemsAction();
+      if (result?.error) setError(result.error);
+      else setMessage(result?.message ?? "Done");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create fee items.";
+      setError(message);
+    } finally {
+      setPending(null);
+    }
   }
 
   async function runRecompute() {
     setError(null);
     setMessage(null);
     setPending("recompute");
-    const result = await recomputeEnrollmentBalancesAction();
-    setPending(null);
-    if (result?.error) setError(result.error);
-    else setMessage(result?.message ?? "Done");
-    router.refresh();
+    try {
+      const result = await recomputeEnrollmentBalancesAction();
+      if (result?.error) setError(result.error);
+      else setMessage(result?.message ?? "Done");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to recompute balances.";
+      setError(message);
+    } finally {
+      setPending(null);
+    }
   }
 
   async function runImport() {
     setError(null);
     setMessage(null);
     setPending("import");
-    const result = await placeholderImportAction();
-    setPending(null);
-    if (result?.error) setError(result.error);
-    else setMessage(result?.message ?? "Done");
-    router.refresh();
+    try {
+      const result = await placeholderImportAction();
+      if (result?.error) setError(result.error);
+      else setMessage(result?.message ?? "Done");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to run import.";
+      setError(message);
+    } finally {
+      setPending(null);
+    }
   }
 
   if (variant === "seed") {
