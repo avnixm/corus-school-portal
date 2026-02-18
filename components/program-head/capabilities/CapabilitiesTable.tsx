@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import { removeCapabilityLineAction, updateCapabilityLineNotesAction } from "@/app/(portal)/program-head/teacher-capabilities/actions";
 import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
@@ -67,6 +76,11 @@ export function CapabilitiesTable({
     onRemove();
   }
 
+  function openEditNote(line: Line) {
+    setEditingLine(line);
+    setNoteValue(line.notes ?? "");
+  }
+
   return (
     <>
       <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
@@ -102,21 +116,7 @@ export function CapabilitiesTable({
                   <TypeBadge type={line.capabilityType} />
                 </td>
                 <td className="px-4 py-2">
-                  {editingLine?.id === line.id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={noteValue}
-                        onChange={(e) => setNoteValue(e.target.value)}
-                        className="h-8 w-48 rounded border px-2 text-sm"
-                        placeholder="Notes"
-                      />
-                      <Button size="sm" onClick={handleSaveNote} disabled={pending}>Save</Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingLine(null)}>Cancel</Button>
-                    </div>
-                  ) : (
-                    <span className="text-neutral-600 text-xs">{line.notes || "—"}</span>
-                  )}
+                  <span className="text-xs text-neutral-600">{line.notes || "—"}</span>
                 </td>
                 <td className="px-4 py-2">
                   <StatusBadge status={line.status} />
@@ -126,10 +126,7 @@ export function CapabilitiesTable({
                     <div className="flex justify-center gap-1">
                       <button
                         type="button"
-                        onClick={() => {
-                          setEditingLine(line);
-                          setNoteValue(line.notes ?? "");
-                        }}
+                        onClick={() => openEditNote(line)}
                         className="rounded p-1 hover:bg-neutral-100"
                         title="Edit note"
                       >
@@ -156,6 +153,41 @@ export function CapabilitiesTable({
           No capability lines. Click &quot;Add Capabilities&quot; to add.
         </p>
       )}
+
+      <Dialog open={!!editingLine} onOpenChange={(open) => !open && setEditingLine(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Note</DialogTitle>
+          </DialogHeader>
+          {editingLine && (
+            <p className="text-sm text-neutral-600">
+              {editingLine.subjectCode} – {editingLine.teacherFirstName} {editingLine.teacherLastName}
+            </p>
+          )}
+          <div>
+            <Label htmlFor="capability-note">Notes</Label>
+            <Input
+              id="capability-note"
+              value={noteValue}
+              onChange={(e) => setNoteValue(e.target.value)}
+              placeholder="Notes"
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingLine(null)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveNote} disabled={pending}>
+              {pending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {deleteTarget && (
         <DeleteConfirmDialog

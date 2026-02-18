@@ -53,7 +53,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Sea
                   <th className="px-4 py-2">Program</th>
                   <th className="px-4 py-2">Units</th>
                   <th className="px-4 py-2">Active</th>
-                  <th className="px-4 py-2 text-right">Actions</th>
+                  <th className="w-[1%] whitespace-nowrap px-4 py-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,7 +85,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Sea
                         {row.active ? "Yes" : "No"}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="w-[1%] whitespace-nowrap px-4 py-2 text-right">
                       <SubjectRowActions subject={row} programs={programs} />
                     </td>
                   </tr>

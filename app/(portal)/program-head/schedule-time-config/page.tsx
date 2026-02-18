@@ -1,7 +1,7 @@
 import { listScheduleTimeConfigs, getProgramsList } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateTimeConfigButton } from "./CreateTimeConfigButton";
-import { SubmitToDeanButton } from "./SubmitToDeanButton";
+import { TimeConfigRowActions } from "./TimeConfigRowActions";
 import { Badge } from "@/components/ui/badge";
 import { formatStatusForDisplay } from "@/lib/formatStatus";
 
@@ -50,7 +50,7 @@ export default async function ScheduleTimeConfigPage() {
                   <th className="px-4 py-2">Time Range</th>
                   <th className="px-4 py-2">Increment</th>
                   <th className="px-4 py-2">Status</th>
-                  <th className="px-4 py-2 text-right">Actions</th>
+                  <th className="w-[1%] whitespace-nowrap px-4 py-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -78,10 +78,8 @@ export default async function ScheduleTimeConfigPage() {
                         {formatStatusForDisplay(config.status)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-2 text-right">
-                      {config.status === "draft" && (
-                        <SubmitToDeanButton configId={config.id} />
-                      )}
+                    <td className="w-[1%] whitespace-nowrap px-4 py-2 text-right">
+                      <TimeConfigRowActions config={config} />
                     </td>
                   </tr>
                 ))}

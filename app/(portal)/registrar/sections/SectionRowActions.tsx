@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { updateSectionAction, toggleSectionActiveAction } from "./actions";
 
@@ -27,7 +34,7 @@ export function SectionRowActions({
   programs: Program[];
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +49,7 @@ export function SectionRowActions({
       setError(result.error);
       return;
     }
-    setEditing(false);
+    setEditOpen(false);
     router.refresh();
   }
 
@@ -53,93 +60,88 @@ export function SectionRowActions({
     router.refresh();
   }
 
-  if (editing) {
-    return (
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-2 rounded border p-2"
-      >
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <div>
-          <Label htmlFor="programId" className="text-xs">
-            Program
-          </Label>
-          <select
-            id="programId"
-            name="programId"
-            defaultValue={section.programId ?? ""}
-            className="mt-1 h-8 w-full rounded border border-neutral-200 bg-white px-2 text-sm text-neutral-900"
-            required
-          >
-            <option value="">Select</option>
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <Label htmlFor="name" className="text-xs">
-            Name
-          </Label>
-          <Input
-            id="name"
-            name="name"
-            defaultValue={section.name}
-            className="h-8 text-sm"
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="yearLevel" className="text-xs">
-            Year Level
-          </Label>
-          <Input
-            id="yearLevel"
-            name="yearLevel"
-            defaultValue={section.yearLevel ?? section.gradeLevel ?? ""}
-            className="h-8 text-sm"
-          />
-        </div>
-        <div className="flex gap-1">
-          <Button type="submit" size="sm" disabled={pending}>
-            Save
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing(false)}
-            disabled={pending}
-          >
-            Cancel
-          </Button>
-        </div>
-      </form>
-    );
-  }
-
   return (
-    <div className="flex items-center justify-end gap-1">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleToggle}
-        disabled={pending}
-        className="h-8 text-xs"
-      >
-        {section.active ? "Deactivate" : "Activate"}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setEditing(true)}
-        className="h-8 gap-1"
-      >
-        <Pencil className="h-3 w-3" />
-        Edit
-      </Button>
-    </div>
+    <>
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggle}
+          disabled={pending}
+          className="h-8 text-xs"
+        >
+          {section.active ? "Deactivate" : "Activate"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditOpen(true)}
+          className="h-8 gap-1"
+        >
+          <Pencil className="h-3 w-3" />
+          Edit
+        </Button>
+      </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#6A0000]">Edit Section</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <Label htmlFor={`edit-programId-${section.id}`}>Program *</Label>
+              <select
+                id={`edit-programId-${section.id}`}
+                name="programId"
+                defaultValue={section.programId ?? ""}
+                className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900"
+                required
+              >
+                <option value="">Select</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor={`edit-name-${section.id}`}>Name *</Label>
+              <Input
+                id={`edit-name-${section.id}`}
+                name="name"
+                defaultValue={section.name}
+                required
+                className="mt-1 h-10"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`edit-yearLevel-${section.id}`}>Year Level</Label>
+              <Input
+                id={`edit-yearLevel-${section.id}`}
+                name="yearLevel"
+                defaultValue={section.yearLevel ?? section.gradeLevel ?? ""}
+                className="mt-1 h-10"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

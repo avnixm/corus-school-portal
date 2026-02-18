@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Calculator } from "lucide-react";
 import { TermCard } from "./TermCard";
 import { CurriculumSummaryLine } from "./CurriculumSummaryLine";
 import { AddSubjectsDialog } from "./AddSubjectsDialog";
@@ -39,6 +40,7 @@ export function CurriculumBuilder({
   terms,
   yearLevel,
   targetUnitsPerTerm = 24,
+  hideSummaryHeader = false,
 }: {
   versionId: string;
   versionStatus: string;
@@ -46,6 +48,8 @@ export function CurriculumBuilder({
   terms: Term[];
   yearLevel: string;
   targetUnitsPerTerm?: number;
+  /** When true, summary is shown in the container header instead */
+  hideSummaryHeader?: boolean;
 }) {
   const [addingToTerm, setAddingToTerm] = useState<string | null>(null);
 
@@ -64,13 +68,21 @@ export function CurriculumBuilder({
 
   return (
     <div className="space-y-6">
-      <CurriculumSummaryLine
-        yearLevel={yearLevel}
-        termCount={terms.length}
-        subjectCount={totalSubjectsThisYear}
-        totalUnits={totalUnitsThisYear}
-        isPublished={versionStatus === "published"}
-      />
+      {!hideSummaryHeader && (
+        <CurriculumSummaryLine
+          yearLevel={yearLevel}
+          termCount={terms.length}
+          subjectCount={totalSubjectsThisYear}
+          totalUnits={totalUnitsThisYear}
+          isPublished={versionStatus === "published"}
+        />
+      )}
+      {hideSummaryHeader && versionStatus === "published" && totalUnitsThisYear > 0 && (
+        <p className="flex items-center gap-1.5 text-xs text-neutral-600">
+          <Calculator className="h-3.5 w-3.5 text-[#6A0000]" />
+          Used for tuition in Fee Setup: units × per unit rate
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {terms.map((term) => {

@@ -178,6 +178,14 @@ export default async function RegistrarCurriculumPage({
     (b) => b.yearLevel === selectedYearLevel
   );
 
+  const termCount = termsForVersion.length;
+  const subjectCount = blocksForYear.reduce((sum, b) => sum + b.subjects.length, 0);
+  const totalUnits = blocksForYear.reduce(
+    (sum, b) =>
+      sum + b.subjects.reduce((s, sub) => s + parseFloat(sub.units ?? "0"), 0),
+    0
+  );
+
   const baseUrl = `/registrar/curriculum?programId=${selectedProgramId}&schoolYearId=${selectedSchoolYearId}&yearLevel=${encodeURIComponent(selectedYearLevel)}`;
   const otherViewHref = hasBoth
     ? isDraft
@@ -221,6 +229,11 @@ export default async function RegistrarCurriculumPage({
             schoolYearName={schoolYears.find((sy) => sy.id === selectedSchoolYearId)?.name ?? ""}
             showAddButton={!isDraft}
             addButtonLabel={isDraft ? undefined : "Create curriculum"}
+            yearLevel={selectedYearLevel}
+            termCount={termCount}
+            subjectCount={subjectCount}
+            totalUnits={totalUnits}
+            isPublished={version.status === "published"}
           >
             <CurriculumBuilder
               versionId={version.id}
@@ -229,6 +242,7 @@ export default async function RegistrarCurriculumPage({
               terms={termsForVersion}
               yearLevel={selectedYearLevel}
               targetUnitsPerTerm={24}
+              hideSummaryHeader
             />
           </CurriculumContentContainer>
         )}

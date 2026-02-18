@@ -45,12 +45,11 @@ export function AnnouncementRowActions({
   currentUserRole: string;
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user can edit/delete
   const canModify = currentUserRole === "admin" || announcement.createdByUserId === currentUserId;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -66,7 +65,7 @@ export function AnnouncementRowActions({
       return;
     }
     toast.success("Announcement updated");
-    setEditing(false);
+    setEditOpen(false);
     router.refresh();
   }
 
@@ -83,91 +82,94 @@ export function AnnouncementRowActions({
     router.refresh();
   }
 
-  // Don't show buttons if user can't modify
   if (!canModify) {
     return null;
   }
 
-  if (editing) {
-    return (
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-2 rounded border p-2"
-      >
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <div>
-          <Label htmlFor="title" className="text-xs">Title</Label>
-          <Input
-            id="title"
-            name="title"
-            defaultValue={announcement.title}
-            className="h-8 text-sm"
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="body" className="text-xs">Body</Label>
-          <textarea
-            id="body"
-            name="body"
-            defaultValue={announcement.body}
-            rows={3}
-            className="flex w-full rounded-md border border-neutral-200 px-2 py-1 text-sm"
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="audience" className="text-xs">Audience</Label>
-          <select
-            id="audience"
-            name="audience"
-            defaultValue={announcement.audience}
-            className="mt-1 h-8 w-full rounded-md border border-neutral-200 bg-white px-2 text-sm text-neutral-900"
-          >
-            {AUDIENCE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex gap-1">
-          <Button type="submit" size="sm" disabled={pending}>
-            Save
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing(false)}
-            disabled={pending}
-          >
-            Cancel
-          </Button>
-        </div>
-      </form>
-    );
-  }
-
   return (
-    <div className="flex gap-1">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setEditing(true)}
-        className="h-8 gap-1"
-      >
-        <Pencil className="h-3 w-3" />
-        Edit
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setDeleteOpen(true)}
-        disabled={pending}
-        className="h-8 gap-1 text-red-600 hover:bg-red-50"
-      >
-        <Trash2 className="h-3 w-3" />
-        Delete
-      </Button>
+    <>
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditOpen(true)}
+          className="h-8 gap-1"
+        >
+          <Pencil className="h-3 w-3" />
+          Edit
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setDeleteOpen(true)}
+          disabled={pending}
+          className="h-8 gap-1 text-red-600 hover:bg-red-50"
+        >
+          <Trash2 className="h-3 w-3" />
+          Delete
+        </Button>
+      </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Announcement</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <Label htmlFor={`edit-title-${announcement.id}`}>Title *</Label>
+              <Input
+                id={`edit-title-${announcement.id}`}
+                name="title"
+                defaultValue={announcement.title}
+                required
+                className="mt-1 h-10"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`edit-body-${announcement.id}`}>Body *</Label>
+              <textarea
+                id={`edit-body-${announcement.id}`}
+                name="body"
+                defaultValue={announcement.body}
+                rows={4}
+                className="mt-1 flex w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor={`edit-audience-${announcement.id}`}>Audience</Label>
+              <select
+                id={`edit-audience-${announcement.id}`}
+                name="audience"
+                defaultValue={announcement.audience}
+                className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900"
+              >
+                {AUDIENCE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
@@ -190,6 +192,6 @@ export function AnnouncementRowActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

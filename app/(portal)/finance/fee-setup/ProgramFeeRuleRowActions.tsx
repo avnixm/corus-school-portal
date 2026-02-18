@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import {
   updateProgramFeeRuleAction,
@@ -39,7 +46,7 @@ export function ProgramFeeRuleRowActions({
   terms: Term[];
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +61,7 @@ export function ProgramFeeRuleRowActions({
       setError(result.error);
       return;
     }
-    setEditing(false);
+    setEditOpen(false);
     router.refresh();
   }
 
@@ -66,130 +73,133 @@ export function ProgramFeeRuleRowActions({
     router.refresh();
   }
 
-  if (editing) {
-    return (
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-2 rounded border p-2"
-      >
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <div>
-          <Label htmlFor="program" className="text-xs">Program</Label>
-          <Input
-            id="program"
-            name="program"
-              defaultValue={rule.program ?? ""}
-            className="h-8 text-sm"
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="yearLevel" className="text-xs">Year Level</Label>
-          <Input
-            id="yearLevel"
-            name="yearLevel"
-            defaultValue={rule.yearLevel ?? ""}
-            className="h-8 text-sm"
-          />
-        </div>
-        <div>
-          <Label htmlFor="schoolYearId" className="text-xs">School Year</Label>
-          <select
-            id="schoolYearId"
-            name="schoolYearId"
-            defaultValue={rule.schoolYearId ?? ""}
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm"
-          >
-            <option value="">—</option>
-            {schoolYears.map((sy) => (
-              <option key={sy.id} value={sy.id}>
-                {sy.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <Label htmlFor="termId" className="text-xs">Term</Label>
-          <select
-            id="termId"
-            name="termId"
-            defaultValue={rule.termId ?? ""}
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm"
-          >
-            <option value="">—</option>
-            {terms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <Label htmlFor="feeItemId" className="text-xs">Fee Item</Label>
-          <select
-            id="feeItemId"
-            name="feeItemId"
-            defaultValue={rule.feeItemId}
-            required
-            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm"
-          >
-            {feeItems.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.code} – {f.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <Label htmlFor="amount" className="text-xs">Amount</Label>
-          <Input
-            id="amount"
-            name="amount"
-            type="number"
-            step="0.01"
-            defaultValue={rule.amount}
-            className="h-8 text-sm"
-            required
-          />
-        </div>
-        <div className="flex gap-1">
-          <Button type="submit" size="sm" disabled={pending}>
-            Save
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing(false)}
-            disabled={pending}
-          >
-            Cancel
-          </Button>
-        </div>
-      </form>
-    );
-  }
-
   return (
-    <div className="flex gap-1">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setEditing(true)}
-        className="h-8 gap-1"
-      >
-        <Pencil className="h-3 w-3" />
-        Edit
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDelete}
-        disabled={pending}
-        className="h-8 text-red-600 hover:text-red-700"
-      >
-        <Trash2 className="h-3 w-3" />
-      </Button>
-    </div>
+    <>
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditOpen(true)}
+          className="h-8 gap-1"
+        >
+          <Pencil className="h-3 w-3" />
+          Edit
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDelete}
+          disabled={pending}
+          className="h-8 text-red-600 hover:text-red-700"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Program Fee Rule</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor={`edit-program-${rule.id}`}>Program</Label>
+                <Input
+                  id={`edit-program-${rule.id}`}
+                  name="program"
+                  defaultValue={rule.program ?? ""}
+                  required
+                  className="mt-1 h-10"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`edit-yearLevel-${rule.id}`}>Year Level</Label>
+                <Input
+                  id={`edit-yearLevel-${rule.id}`}
+                  name="yearLevel"
+                  defaultValue={rule.yearLevel ?? ""}
+                  className="mt-1 h-10"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`edit-schoolYearId-${rule.id}`}>School Year</Label>
+                <select
+                  id={`edit-schoolYearId-${rule.id}`}
+                  name="schoolYearId"
+                  defaultValue={rule.schoolYearId ?? ""}
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                >
+                  <option value="">—</option>
+                  {schoolYears.map((sy) => (
+                    <option key={sy.id} value={sy.id}>
+                      {sy.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor={`edit-termId-${rule.id}`}>Term</Label>
+                <select
+                  id={`edit-termId-${rule.id}`}
+                  name="termId"
+                  defaultValue={rule.termId ?? ""}
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                >
+                  <option value="">—</option>
+                  {terms.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor={`edit-feeItemId-${rule.id}`}>Fee Item *</Label>
+                <select
+                  id={`edit-feeItemId-${rule.id}`}
+                  name="feeItemId"
+                  defaultValue={rule.feeItemId}
+                  required
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                >
+                  {feeItems.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.code} – {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor={`edit-amount-${rule.id}`}>Amount *</Label>
+                <Input
+                  id={`edit-amount-${rule.id}`}
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  defaultValue={rule.amount}
+                  required
+                  className="mt-1 h-10"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
