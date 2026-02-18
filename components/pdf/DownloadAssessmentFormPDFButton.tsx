@@ -1,6 +1,7 @@
   "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FileDown, Loader2 } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
@@ -35,7 +36,8 @@ export function DownloadAssessmentFormPDFButton({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Failed to generate PDF:", err);
+      const message = err instanceof Error ? err.message : "Failed to generate PDF.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

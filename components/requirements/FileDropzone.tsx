@@ -6,6 +6,7 @@ import { Upload, Loader2 } from "lucide-react";
 
 interface FileDropzoneProps {
   onFileSelect: (file: File) => void;
+  onError?: (message: string) => void;
   accept?: string;
   maxSize?: number;
   disabled?: boolean;
@@ -15,6 +16,7 @@ interface FileDropzoneProps {
 
 export function FileDropzone({
   onFileSelect,
+  onError,
   accept = "application/pdf,image/jpeg,image/png,image/jpg",
   maxSize = 10 * 1024 * 1024,
   disabled,
@@ -33,6 +35,9 @@ export function FileDropzone({
     if (!file) return;
     const err = validate(file);
     if (err) {
+      if (onError) {
+        onError(err);
+      }
       return;
     }
     onFileSelect(file);

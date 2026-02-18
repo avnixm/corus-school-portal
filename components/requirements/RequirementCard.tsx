@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -218,6 +219,7 @@ export function RequirementCard({
             {!atLimit && (
               <FileDropzone
                 onFileSelect={handleFile}
+                onError={(msg) => toast.error(msg)}
                 accept={requirement.allowedFileTypes?.length ? requirement.allowedFileTypes.map((t) => `.${t}`).join(",") : undefined}
                 disabled={actionPending}
                 isUploading={uploading}
