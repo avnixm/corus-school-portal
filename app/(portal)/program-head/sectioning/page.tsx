@@ -81,14 +81,30 @@ export default async function ProgramHeadSectioningPage({
 
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
-          Smart Sectioning
-        </h2>
-        <p className="mt-1 text-sm text-neutral-800">
-          Assign approved students without a section to blocks. Use &quot;Run smart sectioning&quot; to auto-assign by balanced count, or assign manually per row.
-        </p>
-      </section>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <section>
+          <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
+            Smart Sectioning
+          </h2>
+          <p className="mt-1 text-sm text-neutral-800">
+            Assign approved students without a section to blocks. Use &quot;Run smart sectioning&quot; to auto-assign by balanced count, or assign manually per row.
+          </p>
+        </section>
+        {canRunSmartSectioning && (
+          <div className="flex flex-col items-start gap-1 sm:items-end">
+            <RunSmartSectioningButton
+              schoolYearId={syId!}
+              termId={termId!}
+              programId={params.programId}
+              yearLevel={params.yearLevel}
+              disabled={unassigned.length === 0}
+            />
+            <span className="text-sm text-neutral-600">
+              {unassigned.length} student{unassigned.length !== 1 ? "s" : ""} waiting for section
+            </span>
+          </div>
+        )}
+      </div>
 
       <SectioningFilters
         schoolYears={schoolYears}
@@ -99,21 +115,6 @@ export default async function ProgramHeadSectioningPage({
         programId={params.programId}
         yearLevel={params.yearLevel}
       />
-
-      {canRunSmartSectioning && (
-        <div className="flex items-center gap-4">
-          <RunSmartSectioningButton
-            schoolYearId={syId!}
-            termId={termId!}
-            programId={params.programId}
-            yearLevel={params.yearLevel}
-            disabled={unassigned.length === 0}
-          />
-          <span className="text-sm text-neutral-600">
-            {unassigned.length} student{unassigned.length !== 1 ? "s" : ""} waiting for section
-          </span>
-        </div>
-      )}
 
       <Card>
         <CardHeader>

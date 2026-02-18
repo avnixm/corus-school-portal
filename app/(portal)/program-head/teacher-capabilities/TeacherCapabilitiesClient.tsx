@@ -194,7 +194,12 @@ export function TeacherCapabilitiesClient({
           value={selectedPackageId}
           onChange={setSelectedPackageId}
         />
-        <Button size="sm" variant="outline" onClick={handleNewPackage} className="self-end">
+        <Button
+          size="sm"
+          onClick={handleNewPackage}
+          className="gap-2 bg-[#6A0000] text-white hover:bg-[#4A0000] self-end"
+        >
+          <Plus className="h-4 w-4" />
           New Package
         </Button>
       </div>

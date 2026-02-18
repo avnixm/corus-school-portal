@@ -23,16 +23,17 @@ export default async function ScheduleTimeConfigPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
-          Schedule Time Configuration
-        </h2>
-        <p className="text-sm text-neutral-800 mt-1">
-          Configure allowed time slots for class scheduling. Requires Dean approval.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
+            Schedule Time Configuration
+          </h2>
+          <p className="mt-1 text-sm text-neutral-800">
+            Configure allowed time slots for class scheduling. Requires Dean approval.
+          </p>
+        </div>
+        <CreateTimeConfigButton programs={programs} />
       </div>
-
-      <CreateTimeConfigButton programs={programs} />
 
       <Card>
         <CardHeader>

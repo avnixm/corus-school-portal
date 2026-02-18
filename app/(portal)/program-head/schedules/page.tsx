@@ -56,13 +56,27 @@ export default async function ProgramHeadSchedulesPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
-          Schedules
-        </h2>
-        <p className="text-sm text-neutral-800">
-          Manage class schedules for your program. Only teachers with approved capabilities can be assigned.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
+            Schedules
+          </h2>
+          <p className="mt-1 text-sm text-neutral-800">
+            Manage class schedules for your program. Only teachers with approved capabilities can be assigned.
+          </p>
+        </div>
+        <CreateScheduleForm
+          schoolYears={schoolYears}
+          terms={terms}
+          sections={sections}
+          programs={programs.map((p) => ({ id: p.id, code: p.code, name: p.name }))}
+          teachers={teachers.map((t) => ({
+            id: t.id,
+            firstName: t.firstName,
+            lastName: t.lastName,
+            email: t.email,
+          }))}
+        />
       </div>
 
       <ScheduleFilters
@@ -70,19 +84,6 @@ export default async function ProgramHeadSchedulesPage({
         terms={terms}
         sections={sections}
         programs={programs.map((p) => ({ id: p.id, code: p.code, name: p.name }))}
-      />
-
-      <CreateScheduleForm
-        schoolYears={schoolYears}
-        terms={terms}
-        sections={sections}
-        programs={programs.map((p) => ({ id: p.id, code: p.code, name: p.name }))}
-        teachers={teachers.map((t) => ({
-          id: t.id,
-          firstName: t.firstName,
-          lastName: t.lastName,
-          email: t.email,
-        }))}
       />
 
       <Card>
