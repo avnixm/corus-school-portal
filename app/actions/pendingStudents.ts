@@ -75,6 +75,10 @@ export async function submitPendingApplication(formData: FormData) {
   redirect("/student/pending-approval");
 }
 
+/**
+ * Approve a pending student application.
+ * Note: Currently unused in UI (pending pages redirect). Kept for future use or programmatic access.
+ */
 export async function approvePendingApplication(
   applicationId: string,
   registrarProfileId: string
@@ -118,6 +122,10 @@ export async function approvePendingApplication(
   redirect("/registrar/pending");
 }
 
+/**
+ * Reject a pending student application.
+ * Note: Currently unused in UI (pending pages redirect). Kept for future use or programmatic access.
+ */
 export async function rejectPendingApplication(
   applicationId: string,
   registrarProfileId: string

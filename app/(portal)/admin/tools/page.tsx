@@ -38,6 +38,7 @@ export default async function AdminToolsPage() {
         </CardContent>
       </Card>
 
+      {/* Intentional placeholder: Import feature is not yet implemented */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Import (stub)</CardTitle>
