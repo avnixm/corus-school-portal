@@ -38,7 +38,12 @@ export default async function DebugTeacherCapabilityPage() {
 
   // Test the exact query used by schedule creation
   const testSubjectId = cc102Subjects[0]?.id;
-  let eligibleForFirstCC102: any[] = [];
+  type EligibleTeacher = {
+    teacherId: string;
+    teacherName: string | null;
+    email: string | null;
+  };
+  let eligibleForFirstCC102: EligibleTeacher[] = [];
   if (testSubjectId) {
     eligibleForFirstCC102 = await db
       .select({

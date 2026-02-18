@@ -23,7 +23,7 @@ interface AppShellProps {
   userDisplay?: string;
   userId?: string;
   role?: string;
-  signOutAction?: (prevState: any) => Promise<any>;
+  signOutAction?: (prevState: unknown) => Promise<unknown>;
   children: React.ReactNode;
 }
 
