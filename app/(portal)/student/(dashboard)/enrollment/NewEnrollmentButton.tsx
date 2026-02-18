@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FileEdit } from "lucide-react";
 import { startNewEnrollment } from "./actions";
@@ -12,9 +13,17 @@ export function NewEnrollmentButton({ enrollmentId }: { enrollmentId: string }) 
 
   function handleClick() {
     startTransition(async () => {
-      const result = await startNewEnrollment(enrollmentId);
-      if (result?.error) alert(result.error);
-      else router.refresh();
+      try {
+        const result = await startNewEnrollment(enrollmentId);
+        if (result?.error) {
+          toast.error(result.error);
+        } else {
+          router.refresh();
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to start new enrollment.";
+        toast.error(message);
+      }
     });
   }
 

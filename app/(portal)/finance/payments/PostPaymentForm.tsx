@@ -119,26 +119,32 @@ export function PostPaymentForm() {
       remarks += (remarks ? ". " : "") + additionalNotes.trim();
     }
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set("studentId", selectedStudent.id);
-      formData.set("enrollmentId", enrollmentId);
-      formData.set("amount", amt.toFixed(2));
-      formData.set("method", method);
-      formData.set("remarks", remarks);
-      const result = await postPaymentAction(formData);
-      if (result?.error) {
-        setError(result.error);
-        toast.error(result.error);
-        return;
+      try {
+        const formData = new FormData();
+        formData.set("studentId", selectedStudent.id);
+        formData.set("enrollmentId", enrollmentId);
+        formData.set("amount", amt.toFixed(2));
+        formData.set("method", method);
+        formData.set("remarks", remarks);
+        const result = await postPaymentAction(formData);
+        if (result?.error) {
+          setError(result.error);
+          toast.error(result.error);
+          return;
+        }
+        toast.success(`Payment of ₱${amt.toFixed(2)} posted successfully`);
+        setAmount("");
+        setMiscSpecify("");
+        setAdditionalNotes("");
+        if ("paymentId" in result && result.paymentId) {
+          setLastPaymentId(result.paymentId);
+        }
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to post payment.";
+        setError(message);
+        toast.error(message);
       }
-      toast.success(`Payment of ₱${amt.toFixed(2)} posted successfully`);
-      setAmount("");
-      setMiscSpecify("");
-      setAdditionalNotes("");
-      if ("paymentId" in result && result.paymentId) {
-        setLastPaymentId(result.paymentId);
-      }
-      router.refresh();
     });
   }
 

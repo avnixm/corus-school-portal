@@ -67,13 +67,16 @@ export function TeacherCapabilitiesClient({
   const loadPackages = useCallback(async () => {
     if (!programId) return;
     setLoading(true);
-    const res = await listCapabilityPackagesAction({
-      programId,
-      schoolYearId: schoolYearId || null,
-      termId: termId || null,
-    });
-    setLoading(false);
-    if (res.packages) setPackages(res.packages);
+    try {
+      const res = await listCapabilityPackagesAction({
+        programId,
+        schoolYearId: schoolYearId || null,
+        termId: termId || null,
+      });
+      if (res.packages) setPackages(res.packages);
+    } finally {
+      setLoading(false);
+    }
   }, [programId, schoolYearId, termId]);
 
   useEffect(() => {
@@ -86,9 +89,12 @@ export function TeacherCapabilitiesClient({
       return;
     }
     setLoading(true);
-    const res = await listCapabilityLinesAction(selectedPackageId);
-    setLoading(false);
-    if (res.lines) setLines(res.lines);
+    try {
+      const res = await listCapabilityLinesAction(selectedPackageId);
+      if (res.lines) setLines(res.lines);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedPackageId]);
 
   useEffect(() => {

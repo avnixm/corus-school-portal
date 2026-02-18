@@ -71,6 +71,9 @@ export function RequirementCard({
     setUploading(true);
     try {
       await onUpload(submission.id, file);
+    } catch (err) {
+      // Error is already handled by parent component (toast shown)
+      // Just ensure loading state is cleared
     } finally {
       setUploading(false);
     }
@@ -80,6 +83,9 @@ export function RequirementCard({
     setActionPending(true);
     try {
       await onSubmit(submission.id);
+    } catch (err) {
+      // Error is already handled by parent component (toast shown)
+      // Just ensure loading state is cleared
     } finally {
       setActionPending(false);
     }
@@ -89,6 +95,9 @@ export function RequirementCard({
     setActionPending(true);
     try {
       await onResubmit(submission.id);
+    } catch (err) {
+      // Error is already handled by parent component (toast shown)
+      // Just ensure loading state is cleared
     } finally {
       setActionPending(false);
     }

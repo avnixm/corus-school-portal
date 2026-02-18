@@ -124,24 +124,30 @@ export function CreateAssessmentForm({
       }
     }
     startTransition(async () => {
-      const result = await createAssessmentAction(
-        enrollmentId,
-        validLines,
-        notes || undefined,
-        fullPaymentDiscount
-      );
-      if (result?.error) {
-        setError(result.error);
-        toast.error(result.error);
-        return;
+      try {
+        const result = await createAssessmentAction(
+          enrollmentId,
+          validLines,
+          notes || undefined,
+          fullPaymentDiscount
+        );
+        if (result?.error) {
+          setError(result.error);
+          toast.error(result.error);
+          return;
+        }
+        toast.success("Assessment draft created successfully");
+        setOpen(false);
+        setEnrollmentId("");
+        setLines([]);
+        setNotes("");
+        setFullPaymentDiscount(false);
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to create assessment.";
+        setError(message);
+        toast.error(message);
       }
-      toast.success("Assessment draft created successfully");
-      setOpen(false);
-      setEnrollmentId("");
-      setLines([]);
-      setNotes("");
-      setFullPaymentDiscount(false);
-      router.refresh();
     });
   }
 
