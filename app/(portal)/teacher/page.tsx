@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function TeacherDashboardPage() {
         </p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-neutral-800">
@@ -192,7 +193,7 @@ export default async function TeacherDashboardPage() {
           <CardContent>
             {authorizedCourses.length === 0 ? (
               <p className="py-4 text-center text-sm text-neutral-700">
-                No courses assigned yet. Contact the Registrar to assign authorized courses.
+                No approved courses yet. Submit a capability package for Dean approval to teach subjects.
               </p>
             ) : (
               <div className="space-y-2">
@@ -299,7 +300,7 @@ export default async function TeacherDashboardPage() {
                         : "border-green-500 text-green-700"
                     }
                   >
-                    {s.status}
+                    {formatStatusForDisplay(s.status)}
                   </Badge>
                 </div>
               ))}

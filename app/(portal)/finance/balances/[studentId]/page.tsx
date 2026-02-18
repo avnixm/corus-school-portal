@@ -5,6 +5,7 @@ import {
   getLedgerEntriesByStudent,
 } from "@/lib/finance/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +81,7 @@ export default async function StudentBalanceDetailPage({
                   <span className="font-semibold text-[#6A0000]">
                     ₱{parseFloat(e.balance ?? "0").toFixed(2)}
                   </span>{" "}
-                  • Status: {e.financeStatus ?? "—"}
+                  • Status: {e.financeStatus ? formatStatusForDisplay(e.financeStatus) : "—"}
                 </p>
               </CardContent>
             </Card>

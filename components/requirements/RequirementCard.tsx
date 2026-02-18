@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FileDropzone } from "./FileDropzone";
 import { AlertCircle, RefreshCw, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export type RequirementItem = {
   requirement: {
@@ -110,7 +111,7 @@ export function RequirementCard({
               </Badge>
             )}
             <Badge variant={statusVariant[submission.status] ?? "outline"}>
-              {submission.status}
+              {formatStatusForDisplay(submission.status)}
             </Badge>
           </div>
         </div>

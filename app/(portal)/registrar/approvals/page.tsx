@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 import { getPendingEnrollmentApprovalsList, getProgramsList } from "@/db/queries";
 import { getEnrollmentRequirementsSummary } from "@/lib/requirements/enrollmentSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,7 +98,7 @@ export default async function EnrollmentApprovalsPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-neutral-900">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
             <table className="min-w-full text-left text-sm text-neutral-900">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
@@ -173,7 +174,7 @@ export default async function EnrollmentApprovalsPage({
                         }`}
                         title="Read-only"
                       >
-                        {row.financeStatus ?? "—"}
+                        {row.financeStatus ? formatStatusForDisplay(row.financeStatus) : "—"}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-neutral-800">

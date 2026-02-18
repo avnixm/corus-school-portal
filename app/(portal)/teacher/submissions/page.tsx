@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +78,7 @@ export default async function TeacherSubmissionsPage() {
               </span>
             )}
             <Badge variant="outline" className={statusBadge(s.status)}>
-              {s.status}
+              {formatStatusForDisplay(s.status)}
             </Badge>
             {s.submittedAt && (
               <span className="text-xs text-neutral-500">

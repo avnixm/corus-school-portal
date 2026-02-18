@@ -24,7 +24,7 @@ export default async function RegistrarTeachersPage() {
       </div>
 
       <Card>
-        <div className="overflow-hidden rounded-xl border bg-white/80 text-neutral-900">
+        <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
           <TeacherTable teachers={teachers} programs={programs} />
         </div>
       </Card>

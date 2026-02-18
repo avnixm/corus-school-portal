@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { upsertSettingAction } from "./actions";
+import { saveSettingsAction, fetchGradingPeriodsForTermAction } from "./actions";
 
 type SchoolYear = { id: string; name: string };
 type Term = { id: string; name: string; schoolYearId: string };
@@ -35,21 +35,33 @@ export function SettingsForm({
   const [termId, setTermId] = useState(activeTermId);
   const [pass, setPass] = useState(String(passThreshold));
   const [maxSection, setMaxSection] = useState(String(maxSectionSize));
-  const [periods, setPeriods] = useState<GradingPeriod[]>(gradingPeriods.length ? gradingPeriods : [{ name: "Prelim", sort_order: 1 }, { name: "Midterm", sort_order: 2 }, { name: "Final", sort_order: 3 }]);
+  const [periods, setPeriods] = useState<GradingPeriod[]>(gradingPeriods);
+
+  useEffect(() => {
+    setPeriods(gradingPeriods);
+  }, [gradingPeriods]);
+
+  useEffect(() => {
+    if (syId && termId) {
+      fetchGradingPeriodsForTermAction(syId, termId).then((res) => {
+        if (!res.error) setPeriods(res.periods);
+      });
+    } else {
+      setPeriods([]);
+    }
+  }, [syId, termId]);
 
   async function handleSave() {
     setError(null);
     setPending(true);
     try {
-      let res = await upsertSettingAction("active_school_year_id", syId || null);
-      if (res?.error) throw new Error(res.error);
-      res = await upsertSettingAction("active_term_id", termId || null);
-      if (res?.error) throw new Error(res.error);
-      res = await upsertSettingAction("pass_threshold", Number(pass) || 75);
-      if (res?.error) throw new Error(res.error);
-      res = await upsertSettingAction("max_section_size", Number(maxSection) || 50);
-      if (res?.error) throw new Error(res.error);
-      res = await upsertSettingAction("grading_period_names", periods);
+      const res = await saveSettingsAction({
+        activeSchoolYearId: syId || "",
+        activeTermId: termId || "",
+        passThreshold: Number(pass) || 75,
+        maxSectionSize: Number(maxSection) || 50,
+        gradingPeriods: periods,
+      });
       if (res?.error) throw new Error(res.error);
       router.refresh();
     } catch (e) {

@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import { computeFeeSetupTotals } from "@/lib/fees/totals";
 import type { FeeSetupLine } from "@/lib/fees/types";
 import { FeeSetupEditor } from "../FeeSetupEditor";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,7 @@ export default async function FeeSetupEditPage({
                   : "border-amber-300 bg-amber-50 text-amber-800"
           }
         >
-          {String(details.setup.status).replace(/_/g, " ")}
+          {formatStatusForDisplay(details.setup.status)}
         </Badge>
       </header>
 

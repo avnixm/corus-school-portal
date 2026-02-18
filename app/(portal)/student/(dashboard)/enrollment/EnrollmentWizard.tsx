@@ -8,33 +8,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createOrUpdateDraftEnrollment } from "./actions";
 
 type Program = { id: string; code: string; name: string };
-type Section = { id: string; name: string; yearLevel: string | null; programId: string | null; programCode: string | null };
 
 export function EnrollmentWizard({
   schoolYearName,
   termName,
   programs,
-  sections: allSections,
 }: {
   schoolYearName: string;
   termName: string;
   programs: Program[];
-  sections: Section[];
 }) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [programId, setProgramId] = useState("");
   const [yearLevel, setYearLevel] = useState("");
-  const [sectionId, setSectionId] = useState("");
 
   const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
-  const sections = allSections.filter((s) => {
-    if (programId && s.programId && s.programId !== programId) return false;
-    if (yearLevel && s.yearLevel !== yearLevel) return false;
-    return true;
-  });
 
   async function handleSaveDraft() {
     if (!programId || !yearLevel) {
@@ -47,7 +37,7 @@ export function EnrollmentWizard({
     formData.set("programId", programId);
     formData.set("program", programs.find((p) => p.id === programId)?.code ?? "");
     formData.set("yearLevel", yearLevel);
-    formData.set("sectionId", sectionId || "");
+    formData.set("sectionId", "");
     const result = await createOrUpdateDraftEnrollment(formData);
     setPending(false);
     if (result?.error) {
@@ -83,10 +73,7 @@ export function EnrollmentWizard({
             <select
               className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40"
               value={programId}
-              onChange={(e) => {
-                setProgramId(e.target.value);
-                setSectionId("");
-              }}
+              onChange={(e) => setProgramId(e.target.value)}
             >
               <option value="">Select program</option>
               {programs.map((p) => (
@@ -103,10 +90,7 @@ export function EnrollmentWizard({
             <select
               className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40"
               value={yearLevel}
-              onChange={(e) => {
-                setYearLevel(e.target.value);
-                setSectionId("");
-              }}
+              onChange={(e) => setYearLevel(e.target.value)}
             >
               <option value="">Select year level</option>
               {yearLevels.map((y) => (
@@ -118,26 +102,9 @@ export function EnrollmentWizard({
           </div>
         </div>
 
-        {sections.length > 0 && (
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-800">
-              Section preference (optional)
-            </label>
-            <select
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40"
-              value={sectionId}
-              onChange={(e) => setSectionId(e.target.value)}
-            >
-              <option value="">No preference</option>
-              {sections.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.yearLevel ? ` (${s.yearLevel})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <p className="text-xs text-neutral-500">
+          Your section will be assigned by your Program Head after approval.
+        </p>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

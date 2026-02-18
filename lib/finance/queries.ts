@@ -13,7 +13,7 @@ import {
   paymentAllocations,
   enrollmentFinanceStatus,
 } from "@/db/schema";
-import { eq, and, desc, sql, or, like, gte, lte, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, desc, sql, or, like, ilike, gte, lte, isNull, isNotNull } from "drizzle-orm";
 
 export async function getApprovedEnrollmentsNeedingAssessment() {
   try {
@@ -163,10 +163,24 @@ export async function getLedgerEntriesByEnrollment(
   enrollmentId: string,
   limit = 100
 ) {
+  // Exclude ledger entries that reference voided payments (original payment + void reversal)
+  const excludeVoidedPayments = sql`NOT (
+    ${ledgerEntries.referenceType} = 'payment'::ledger_reference_type
+    AND EXISTS (
+      SELECT 1 FROM ${payments} p
+      WHERE p.id = ${ledgerEntries.referenceId}
+      AND p.status = 'void'
+    )
+  )`;
   return db
     .select()
     .from(ledgerEntries)
-    .where(eq(ledgerEntries.enrollmentId, enrollmentId))
+    .where(
+      and(
+        eq(ledgerEntries.enrollmentId, enrollmentId),
+        excludeVoidedPayments
+      )
+    )
     .orderBy(desc(ledgerEntries.postedAt))
     .limit(limit);
 }
@@ -175,10 +189,24 @@ export async function getLedgerEntriesByStudent(
   studentId: string,
   limit = 100
 ) {
+  // Exclude ledger entries that reference voided payments (original payment + void reversal)
+  const excludeVoidedPayments = sql`NOT (
+    ${ledgerEntries.referenceType} = 'payment'::ledger_reference_type
+    AND EXISTS (
+      SELECT 1 FROM ${payments} p
+      WHERE p.id = ${ledgerEntries.referenceId}
+      AND p.status = 'void'
+    )
+  )`;
   return db
     .select()
     .from(ledgerEntries)
-    .where(eq(ledgerEntries.studentId, studentId))
+    .where(
+      and(
+        eq(ledgerEntries.studentId, studentId),
+        excludeVoidedPayments
+      )
+    )
     .orderBy(desc(ledgerEntries.postedAt))
     .limit(limit);
 }
@@ -192,6 +220,84 @@ export async function getPaymentById(paymentId: string) {
   return row ?? null;
 }
 
+export async function getPaymentWithDetails(paymentId: string) {
+  const [row] = await db
+    .select({
+      paymentId: payments.id,
+      amount: payments.amount,
+      method: payments.method,
+      referenceNo: payments.referenceNo,
+      remarks: payments.remarks,
+      status: payments.status,
+      receivedAt: payments.receivedAt,
+      enrollmentId: payments.enrollmentId,
+      studentId: students.id,
+      studentCode: students.studentCode,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      balance: enrollmentFinanceStatus.balance,
+      assessmentDiscounts: assessments.discounts,
+    })
+    .from(payments)
+    .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+    .innerJoin(students, eq(payments.studentId, students.id))
+    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(enrollments.termId, terms.id))
+    .leftJoin(
+      enrollmentFinanceStatus,
+      eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
+    )
+    .leftJoin(assessments, eq(assessments.enrollmentId, enrollments.id))
+    .where(and(eq(payments.id, paymentId), eq(payments.status, "posted")))
+    .limit(1);
+  if (!row) return null;
+
+  const isFullPayment =
+    row.remarks?.toLowerCase().includes("full payment") ?? false;
+  let discountAmount = parseFloat(row.assessmentDiscounts ?? "0");
+
+  // Fallback: if full payment but no discount from join, fetch assessment directly
+  if (isFullPayment && discountAmount <= 0 && row.enrollmentId) {
+    const [ass] = await db
+      .select({ discounts: assessments.discounts })
+      .from(assessments)
+      .where(eq(assessments.enrollmentId, row.enrollmentId))
+      .orderBy(desc(assessments.updatedAt))
+      .limit(1);
+    if (ass) discountAmount = parseFloat(ass.discounts ?? "0");
+  }
+
+  const showDiscount = isFullPayment && discountAmount > 0;
+
+  return {
+    id: row.paymentId,
+    amount: row.amount,
+    method: row.method,
+    referenceNo: row.referenceNo,
+    remarks: row.remarks,
+    receivedAt: row.receivedAt,
+    studentId: row.studentId,
+    studentCode: row.studentCode,
+    fullName: [row.firstName, row.middleName, row.lastName]
+      .filter(Boolean)
+      .join(" "),
+    schoolYearName: row.schoolYearName,
+    termName: row.termName,
+    program: row.program,
+    yearLevel: row.yearLevel,
+    balanceAfter: row.balance,
+    ...(showDiscount && {
+      discountAmount: discountAmount.toFixed(2),
+      originalAmount: (parseFloat(row.amount ?? "0") + discountAmount).toFixed(2),
+    }),
+  };
+}
+
 export async function getPaymentsByEnrollment(enrollmentId: string) {
   return db
     .select()
@@ -203,6 +309,37 @@ export async function getPaymentsByEnrollment(enrollmentId: string) {
       )
     )
     .orderBy(desc(payments.receivedAt));
+}
+
+export async function getRecentPayments(limit = 20) {
+  try {
+    return await db
+      .select({
+        id: payments.id,
+        amount: payments.amount,
+        method: payments.method,
+        referenceNo: payments.referenceNo,
+        receivedAt: payments.receivedAt,
+        studentCode: students.studentCode,
+        firstName: students.firstName,
+        middleName: students.middleName,
+        lastName: students.lastName,
+        schoolYearName: schoolYears.name,
+        termName: terms.name,
+        program: enrollments.program,
+        yearLevel: enrollments.yearLevel,
+      })
+      .from(payments)
+      .innerJoin(students, eq(payments.studentId, students.id))
+      .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .where(eq(payments.status, "posted"))
+      .orderBy(desc(payments.receivedAt))
+      .limit(limit);
+  } catch {
+    return [];
+  }
 }
 
 export async function getStudentBalance(enrollmentId: string) {
@@ -452,20 +589,35 @@ export async function getProgramFeeRulesForEnrollment(enrollmentId: string) {
 export async function createAssessmentDraft(
   enrollmentId: string,
   lines: AssessmentLineInput[],
-  notes?: string | null
+  notes?: string | null,
+  fullPaymentDiscount?: boolean
 ) {
+  let discountAmount = 0;
+  const lineTotals: string[] = [];
+  for (const l of lines) {
+    const qty = l.qty ?? 1;
+    const baseTotal = parseFloat(l.amount) * qty;
+    const isDiscountable = l.category === "tuition" || l.category === "lab";
+    const lineTotal = fullPaymentDiscount && isDiscountable ? baseTotal * 0.9 : baseTotal;
+    if (fullPaymentDiscount && isDiscountable) {
+      discountAmount += baseTotal * 0.1;
+    }
+    lineTotals.push(lineTotal.toFixed(2));
+  }
   const subtotal = lines.reduce(
     (sum, l) => sum + parseFloat(l.amount) * (l.qty ?? 1),
     0
   );
+  const total = subtotal - discountAmount;
+
   const [assessment] = await db
     .insert(assessments)
     .values({
       enrollmentId,
       status: "draft",
-      subtotal: String(subtotal),
-      discounts: "0",
-      total: String(subtotal),
+      subtotal: String(subtotal.toFixed(2)),
+      discounts: String(discountAmount.toFixed(2)),
+      total: String(total.toFixed(2)),
       notes: notes ?? null,
     })
     .returning();
@@ -473,7 +625,6 @@ export async function createAssessmentDraft(
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     const qty = l.qty ?? 1;
-    const lineTotal = parseFloat(l.amount) * qty;
     await db.insert(assessmentLines).values({
       assessmentId: assessment.id,
       feeItemId: l.feeItemId || null,
@@ -481,7 +632,7 @@ export async function createAssessmentDraft(
       category: l.category,
       amount: l.amount,
       qty,
-      lineTotal: String(lineTotal),
+      lineTotal: lineTotals[i],
       sortOrder: i,
     });
   }
@@ -491,19 +642,34 @@ export async function createAssessmentDraft(
 export async function updateAssessmentDraft(
   assessmentId: string,
   lines: AssessmentLineInput[],
-  notes?: string | null
+  notes?: string | null,
+  fullPaymentDiscount?: boolean
 ) {
   await db.delete(assessmentLines).where(eq(assessmentLines.assessmentId, assessmentId));
+  let discountAmount = 0;
+  const lineTotals: string[] = [];
+  for (const l of lines) {
+    const qty = l.qty ?? 1;
+    const baseTotal = parseFloat(l.amount) * qty;
+    const isDiscountable = l.category === "tuition" || l.category === "lab";
+    const lineTotal = fullPaymentDiscount && isDiscountable ? baseTotal * 0.9 : baseTotal;
+    if (fullPaymentDiscount && isDiscountable) {
+      discountAmount += baseTotal * 0.1;
+    }
+    lineTotals.push(lineTotal.toFixed(2));
+  }
   const subtotal = lines.reduce(
     (sum, l) => sum + parseFloat(l.amount) * (l.qty ?? 1),
     0
   );
+  const total = subtotal - discountAmount;
+
   await db
     .update(assessments)
     .set({
-      subtotal: String(subtotal),
-      discounts: "0",
-      total: String(subtotal),
+      subtotal: String(subtotal.toFixed(2)),
+      discounts: String(discountAmount.toFixed(2)),
+      total: String(total.toFixed(2)),
       notes: notes ?? null,
       updatedAt: new Date(),
     })
@@ -511,7 +677,6 @@ export async function updateAssessmentDraft(
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     const qty = l.qty ?? 1;
-    const lineTotal = parseFloat(l.amount) * qty;
     await db.insert(assessmentLines).values({
       assessmentId,
       feeItemId: l.feeItemId || null,
@@ -519,7 +684,7 @@ export async function updateAssessmentDraft(
       category: l.category,
       amount: l.amount,
       qty,
-      lineTotal: String(lineTotal),
+      lineTotal: lineTotals[i],
       sortOrder: i,
     });
   }
@@ -612,6 +777,20 @@ export async function getAssessmentsList(includePosted = true) {
   return base;
 }
 
+async function generateReceiptReferenceNo(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `OR-${year}-`;
+  const existing = await db
+    .select({ referenceNo: payments.referenceNo })
+    .from(payments)
+    .where(like(payments.referenceNo, `${prefix}%`));
+  const numbers = existing
+    .map((r) => parseInt(String(r.referenceNo || "").replace(prefix, ""), 10))
+    .filter((n) => !isNaN(n) && n > 0);
+  const nextNum = numbers.length === 0 ? 1 : Math.max(...numbers) + 1;
+  return `${prefix}${String(nextNum).padStart(5, "0")}`;
+}
+
 export async function postPayment(params: {
   studentId: string;
   enrollmentId: string;
@@ -622,6 +801,7 @@ export async function postPayment(params: {
   receivedByUserId: string;
 }) {
   const { recomputeEnrollmentBalance } = await import("./recomputeEnrollmentBalance");
+  const referenceNo = params.referenceNo?.trim() || (await generateReceiptReferenceNo());
 
   const [payment] = await db
     .insert(payments)
@@ -630,7 +810,7 @@ export async function postPayment(params: {
       enrollmentId: params.enrollmentId,
       method: params.method,
       amount: params.amount,
-      referenceNo: params.referenceNo ?? null,
+      referenceNo,
       remarks: params.remarks ?? null,
       receivedByUserId: params.receivedByUserId,
       status: "posted",
@@ -646,7 +826,7 @@ export async function postPayment(params: {
         entryType: "payment",
         referenceType: "payment",
         referenceId: payment.id,
-        description: `Payment ${params.referenceNo ? `Ref: ${params.referenceNo}` : ""}`.trim(),
+        description: `Payment Ref: ${referenceNo}`,
         debit: "0",
         credit: params.amount,
         postedByUserId: params.receivedByUserId,
@@ -725,7 +905,7 @@ export async function voidPayment(paymentId: string, userId: string) {
 }
 
 export async function getApprovedEnrollmentsByStudent(studentId: string) {
-  return db
+  const rows = await db
     .select({
       id: enrollments.id,
       schoolYearName: schoolYears.name,
@@ -738,7 +918,7 @@ export async function getApprovedEnrollmentsByStudent(studentId: string) {
     .from(enrollments)
     .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
     .innerJoin(terms, eq(enrollments.termId, terms.id))
-    .innerJoin(
+    .leftJoin(
       enrollmentFinanceStatus,
       eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
     )
@@ -749,6 +929,11 @@ export async function getApprovedEnrollmentsByStudent(studentId: string) {
       )
     )
     .orderBy(desc(enrollments.updatedAt));
+  return rows.map((r) => ({
+    ...r,
+    balance: r.balance ?? "0",
+    financeStatus: r.financeStatus ?? "unassessed",
+  }));
 }
 
 export async function getApprovedEnrollmentsByStudentId(studentId: string) {
@@ -794,8 +979,9 @@ export async function searchStudentsByCodeOrName(search: string) {
       and(
         isNull(students.deletedAt),
         or(
-          like(students.firstName, s),
-          like(students.lastName, s),
+          ilike(students.firstName, s),
+          ilike(students.lastName, s),
+          ilike(students.middleName, s),
           sql`${students.studentCode}::text ILIKE ${s}`
         )
       )

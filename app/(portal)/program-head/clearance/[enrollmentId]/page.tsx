@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getEnrollmentById, getStudentById } from "@/db/queries";
 import { getLedgerEntriesByEnrollment, getStudentBalance } from "@/lib/finance/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,7 @@ export default async function ProgramHeadClearanceEnrollmentPage({
           </p>
           <p>
             <span className="text-neutral-600">Status (finance):</span>{" "}
-            {balance?.status ?? "—"}
+            {balance?.status ? formatStatusForDisplay(balance.status) : "—"}
           </p>
           <p>
             <span className="text-neutral-600">Balance:</span>{" "}
@@ -83,7 +84,7 @@ export default async function ProgramHeadClearanceEnrollmentPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
             <table className="min-w-full">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>

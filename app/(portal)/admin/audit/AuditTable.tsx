@@ -46,7 +46,7 @@ export function AuditTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border bg-white text-sm text-neutral-900">
+      <div className="overflow-x-auto rounded-xl border bg-white text-sm text-neutral-900">
         <table className="min-w-full text-left">
           <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
             <tr>

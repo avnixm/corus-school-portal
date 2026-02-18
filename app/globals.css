@@ -171,3 +171,24 @@ body {
     color: #171717;
   }
 }
+
+/* Print: hide portal chrome so only document content (receipt, assessment form) prints */
+@media print {
+  /* Hide sidebar and header via AppShell print:hidden */
+  body > div {
+    background: white !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  main > div {
+    max-width: none !important;
+  }
+  /* Assessment form: A4-like print, ensure content fits */
+  #assessment-form {
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
+}

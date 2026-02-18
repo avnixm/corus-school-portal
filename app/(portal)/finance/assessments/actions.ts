@@ -31,7 +31,8 @@ async function checkAuth() {
 export async function createAssessmentAction(
   enrollmentId: string,
   lines: AssessmentLineInput[],
-  notes?: string
+  notes?: string,
+  fullPaymentDiscount?: boolean
 ) {
   const { error, userId } = await checkAuth();
   if (error || !userId) return { error: error ?? "Unauthorized" };
@@ -45,7 +46,7 @@ export async function createAssessmentAction(
   if (!lines.length) return { error: "At least one line is required" };
 
   try {
-    await createAssessmentDraft(enrollmentId, lines, notes ?? null);
+    await createAssessmentDraft(enrollmentId, lines, notes ?? null, fullPaymentDiscount);
     revalidatePath("/finance/assessments");
     return { success: true };
   } catch (e) {
@@ -56,7 +57,8 @@ export async function createAssessmentAction(
 export async function updateAssessmentAction(
   assessmentId: string,
   lines: AssessmentLineInput[],
-  notes?: string
+  notes?: string,
+  fullPaymentDiscount?: boolean
 ) {
   const { error } = await checkAuth();
   if (error) return { error };
@@ -64,7 +66,7 @@ export async function updateAssessmentAction(
   if (!lines.length) return { error: "At least one line is required" };
 
   try {
-    await updateAssessmentDraft(assessmentId, lines, notes ?? null);
+    await updateAssessmentDraft(assessmentId, lines, notes ?? null, fullPaymentDiscount);
     revalidatePath("/finance/assessments");
     return { success: true };
   } catch (e) {
@@ -104,7 +106,8 @@ export async function getSuggestedFeeLinesAction(enrollmentId: string) {
 
 export async function generateAssessmentFromFeeSetupAction(
   enrollmentId: string,
-  feeSetupId?: string
+  feeSetupId?: string,
+  paymentPlan?: "installment" | "full"
 ) {
   const { error } = await checkAuth();
   if (error) return { error };
@@ -210,17 +213,33 @@ export async function generateAssessmentFromFeeSetupAction(
     });
   }
 
+  const applyFullPaymentDiscount = paymentPlan === "full";
+  const discountableAmount = tuitionAmount + labTotal;
+  const discountAmount = applyFullPaymentDiscount ? discountableAmount * 0.1 : 0;
+
+  const tuitionLineTotal = applyFullPaymentDiscount
+    ? (tuitionAmount * 0.9).toFixed(2)
+    : String(tuitionAmount);
   const tuitionLine = {
     sourceFeeSetupLineId: null as string | null,
     description: `Tuition (${totalUnits} units × ₱${tuitionPerUnit.toFixed(2)})`,
     category: "tuition" as const,
     amount: String(tuitionPerUnit),
     qty: totalUnits,
-    lineTotal: String(tuitionAmount),
+    lineTotal: tuitionLineTotal,
     sortOrder: 0,
   };
 
-  const total = tuitionAmount + labTotal + miscTotal + otherTotal;
+  const adjustedFeeLines = feeLines.map((l) => {
+    if (applyFullPaymentDiscount && l.category === "lab") {
+      const orig = parseFloat(l.lineTotal);
+      return { ...l, lineTotal: (orig * 0.9).toFixed(2) };
+    }
+    return l;
+  });
+
+  const subtotal = tuitionAmount + labTotal + miscTotal + otherTotal;
+  const total = subtotal - discountAmount;
 
   try {
     const assessment = await createAssessmentFromFeeSetup({
@@ -232,8 +251,10 @@ export async function generateAssessmentFromFeeSetupAction(
       labTotal: String(labTotal),
       miscTotal: String(miscTotal),
       otherTotal: String(otherTotal),
-      total: String(total),
-      lines: [tuitionLine, ...feeLines],
+      subtotal: String(subtotal),
+      discounts: String(discountAmount.toFixed(2)),
+      total: String(total.toFixed(2)),
+      lines: [tuitionLine, ...adjustedFeeLines],
     });
     if (!assessment) return { error: "Failed to create assessment" };
     revalidatePath("/finance/assessments");

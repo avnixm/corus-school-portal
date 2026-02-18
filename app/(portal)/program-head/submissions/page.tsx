@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { subjects } from "@/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubmissionsFilters } from "./SubmissionsFilters";
-
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -120,7 +120,7 @@ export default async function ProgramHeadSubmissionsPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
             <table className="min-w-full">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
@@ -145,7 +145,7 @@ export default async function ProgramHeadSubmissionsPage({
                     </td>
                     <td className="px-4 py-2">
                       <span className={`rounded px-2 py-0.5 text-xs ${statusClass(s.status)}`}>
-                        {s.status}
+                        {formatStatusForDisplay(s.status)}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right text-neutral-600">

@@ -48,7 +48,7 @@ export function QueueFilters({
 
   return (
     <div className="flex flex-wrap items-end gap-4 rounded-lg border bg-white p-4">
-      <div className="w-40">
+      <div className="w-full sm:w-40 min-w-0">
         <Label>School year</Label>
         <Select
           value={current.schoolYearId ?? "__all__"}
@@ -63,7 +63,7 @@ export function QueueFilters({
           </SelectContent>
         </Select>
       </div>
-      <div className="w-36">
+      <div className="w-full sm:w-36 min-w-0">
         <Label>Term</Label>
         <Select
           value={current.termId ?? "__all__"}
@@ -78,7 +78,7 @@ export function QueueFilters({
           </SelectContent>
         </Select>
       </div>
-      <div className="w-36">
+      <div className="w-full sm:w-36 min-w-0">
         <Label>Program</Label>
         <Select
           value={current.program ?? "__all__"}
@@ -93,7 +93,7 @@ export function QueueFilters({
           </SelectContent>
         </Select>
       </div>
-      <div className="w-44">
+      <div className="w-full sm:w-44 min-w-0">
         <Label>Enrollment status</Label>
         <Select
           value={current.enrollmentStatus ?? "__all__"}
@@ -108,7 +108,7 @@ export function QueueFilters({
           </SelectContent>
         </Select>
       </div>
-      <div className="flex-1 min-w-[180px]">
+      <div className="min-w-0 w-full sm:min-w-[180px] sm:flex-1">
         <Label>Student search</Label>
         <form
           onSubmit={(e) => {
@@ -116,7 +116,7 @@ export function QueueFilters({
             const v = new FormData(e.currentTarget).get("search") as string;
             update("search", v?.trim() ?? "");
           }}
-          className="flex gap-2"
+          className="flex flex-col sm:flex-row gap-2"
         >
           <Input
             name="search"

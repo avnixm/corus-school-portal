@@ -42,11 +42,12 @@ export function TeacherClassesFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <div className="w-full min-w-0 sm:w-[180px]">
       <Select
         value={currentSchoolYearId || undefined}
         onValueChange={onSchoolYearChange}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-full sm:w-[180px] min-w-0">
           <SelectValue placeholder="School year" />
         </SelectTrigger>
         <SelectContent>
@@ -57,8 +58,10 @@ export function TeacherClassesFilters({
           ))}
         </SelectContent>
       </Select>
+      </div>
+      <div className="w-full min-w-0 sm:w-[140px]">
       <Select value={currentTermId || undefined} onValueChange={onTermChange}>
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-full sm:w-[140px] min-w-0">
           <SelectValue placeholder="Term" />
         </SelectTrigger>
         <SelectContent>
@@ -69,6 +72,7 @@ export function TeacherClassesFilters({
           ))}
         </SelectContent>
       </Select>
+      </div>
     </div>
   );
 }

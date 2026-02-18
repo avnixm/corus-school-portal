@@ -116,7 +116,7 @@ function CapabilityGroup({
         {rows.length === 0 ? (
           <p className="text-sm text-neutral-500">{emptyMsg}</p>
         ) : (
-          <div className="overflow-hidden rounded-lg border">
+          <div className="overflow-x-auto rounded-lg border">
             <table className="min-w-full text-sm">
               <thead className="border-b bg-neutral-50">
                 <tr>

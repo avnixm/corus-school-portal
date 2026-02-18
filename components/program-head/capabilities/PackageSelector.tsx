@@ -1,5 +1,7 @@
 "use client";
 
+import { formatStatusForDisplay } from "@/lib/formatStatus";
+
 type Package = {
   id: string;
   title: string;
@@ -44,6 +46,6 @@ function statusLabel(status: string) {
     case "approved": return "Approved";
     case "rejected": return "Rejected";
     case "archived": return "Archived";
-    default: return status;
+    default: return formatStatusForDisplay(status);
   }
 }

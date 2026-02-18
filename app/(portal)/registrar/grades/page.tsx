@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RegistrarGradesFilters } from "./RegistrarGradesFilters";
 import { GradeRowActions } from "./GradeRowActions";
 import { getAgeBadgeProps } from "@/lib/ui/age";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,7 @@ export default async function RegistrarGradesPage({
               {ageProps.label}
             </Badge>
             <Badge variant="outline" className={statusBadge(s.status)}>
-              {s.status}
+              {formatStatusForDisplay(s.status)}
             </Badge>
             {s.submittedAt && (
               <span className="text-xs text-neutral-500">

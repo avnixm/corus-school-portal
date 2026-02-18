@@ -8,7 +8,8 @@ import {
   getTeacherByUserProfileId,
   createTeacher,
   updateTeacherUserId,
-  listTeacherAssignmentsForTeacher,
+  listTeacherSchedulesFromClassSchedules,
+  listTeacherScheduleRowsWithDays,
   getActiveSchoolYear,
   getActiveTerm,
   getGradeSubmissionByScheduleAndPeriod,
@@ -21,9 +22,9 @@ import {
   getRosterForClassByScheduleId,
   getGradingPeriodsBySchoolYearTerm,
   getGradingPeriodById,
-  isTeacherAssignedToSchedule,
+  isTeacherOwnerOfSchedule,
   listGradeSubmissionsForTeacher,
-  getTodaysClassesForTeacher,
+  getTodaysTeacherClassesFromClassSchedules,
   type GradeEntryInput,
 } from "@/db/queries";
 import { getUserProfileByUserId } from "@/db/queries";
@@ -90,7 +91,7 @@ export async function listMyClasses(filters?: { schoolYearId?: string; termId?: 
       terms,
     };
   }
-  const classes = await listTeacherAssignmentsForTeacher(ctx.teacherId, {
+  const classes = await listTeacherSchedulesFromClassSchedules(ctx.teacherId, {
     schoolYearId,
     termId,
   });
@@ -135,8 +136,8 @@ export async function getClassesWithPeriodStatuses(filters?: {
 export async function getOrCreateSubmissionDraft(scheduleId: string, periodId: string) {
   const ctx = await ensureTeacherForCurrentUser();
   if (!ctx) return { error: "Unauthorized", submission: null };
-  const isAssigned = await isTeacherAssignedToSchedule(ctx.teacherId, scheduleId);
-  if (!isAssigned) return { error: "You are not assigned to this class", submission: null };
+  const isOwner = await isTeacherOwnerOfSchedule(ctx.teacherId, scheduleId);
+  if (!isOwner) return { error: "You are not assigned to this class", submission: null };
 
   const schedule = await getScheduleById(scheduleId);
   if (!schedule) return { error: "Schedule not found", submission: null };
@@ -214,9 +215,16 @@ export async function getTeacherDashboardData() {
   const term = await getActiveTerm();
   const todayShort = new Date().toLocaleDateString("en-US", { weekday: "short" });
   
-  // Get authorized courses
-  const { listTeacherSubjectPermissions } = await import("@/db/queries");
-  const authorizedCourses = await listTeacherSubjectPermissions(ctx.teacherId);
+  // Get approved courses (from Dean-approved capability packages)
+  const { listActiveCapabilitiesByTeacher } = await import("@/db/queries");
+  const capabilityRows = await listActiveCapabilitiesByTeacher(ctx.teacherId);
+  const authorizedCourses = capabilityRows.map((c) => ({
+    id: c.id,
+    subjectCode: c.subjectCode,
+    subjectTitle: c.subjectTitle ?? "",
+    units: c.units,
+    isGe: c.subjectIsGe ?? false,
+  }));
   
   if (!sy || !term) {
     return {
@@ -243,7 +251,7 @@ export async function getTeacherDashboardData() {
     recentSubmissions,
     todaysClasses,
   ] = await Promise.all([
-    listTeacherAssignmentsForTeacher(ctx.teacherId, {
+    listTeacherSchedulesFromClassSchedules(ctx.teacherId, {
       schoolYearId: sy.id,
       termId: term.id,
     }),
@@ -271,7 +279,7 @@ export async function getTeacherDashboardData() {
       schoolYearId: sy.id,
       termId: term.id,
     }),
-    getTodaysClassesForTeacher(ctx.teacherId, todayShort, {
+    getTodaysTeacherClassesFromClassSchedules(ctx.teacherId, todayShort, {
       schoolYearId: sy.id,
       termId: term.id,
     }),
@@ -296,8 +304,8 @@ export async function getTeacherDashboardData() {
 export async function getClassRoster(scheduleId: string) {
   const ctx = await ensureTeacherForCurrentUser();
   if (!ctx) return null;
-  const isAssigned = await isTeacherAssignedToSchedule(ctx.teacherId, scheduleId);
-  if (!isAssigned) return null;
+  const isOwner = await isTeacherOwnerOfSchedule(ctx.teacherId, scheduleId);
+  if (!isOwner) return null;
   const schedule = await getScheduleById(scheduleId);
   if (!schedule) return null;
   const fromClasses = await getRosterForClassByScheduleId(scheduleId);
@@ -312,8 +320,8 @@ export async function getClassRoster(scheduleId: string) {
 export async function getClassDetailData(scheduleId: string) {
   const ctx = await ensureTeacherForCurrentUser();
   if (!ctx) return null;
-  const isAssigned = await isTeacherAssignedToSchedule(ctx.teacherId, scheduleId);
-  if (!isAssigned) return null;
+  const isOwner = await isTeacherOwnerOfSchedule(ctx.teacherId, scheduleId);
+  if (!isOwner) return null;
   const schedule = await getScheduleById(scheduleId);
   if (!schedule) return null;
   const periods = await getGradingPeriodsBySchoolYearTerm(
@@ -379,4 +387,47 @@ export async function getGradebookData(scheduleId: string, periodId: string) {
     schedule,
     periodName: period?.name ?? "",
   };
+}
+
+const DAYS_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+export async function getTeacherScheduleData(filters?: {
+  schoolYearId?: string;
+  termId?: string;
+}) {
+  const ctx = await ensureTeacherForCurrentUser();
+  if (!ctx) return null;
+  const sy = await getActiveSchoolYear();
+  const term = await getActiveTerm();
+  const schoolYearId = filters?.schoolYearId ?? sy?.id;
+  const termId = filters?.termId ?? term?.id;
+  const { getSchoolYearsList, getTermsBySchoolYearId } = await import("@/db/queries");
+  const [schoolYears, termsList] = await Promise.all([
+    getSchoolYearsList(),
+    schoolYearId ? getTermsBySchoolYearId(schoolYearId) : Promise.resolve([]),
+  ]);
+  if (!schoolYearId || !termId) {
+    return {
+      schoolYear: sy ?? null,
+      term: term ?? null,
+      byDay: {} as Record<string, Awaited<ReturnType<typeof listTeacherScheduleRowsWithDays>>>,
+      schoolYears,
+      terms: termsList,
+    };
+  }
+  const rows = await listTeacherScheduleRowsWithDays(ctx.teacherId, {
+    schoolYearId,
+    termId,
+  });
+  const byDay = DAYS_ORDER.reduce(
+    (acc, day) => {
+      acc[day] = rows.filter((r) => r.day === day);
+      return acc;
+    },
+    {} as Record<string, typeof rows>
+  );
+  const termsRes = termsList.length > 0 ? termsList : await getTermsBySchoolYearId(schoolYearId);
+  const schoolYear = schoolYears.find((syItem) => syItem.id === schoolYearId) ?? sy ?? null;
+  const termRes = termsRes.find((t) => t.id === termId) ?? term ?? null;
+  return { schoolYear, term: termRes, byDay, schoolYears, terms: termsRes };
 }

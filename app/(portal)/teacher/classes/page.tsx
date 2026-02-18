@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TeacherClassesFilters } from "@/app/(portal)/teacher/classes/TeacherClassesFilters";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +77,7 @@ export default async function TeacherClassesPage({
                       variant="outline"
                       className={`text-xs ${periodStatusBadge(ps.status)}`}
                     >
-                      {ps.periodName}: {(ps.status as string) === "none" ? "—" : ps.status}
+                      {ps.periodName}: {(ps.status as string) === "none" ? "—" : formatStatusForDisplay(ps.status)}
                     </Badge>
                   ))}
                 </div>

@@ -5,6 +5,7 @@ import { getClearanceOverview } from "@/lib/programHead/queries";
 import { getSchoolYearsList, getTermsBySchoolYearId, getActiveSchoolYear } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClearanceFilters } from "./ClearanceFilters";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export default async function ProgramHeadClearancePage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
             <table className="min-w-full">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
@@ -124,7 +125,7 @@ export default async function ProgramHeadClearancePage({
                             : "bg-neutral-200 text-neutral-800"
                         }`}
                       >
-                        {r.financeStatus ?? "—"}
+                        {r.financeStatus ? formatStatusForDisplay(r.financeStatus) : "—"}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right text-neutral-600">

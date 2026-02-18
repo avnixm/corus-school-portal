@@ -44,6 +44,7 @@ export function GenerateFromFeeSetupButton({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [enrollmentId, setEnrollmentId] = useState("");
+  const [paymentPlan, setPaymentPlan] = useState<"installment" | "full">("installment");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,7 +54,7 @@ export function GenerateFromFeeSetupButton({
       return;
     }
     startTransition(async () => {
-      const result = await generateAssessmentFromFeeSetupAction(enrollmentId);
+      const result = await generateAssessmentFromFeeSetupAction(enrollmentId, undefined, paymentPlan);
       if (result?.error) {
         setError(result.error);
         return;
@@ -82,6 +83,7 @@ export function GenerateFromFeeSetupButton({
           setOpen(v);
           if (!v) {
             setEnrollmentId("");
+            setPaymentPlan("installment");
             setError(null);
           }
         }}
@@ -95,6 +97,33 @@ export function GenerateFromFeeSetupButton({
               Uses the best matching approved fee setup (Program Head + Dean approved) for the selected enrollment.
             </p>
             {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <label className="text-sm font-medium">Payment plan</label>
+              <div className="mt-1 flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="paymentPlan"
+                    value="installment"
+                    checked={paymentPlan === "installment"}
+                    onChange={() => setPaymentPlan("installment")}
+                    className="h-4 w-4"
+                  />
+                  Installment (no discount)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="paymentPlan"
+                    value="full"
+                    checked={paymentPlan === "full"}
+                    onChange={() => setPaymentPlan("full")}
+                    className="h-4 w-4"
+                  />
+                  Full payment (10% off tuition & lab)
+                </label>
+              </div>
+            </div>
             <div>
               <label className="text-sm font-medium">Enrollment *</label>
               <select

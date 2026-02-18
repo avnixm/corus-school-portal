@@ -8,6 +8,7 @@ import {
 import { getEnrolledStudentMissingRequiredFormNames } from "@/lib/requirements/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function StudentSchedulePage() {
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">Schedule</h2>
         <p className="text-sm text-neutral-700">
           Your schedule will be available after your enrollment is approved. Current status:{" "}
-          <span className="font-medium">{enrollment.status.replace(/_/g, " ")}</span>.
+          <span className="font-medium">{formatStatusForDisplay(enrollment.status)}</span>.
         </p>
       </div>
     );

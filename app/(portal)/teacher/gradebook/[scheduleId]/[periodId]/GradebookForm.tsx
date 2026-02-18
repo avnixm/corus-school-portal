@@ -1,13 +1,12 @@
 // path: app/(portal)/teacher/gradebook/[scheduleId]/[periodId]/GradebookForm.tsx
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
+import { percentStringToGrade } from "@/lib/grades/gradeConversion";
 import { upsertGradeEntriesAction, submitGradesAction } from "../../../actions";
 import { Send, Lock } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 
 type Row = {
   studentId: string;
@@ -22,6 +21,17 @@ type Row = {
   entryId?: string;
 };
 
+function ensureGradeConversion(entries: Row[]): Row[] {
+  return entries.map((r) => {
+    if (r.numericGrade != null && r.numericGrade.trim() !== "") {
+      const converted = percentStringToGrade(r.numericGrade);
+      if (converted && (!r.letterGrade || !r.remarks))
+        return { ...r, letterGrade: converted.transmutedGrade, remarks: converted.remark };
+    }
+    return r;
+  });
+}
+
 function GradebookForm({
   submissionId,
   entries,
@@ -31,7 +41,7 @@ function GradebookForm({
   entries: Row[];
   canEdit: boolean;
 }) {
-  const [rows, setRows] = useState(entries);
+  const [rows, setRows] = useState(() => ensureGradeConversion(entries));
   const [saving, setSaving] = useState(false);
   const [submitPending, setSubmitPending] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -74,6 +84,21 @@ function GradebookForm({
       return;
     }
     setSubmitPending(true);
+    const saveResult = await upsertGradeEntriesAction(
+      submissionId,
+      rows.map((r) => ({
+        studentId: r.studentId,
+        enrollmentId: r.enrollmentId,
+        numericGrade: r.numericGrade ?? null,
+        letterGrade: r.letterGrade ?? null,
+        remarks: r.remarks ?? null,
+      }))
+    );
+    if (saveResult?.error) {
+      setSubmitPending(false);
+      setMessage({ type: "error", text: saveResult.error });
+      return;
+    }
     const result = await submitGradesAction(submissionId);
     setSubmitPending(false);
     if (result.error) setMessage({ type: "error", text: result.error });
@@ -85,7 +110,21 @@ function GradebookForm({
 
   const updateRow = (studentId: string, field: "numericGrade" | "letterGrade" | "remarks", value: string | null) => {
     setRows((prev) =>
-      prev.map((r) => (r.studentId === studentId ? { ...r, [field]: value || null } : r))
+      prev.map((r) => {
+        if (r.studentId !== studentId) return r;
+        const next = { ...r, [field]: value || null };
+        if (field === "numericGrade") {
+          const converted = percentStringToGrade(value ?? "");
+          if (converted) {
+            next.letterGrade = converted.transmutedGrade;
+            next.remarks = converted.remark;
+          } else if (value == null || value.trim() === "") {
+            next.letterGrade = null;
+            next.remarks = null;
+          }
+        }
+        return next;
+      })
     );
   };
 
@@ -106,8 +145,8 @@ function GradebookForm({
             <tr>
               <th className="px-4 py-2">Student</th>
               <th className="px-4 py-2 w-24">Code</th>
-              <th className="px-4 py-2 w-28">Numeric</th>
-              <th className="px-4 py-2 w-24">Letter</th>
+              <th className="px-4 py-2 w-28" title="Percentage 0-100">Grade %</th>
+              <th className="px-4 py-2 w-24" title="1.00 highest, 5.00 failed">Transmuted</th>
               <th className="px-4 py-2 min-w-[160px]">Remarks</th>
             </tr>
           </thead>
@@ -123,7 +162,7 @@ function GradebookForm({
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="0.00"
+                      placeholder="0–100"
                       className="h-8 w-24"
                       value={r.numericGrade ?? ""}
                       onChange={(e) => updateRow(r.studentId, "numericGrade", e.target.value || null)}
@@ -132,31 +171,11 @@ function GradebookForm({
                     <span>{r.numericGrade ?? "—"}</span>
                   )}
                 </td>
-                <td className="px-4 py-2">
-                  {canEdit ? (
-                    <Input
-                      type="text"
-                      placeholder="—"
-                      className="h-8 w-20"
-                      value={r.letterGrade ?? ""}
-                      onChange={(e) => updateRow(r.studentId, "letterGrade", e.target.value || null)}
-                    />
-                  ) : (
-                    <span>{r.letterGrade ?? "—"}</span>
-                  )}
+                <td className="px-4 py-2 text-neutral-700">
+                  {r.letterGrade ?? "—"}
                 </td>
-                <td className="px-4 py-2">
-                  {canEdit ? (
-                    <Textarea
-                      placeholder="Remarks"
-                      className="min-h-8 resize-y text-xs"
-                      value={r.remarks ?? ""}
-                      onChange={(e) => updateRow(r.studentId, "remarks", e.target.value || null)}
-                      rows={1}
-                    />
-                  ) : (
-                    <span className="text-neutral-600">{r.remarks ?? "—"}</span>
-                  )}
+                <td className="px-4 py-2 text-neutral-600">
+                  {r.remarks ?? "—"}
                 </td>
               </tr>
             ))}

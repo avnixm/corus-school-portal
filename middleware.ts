@@ -14,8 +14,13 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/program-head") ||
     pathname.startsWith("/dean")
   ) {
-    const sessionResponse = await auth.getSession();
-    const session = sessionResponse?.data;
+    let session = null;
+    try {
+      const sessionResponse = await auth.getSession();
+      session = sessionResponse?.data;
+    } catch {
+      // fetch failed (network/auth service unreachable) — treat as unauthenticated
+    }
 
     if (!session?.user?.id) {
       return NextResponse.redirect(new URL("/login", request.url));

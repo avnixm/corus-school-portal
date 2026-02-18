@@ -27,7 +27,7 @@ export function SubjectsFilters({ programs }: { programs: Program[] }) {
 
   return (
     <div className="flex flex-wrap items-end gap-4 rounded-lg border bg-white p-4">
-      <div>
+      <div className="w-full min-w-0 sm:min-w-[180px]">
         <Label htmlFor="programId" className="text-xs text-neutral-600">
           Program
         </Label>
@@ -35,7 +35,7 @@ export function SubjectsFilters({ programs }: { programs: Program[] }) {
           id="programId"
           value={programId}
           onChange={(e) => setProgramId(e.target.value)}
-          className="mt-1 flex h-9 w-full min-w-[180px] rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
+          className="mt-1 flex h-9 w-full min-w-0 rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-neutral-900"
         >
           <option value="">All programs</option>
           {programs.map((p) => (
@@ -45,7 +45,7 @@ export function SubjectsFilters({ programs }: { programs: Program[] }) {
           ))}
         </select>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Label className="text-xs text-neutral-600">View</Label>
         <div className="flex rounded-md border border-neutral-200 bg-neutral-50 p-0.5">
           <button

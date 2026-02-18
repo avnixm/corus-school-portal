@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GradebookForm } from "./GradebookForm";
-
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ function statusBadge(status: string) {
     approved: { class: "border-blue-500 text-blue-700", label: "Approved" },
     released: { class: "border-green-500 text-green-700", label: "Released" },
   };
-  const s = map[status] ?? { class: "", label: status };
+  const s = map[status] ?? { class: "", label: formatStatusForDisplay(status) };
   return <Badge variant="outline" className={s.class}>{s.label}</Badge>;
 }
 
@@ -88,7 +88,7 @@ export default async function TeacherGradebookPage({
           </CardTitle>
           {!canEdit && submission.status !== "returned" && (
             <p className="text-xs text-amber-700">
-              Editing is locked. This submission has been {submission.status}.
+              Editing is locked. This submission has been {formatStatusForDisplay(submission.status)}.
             </p>
           )}
         </CardHeader>

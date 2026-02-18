@@ -83,7 +83,7 @@ export function ContextBar({
             Filters
           </div>
 
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[200px] max-w-sm">
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0 w-full sm:min-w-[200px] sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <Input
               placeholder="Search versions..."
@@ -109,7 +109,7 @@ export function ContextBar({
             value={currentSchoolYearId || ALL_SCHOOL_YEARS}
             onValueChange={(v) => handleFilterChange("schoolYearId", v === ALL_SCHOOL_YEARS ? "" : v)}
           >
-            <SelectTrigger className="h-9 w-[180px]">
+            <SelectTrigger className="h-9 w-full sm:w-[180px] min-w-0">
               <SelectValue placeholder="All School Years" />
             </SelectTrigger>
             <SelectContent>
@@ -126,7 +126,7 @@ export function ContextBar({
             value={currentStatus || ALL_STATUSES}
             onValueChange={(v) => handleFilterChange("status", v === ALL_STATUSES ? "" : v)}
           >
-            <SelectTrigger className="h-9 w-[150px]">
+            <SelectTrigger className="h-9 w-full sm:w-[150px] min-w-0">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>

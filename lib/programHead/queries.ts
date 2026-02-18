@@ -17,7 +17,7 @@ import {
   announcements,
   ledgerEntries,
 } from "@/db/schema";
-import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, inArray, isNull } from "drizzle-orm";
 import type { getProgramHeadScopePrograms } from "./scope";
 
 /** null = all programs; string[] = restrict to these program codes. */
@@ -258,6 +258,46 @@ export async function getEnrollmentsBySection(
     .where(and(...conds))
     .groupBy(sections.id, sections.name, programs.code)
     .orderBy(desc(sql`count(*)`));
+}
+
+/** Approved enrollments without section assignment, for Program Head smart sectioning. */
+export async function getUnassignedEnrollmentsForSectioning(
+  scope: ProgramScope,
+  filters: { schoolYearId?: string; termId?: string; programId?: string; yearLevel?: string }
+) {
+  const enrollCond = programConditionEnrollments(scope);
+  const conds = [
+    inArray(enrollments.status, ["approved", "enrolled"]),
+    isNull(enrollments.sectionId),
+  ];
+  if (filters.schoolYearId) conds.push(eq(enrollments.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(enrollments.termId, filters.termId));
+  if (filters.programId) conds.push(eq(enrollments.programId, filters.programId));
+  if (filters.yearLevel) conds.push(eq(enrollments.yearLevel, filters.yearLevel));
+  if (enrollCond) conds.push(enrollCond);
+
+  return db
+    .select({
+      id: enrollments.id,
+      studentId: enrollments.studentId,
+      programId: enrollments.programId,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+    })
+    .from(enrollments)
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(enrollments.termId, terms.id))
+    .where(and(...conds))
+    .orderBy(enrollments.program, enrollments.yearLevel, students.lastName);
 }
 
 // ---------- Grade Analytics (released only) ----------

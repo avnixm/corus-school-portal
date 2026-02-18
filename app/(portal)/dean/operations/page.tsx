@@ -9,6 +9,7 @@ import { getSchoolYearsList, getTermsBySchoolYearId, getActiveSchoolYear } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeanOperationsFilters } from "./DeanOperationsFilters";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ export default async function DeanOperationsPage({
       />
 
       <Tabs defaultValue="approvals" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="approvals">
             Enrollment Approvals ({approvals.length})
           </TabsTrigger>
@@ -76,7 +77,7 @@ export default async function DeanOperationsPage({
               <CardTitle className="text-sm">Pending Enrollment Approvals</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+              <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
                 <table className="min-w-full">
                   <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                     <tr>
@@ -117,7 +118,7 @@ export default async function DeanOperationsPage({
               <CardTitle className="text-sm">Unreleased Grade Submissions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+              <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
                 <table className="min-w-full">
                   <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                     <tr>
@@ -135,7 +136,7 @@ export default async function DeanOperationsPage({
                           {s.subjectCode} — {s.sectionName}
                         </td>
                         <td className="px-4 py-2">{s.gradingPeriodName}</td>
-                        <td className="px-4 py-2">{s.status}</td>
+                        <td className="px-4 py-2">{formatStatusForDisplay(s.status)}</td>
                         <td className="px-4 py-2 text-right">
                           {s.updatedAt ? new Date(s.updatedAt).toLocaleDateString() : "—"}
                         </td>
@@ -168,7 +169,7 @@ export default async function DeanOperationsPage({
               <CardTitle className="text-sm">Requirements Verification (submitted)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+              <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
                 <table className="min-w-full">
                   <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                     <tr>
@@ -183,7 +184,7 @@ export default async function DeanOperationsPage({
                       <tr key={r.id} className="border-b last:border-0">
                         <td className="px-4 py-2">{r.id.slice(0, 8)}…</td>
                         <td className="px-4 py-2">{r.studentId.slice(0, 8)}…</td>
-                        <td className="px-4 py-2">{r.status}</td>
+                        <td className="px-4 py-2">{formatStatusForDisplay(r.status)}</td>
                         <td className="px-4 py-2 text-right">
                           {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "—"}
                         </td>
@@ -208,7 +209,7 @@ export default async function DeanOperationsPage({
               <CardTitle className="text-sm">Finance Clearance Holds / Uncleared</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+              <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
                 <table className="min-w-full">
                   <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                     <tr>
@@ -229,7 +230,7 @@ export default async function DeanOperationsPage({
                         <td className="px-4 py-2 text-right">
                           ₱{parseFloat(r.balance ?? "0").toFixed(2)}
                         </td>
-                        <td className="px-4 py-2">{r.financeStatus ?? "—"}</td>
+                        <td className="px-4 py-2">{r.financeStatus ? formatStatusForDisplay(r.financeStatus) : "—"}</td>
                         <td className="px-4 py-2">
                           <Link
                             href="/finance/clearance"

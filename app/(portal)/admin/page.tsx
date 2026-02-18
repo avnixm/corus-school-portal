@@ -135,7 +135,7 @@ export default async function AdminDashboardPage() {
             <CardTitle className="text-base">Users by Role</CardTitle>
           </CardHeader>
           <CardContent>
-              <div className="overflow-hidden rounded-lg border bg-white text-sm text-neutral-900">
+              <div className="overflow-x-auto rounded-lg border bg-white text-sm text-neutral-900">
               <table className="min-w-full">
                 <thead className="bg-neutral-50 text-xs font-medium text-[#6A0000]">
                   <tr>

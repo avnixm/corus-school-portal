@@ -40,7 +40,6 @@ export async function postPaymentAction(formData: FormData) {
     | "bank"
     | "card"
     | "other";
-  const referenceNo = (formData.get("referenceNo") as string)?.trim() || null;
   const remarks = (formData.get("remarks") as string)?.trim() || null;
 
   if (!studentId || !enrollmentId || !amount || parseFloat(amount) <= 0) {
@@ -52,19 +51,20 @@ export async function postPaymentAction(formData: FormData) {
   }
 
   try {
-    await postPayment({
+    const payment = await postPayment({
       studentId,
       enrollmentId,
       amount,
       method,
-      referenceNo,
       remarks,
       receivedByUserId: userId,
     });
     revalidatePath("/finance/payments");
     revalidatePath("/finance/balances");
     revalidatePath("/finance");
-    return { success: true };
+    revalidatePath("/student");
+    revalidatePath("/student/billing");
+    return { success: true, paymentId: payment?.id ?? null };
   } catch (e) {
     return { error: "Failed to post payment" };
   }
@@ -80,6 +80,8 @@ export async function voidPaymentAction(paymentId: string) {
     revalidatePath("/finance/payments");
     revalidatePath("/finance/balances");
     revalidatePath("/finance");
+    revalidatePath("/student");
+    revalidatePath("/student/billing");
     return { success: true };
   } catch (e) {
     return { error: "Failed to void payment" };

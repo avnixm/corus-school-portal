@@ -315,6 +315,13 @@ export const gradeSubmissionStatusEnum = pgEnum("grade_submission_status", [
   "released",
 ]);
 
+export const scheduleTimeConfigStatusEnum = pgEnum("schedule_time_config_status", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+]);
+
 export const gradeSubmissions = pgTable(
   "grade_submissions",
   {
@@ -535,6 +542,27 @@ export const scheduleDays = pgTable("schedule_days", {
     .references(() => classSchedules.id),
   day: varchar("day", { length: 16 }).notNull(), // Mon, Tue, etc.
   isActive: boolean("is_active").notNull().default(true),
+});
+
+export const scheduleTimeConfigs = pgTable("schedule_time_configs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  programId: uuid("program_id")
+    .notNull()
+    .references(() => programs.id),
+  schoolYearId: uuid("school_year_id").references(() => schoolYears.id),
+  termId: uuid("term_id").references(() => terms.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  startHour: integer("start_hour").notNull(), // 7 for 7:00 AM
+  endHour: integer("end_hour").notNull(), // 17 for 5:00 PM
+  timeIncrement: integer("time_increment").notNull().default(30), // minutes (30 = 30min slots)
+  status: scheduleTimeConfigStatusEnum("status").notNull().default("draft"),
+  createdByUserId: text("created_by_user_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  reviewedByUserId: text("reviewed_by_user_id"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  remarks: text("remarks"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const scheduleApprovals = pgTable("schedule_approvals", {

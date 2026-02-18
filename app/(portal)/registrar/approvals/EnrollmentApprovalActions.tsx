@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +26,7 @@ export function EnrollmentApprovalActions({
   enrollmentId,
   requirementsSummary,
 }: EnrollmentApprovalActionsProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -46,6 +48,7 @@ export function EnrollmentApprovalActions({
         setError(result.error);
         return;
       }
+      router.push("/registrar/approvals");
     });
   }
 
@@ -73,6 +76,7 @@ export function EnrollmentApprovalActions({
       }
       setOverrideOpen(false);
       setOverrideReason("");
+      router.push("/registrar/approvals");
     });
   }
 
@@ -97,6 +101,7 @@ export function EnrollmentApprovalActions({
       }
       setRejectOpen(false);
       setRejectReason("");
+      router.push("/registrar/approvals");
     });
   }
 

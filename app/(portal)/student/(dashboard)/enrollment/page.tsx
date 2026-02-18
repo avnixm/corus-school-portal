@@ -6,7 +6,7 @@ import {
   getEnrollmentApprovalByEnrollmentId,
   getEnrollmentsByStudentId,
 } from "@/db/queries";
-import { getProgramsList, getSectionsList } from "@/db/queries";
+import { getProgramsList } from "@/db/queries";
 import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
 import { getEnrollmentRequirementsPolicy } from "@/lib/requirements/policy";
 import { ensureEnrollmentRequirementSubmissions } from "@/lib/requirements/progress";
@@ -18,6 +18,7 @@ import Link from "next/link";
 import { EnrollmentWizard } from "@/app/(portal)/student/(dashboard)/enrollment/EnrollmentWizard";
 import { EnrollmentStatusActions } from "@/app/(portal)/student/(dashboard)/enrollment/EnrollmentStatusActions";
 import { NewEnrollmentButton } from "@/app/(portal)/student/(dashboard)/enrollment/NewEnrollmentButton";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -44,10 +45,7 @@ export default async function StudentEnrollmentPage() {
   const enrollment = await getEnrollmentForStudentActiveTerm(current.studentId);
 
   if (!enrollment) {
-    const [programs, sections] = await Promise.all([
-      getProgramsList(true),
-      getSectionsList(),
-    ]);
+    const programs = await getProgramsList(true);
     return (
       <div className="space-y-6">
         <div>
@@ -60,13 +58,6 @@ export default async function StudentEnrollmentPage() {
           schoolYearName={sy.name}
           termName={term.name}
           programs={programs.map((p) => ({ id: p.id, code: p.code, name: p.name }))}
-          sections={sections.map((s) => ({
-            id: s.id,
-            name: s.name,
-            yearLevel: s.yearLevel ?? null,
-            programId: s.programId ?? null,
-            programCode: s.programCode ?? null,
-          }))}
         />
       </div>
     );
@@ -233,7 +224,7 @@ export default async function StudentEnrollmentPage() {
                             : ""
                       }
                     >
-                      {enc.status.replace(/_/g, " ")}
+                      {formatStatusForDisplay(enc.status)}
                     </Badge>
                   </li>
                 );

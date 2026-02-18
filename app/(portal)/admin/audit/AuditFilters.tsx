@@ -28,54 +28,54 @@ export function AuditFilters() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-4 rounded-lg border bg-white p-4 text-neutral-900">
-      <div>
+      <div className="w-full min-w-0 sm:w-[140px]">
         <Label htmlFor="from" className="text-xs font-medium text-neutral-800">From date</Label>
         <Input
           id="from"
           name="from"
           type="date"
           defaultValue={searchParams.get("from") ?? ""}
-          className="h-9 w-[140px] text-neutral-900"
+          className="h-9 w-full sm:w-[140px] text-neutral-900"
         />
       </div>
-      <div>
+      <div className="w-full min-w-0 sm:w-[140px]">
         <Label htmlFor="to" className="text-xs font-medium text-neutral-800">To date</Label>
         <Input
           id="to"
           name="to"
           type="date"
           defaultValue={searchParams.get("to") ?? ""}
-          className="h-9 w-[140px] text-neutral-900"
+          className="h-9 w-full sm:w-[140px] text-neutral-900"
         />
       </div>
-      <div>
+      <div className="w-full min-w-0 sm:w-[180px]">
         <Label htmlFor="actor" className="text-xs font-medium text-neutral-800">Actor user ID</Label>
         <Input
           id="actor"
           name="actor"
           defaultValue={searchParams.get("actor") ?? ""}
           placeholder="User ID"
-          className="h-9 w-[180px] text-neutral-900"
+          className="h-9 w-full sm:w-[180px] text-neutral-900"
         />
       </div>
-      <div>
+      <div className="w-full min-w-0 sm:w-[140px]">
         <Label htmlFor="action" className="text-xs font-medium text-neutral-800">Action</Label>
         <Input
           id="action"
           name="action"
           defaultValue={searchParams.get("action") ?? ""}
           placeholder="e.g. ROLE_CHANGE"
-          className="h-9 w-[140px] text-neutral-900"
+          className="h-9 w-full sm:w-[140px] text-neutral-900"
         />
       </div>
-      <div>
+      <div className="w-full min-w-0 sm:w-[140px]">
         <Label htmlFor="entity" className="text-xs font-medium text-neutral-800">Entity type</Label>
         <Input
           id="entity"
           name="entity"
           defaultValue={searchParams.get("entity") ?? ""}
           placeholder="e.g. user_profile"
-          className="h-9 w-[140px] text-neutral-900"
+          className="h-9 w-full sm:w-[140px] text-neutral-900"
         />
       </div>
       <Button type="submit" size="sm">Filter</Button>

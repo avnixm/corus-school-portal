@@ -3,6 +3,9 @@ import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateAnnouncementForm } from "@/app/(portal)/registrar/announcements/CreateAnnouncementForm";
 import { AnnouncementRowActions } from "@/app/(portal)/registrar/announcements/AnnouncementRowActions";
+import { auth } from "@/lib/auth/server";
+import { getUserProfileByUserId } from "@/db/queries";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +22,12 @@ const AUDIENCE_LABELS: Record<string, string> = {
 export const metadata = { title: "Announcements" };
 
 export default async function FinanceAnnouncementsPage() {
+  const session = (await auth.getSession())?.data;
+  if (!session?.user?.id) redirect("/login");
+
+  const profile = await getUserProfileByUserId(session.user.id);
+  if (!profile) redirect("/login");
+
   const announcements = await getAnnouncementsList();
 
   return (
@@ -62,7 +71,11 @@ export default async function FinanceAnnouncementsPage() {
                       : "—"}
                   </p>
                 </div>
-                <AnnouncementRowActions announcement={row} />
+                <AnnouncementRowActions 
+                  announcement={row} 
+                  currentUserId={session.user.id}
+                  currentUserRole={profile.role}
+                />
               </div>
             ))}
             {announcements.length === 0 && (

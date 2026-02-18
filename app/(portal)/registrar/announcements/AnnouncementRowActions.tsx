@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil, Trash2 } from "lucide-react";
 import { updateAnnouncementAction, deleteAnnouncementAction } from "./actions";
+import { toast } from "sonner";
 
 const AUDIENCE_OPTIONS = [
   { value: "all", label: "All" },
@@ -31,18 +32,26 @@ type Announcement = {
   title: string;
   body: string;
   audience: string;
+  createdByUserId: string;
 };
 
 export function AnnouncementRowActions({
   announcement,
+  currentUserId,
+  currentUserRole,
 }: {
   announcement: Announcement;
+  currentUserId: string;
+  currentUserRole: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Check if user can edit/delete
+  const canModify = currentUserRole === "admin" || announcement.createdByUserId === currentUserId;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -53,18 +62,30 @@ export function AnnouncementRowActions({
     setPending(false);
     if (result?.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Announcement updated");
     setEditing(false);
     router.refresh();
   }
 
   async function handleDelete() {
     setPending(true);
-    await deleteAnnouncementAction(announcement.id);
+    const result = await deleteAnnouncementAction(announcement.id);
     setPending(false);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Announcement deleted");
     setDeleteOpen(false);
     router.refresh();
+  }
+
+  // Don't show buttons if user can't modify
+  if (!canModify) {
+    return null;
   }
 
   if (editing) {

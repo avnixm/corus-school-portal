@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 import {
   getStudentById,
   getEnrollmentsByStudentId,
@@ -125,7 +126,7 @@ export default async function StudentDetailPage({
           </Link>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-neutral-900">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
             <table className="min-w-full text-left text-sm text-neutral-900">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
@@ -157,7 +158,7 @@ export default async function StudentDetailPage({
                             : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {row.status}
+                        {formatStatusForDisplay(row.status)}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-neutral-800">

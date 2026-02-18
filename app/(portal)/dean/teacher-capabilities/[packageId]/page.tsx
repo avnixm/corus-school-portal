@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCapabilityPackageById, listCapabilityLines } from "@/db/queries";
 import { DeanCapabilityReview } from "./DeanCapabilityReview";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function DeanCapabilityReviewPage({
           ← Back to Capability Approvals
         </Link>
         <p className="text-neutral-600">
-          This package is already {pkg.status}. Only submitted packages can be reviewed.
+          This package is already {formatStatusForDisplay(pkg.status)}. Only submitted packages can be reviewed.
         </p>
       </div>
     );

@@ -33,7 +33,7 @@ export function UserManagementSearch() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-4">
-      <div className="min-w-[200px]">
+      <div className="min-w-0 w-full sm:min-w-[200px]">
         <Label htmlFor="search-q" className="sr-only">
           Search
         </Label>
@@ -45,7 +45,7 @@ export function UserManagementSearch() {
           className="h-9"
         />
       </div>
-      <div className="min-w-[140px]">
+      <div className="min-w-0 w-full sm:min-w-[140px]">
         <Label htmlFor="search-role" className="sr-only">
           Role
         </Label>

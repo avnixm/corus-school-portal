@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   postPaymentAction,
@@ -51,13 +51,16 @@ export function PostPaymentForm() {
   const [enrollmentId, setEnrollmentId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "gcash" | "bank" | "card" | "other">("cash");
-  const [referenceNo, setReferenceNo] = useState("");
-  const [remarks, setRemarks] = useState("");
+  const [paymentFor, setPaymentFor] = useState<"installment" | "downpayment" | "fullpayment" | "misc">("installment");
+  const [miscSpecify, setMiscSpecify] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState("");
+  const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
 
   const selectedEnrollment = enrollments.find((e) => e.id === enrollmentId);
   const currentBalance = selectedEnrollment ? parseFloat(selectedEnrollment.balance ?? "0") : 0;
   const paymentAmount = parseFloat(amount || "0");
-  const newBalance = currentBalance - paymentAmount;
+  const rawNewBalance = currentBalance - paymentAmount;
+  const newBalance = Math.round(rawNewBalance * 100) / 100;
 
   async function handleSearch() {
     if (!search.trim()) return;
@@ -66,10 +69,14 @@ export function PostPaymentForm() {
     setSelectedStudent(null);
     setEnrollments([]);
     setEnrollmentId("");
+    setLastPaymentId(null);
   }
 
   async function handleSelectStudent(student: (typeof searchResults)[0]) {
     setSelectedStudent(student);
+    setLastPaymentId(null);
+    setPaymentFor("installment");
+    setMiscSpecify("");
     const encs = await getEnrollmentsForStudentAction(student.id);
     setEnrollments(encs);
     setEnrollmentId(encs[0]?.id ?? "");
@@ -94,13 +101,29 @@ export function PostPaymentForm() {
     if (amt > currentBalance && !confirm("Payment exceeds current balance. Continue with overpayment?")) {
       return;
     }
+    if (paymentFor === "misc" && !miscSpecify.trim()) {
+      setError("Specify what the miscellaneous payment is for (e.g. t-shirt, ID)");
+      return;
+    }
+    let remarks = "";
+    if (paymentFor === "installment" && selectedEnrollment) {
+      remarks = `Installment - ${selectedEnrollment.schoolYearName} ${selectedEnrollment.termName}`;
+    } else if (paymentFor === "downpayment") {
+      remarks = "Down payment";
+    } else if (paymentFor === "fullpayment") {
+      remarks = "Full payment";
+    } else if (paymentFor === "misc") {
+      remarks = `Miscellaneous - ${miscSpecify.trim()}`;
+    }
+    if (additionalNotes.trim()) {
+      remarks += (remarks ? ". " : "") + additionalNotes.trim();
+    }
     startTransition(async () => {
       const formData = new FormData();
       formData.set("studentId", selectedStudent.id);
       formData.set("enrollmentId", enrollmentId);
       formData.set("amount", amt.toFixed(2));
       formData.set("method", method);
-      formData.set("referenceNo", referenceNo);
       formData.set("remarks", remarks);
       const result = await postPaymentAction(formData);
       if (result?.error) {
@@ -110,8 +133,11 @@ export function PostPaymentForm() {
       }
       toast.success(`Payment of ₱${amt.toFixed(2)} posted successfully`);
       setAmount("");
-      setReferenceNo("");
-      setRemarks("");
+      setMiscSpecify("");
+      setAdditionalNotes("");
+      if ("paymentId" in result && result.paymentId) {
+        setLastPaymentId(result.paymentId);
+      }
       router.refresh();
     });
   }
@@ -156,10 +182,17 @@ export function PostPaymentForm() {
           )}
         </div>
         {selectedStudent && (
-          <div className="rounded border bg-neutral-50 p-3 text-sm">
-            <span className="font-medium text-[#6A0000]">
-              {selectedStudent.studentCode ?? ""} – {fullName(selectedStudent)}
-            </span>
+          <div className="space-y-2">
+            <div className="rounded border bg-neutral-50 p-3 text-sm">
+              <span className="font-medium text-[#6A0000]">
+                {selectedStudent.studentCode ?? ""} – {fullName(selectedStudent)}
+              </span>
+            </div>
+            {enrollments.length === 0 && (
+              <p className="text-sm text-amber-700">
+                No approved enrollments for this student. The student must have an approved enrollment before payments can be posted.
+              </p>
+            )}
           </div>
         )}
         {enrollments.length > 0 && (
@@ -169,7 +202,10 @@ export function PostPaymentForm() {
               <select
                 id="enrollmentId"
                 value={enrollmentId}
-                onChange={(e) => setEnrollmentId(e.target.value)}
+                onChange={(e) => {
+                  setEnrollmentId(e.target.value);
+                  setPaymentFor("installment");
+                }}
                 required
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               >
@@ -233,27 +269,65 @@ export function PostPaymentForm() {
               </div>
             </div>
             <div>
-              <Label htmlFor="referenceNo">Reference No.</Label>
-              <Input
-                id="referenceNo"
-                value={referenceNo}
-                onChange={(e) => setReferenceNo(e.target.value)}
-                placeholder="Optional"
-              />
+              <Label htmlFor="paymentFor">Payment for *</Label>
+              <select
+                id="paymentFor"
+                value={paymentFor}
+                onChange={(e) => {
+                  const val = e.target.value as "installment" | "downpayment" | "fullpayment" | "misc";
+                  setPaymentFor(val);
+                  if (val !== "misc") setMiscSpecify("");
+                  if (val === "fullpayment") {
+                    setAmount(currentBalance > 0 ? currentBalance.toFixed(2) : "");
+                  }
+                }}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              >
+                <option value="installment">
+                  Installment - {selectedEnrollment?.schoolYearName ?? "—"} {selectedEnrollment?.termName ?? "—"}
+                </option>
+                <option value="downpayment">Down payment</option>
+                <option value="fullpayment">Full payment</option>
+                <option value="misc">Miscellaneous</option>
+              </select>
             </div>
+            {paymentFor === "misc" && (
+              <div>
+                <Label htmlFor="miscSpecify">Specify (e.g. t-shirt, ID, lab coat) *</Label>
+                <Input
+                  id="miscSpecify"
+                  value={miscSpecify}
+                  onChange={(e) => setMiscSpecify(e.target.value)}
+                  placeholder="Required when Miscellaneous is selected"
+                />
+              </div>
+            )}
             <div>
-              <Label htmlFor="remarks">Remarks</Label>
+              <Label htmlFor="additionalNotes">Additional notes</Label>
               <Input
-                id="remarks"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
+                id="additionalNotes"
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
                 placeholder="Optional"
               />
             </div>
-            <Button type="submit" disabled={pending}>
-              {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Post Payment
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" disabled={pending}>
+                {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Post Payment
+              </Button>
+              {lastPaymentId && (
+                <a
+                  href={`/finance/payments/${lastPaymentId}/receipt`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-[#6A0000] hover:underline"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print receipt
+                </a>
+              )}
+            </div>
           </form>
         )}
       </CardContent>

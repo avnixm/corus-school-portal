@@ -171,7 +171,7 @@ export default async function ProgramHeadGradesPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
             <table className="min-w-full">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
@@ -211,7 +211,7 @@ export default async function ProgramHeadGradesPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+            <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
               <table className="min-w-full">
                 <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                   <tr>
@@ -248,7 +248,7 @@ export default async function ProgramHeadGradesPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-hidden rounded-xl border bg-white/80 text-sm">
+            <div className="overflow-x-auto rounded-xl border bg-white/80 text-sm">
               <table className="min-w-full">
                 <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                   <tr>

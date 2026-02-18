@@ -2,6 +2,7 @@ import {
   getSystemSetting,
   getSchoolYearsList,
   getTermsList,
+  getGradingPeriodsBySchoolYearTerm,
 } from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsForm } from "./SettingsForm";
@@ -23,18 +24,10 @@ function getValueAsNumber(val: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function getValueAsGradingPeriods(val: unknown): { name: string; sort_order: number }[] {
-  if (val == null || !Array.isArray(val)) return [];
-  return (val as { name?: string; sort_order?: number }[]).map((p) => ({
-    name: p?.name ?? "",
-    sort_order: typeof p?.sort_order === "number" ? p.sort_order : 0,
-  }));
-}
-
 export const metadata = { title: "Settings" };
 
 export default async function AdminSettingsPage() {
-  const [syList, termsList, sySetting, termSetting, passSetting, maxSectionSetting, gradingSetting] =
+  const [syList, termsList, sySetting, termSetting, passSetting, maxSectionSetting, gradingNamesSetting] =
     await Promise.all([
       getSchoolYearsList(),
       getTermsList(),
@@ -49,7 +42,24 @@ export default async function AdminSettingsPage() {
   const activeTermId = getValueAsString(termSetting?.value) ?? "";
   const passThreshold = getValueAsNumber(passSetting?.value) ?? 75;
   const maxSectionSize = getValueAsNumber(maxSectionSetting?.value) ?? 50;
-  const gradingPeriods = getValueAsGradingPeriods(gradingSetting?.value);
+
+  const dbPeriods =
+    activeSchoolYearId && activeTermId
+      ? await getGradingPeriodsBySchoolYearTerm(activeSchoolYearId, activeTermId)
+      : [];
+  const gradingPeriods =
+    dbPeriods.length > 0
+      ? dbPeriods.map((p) => ({ name: p.name, sort_order: p.sortOrder }))
+      : (() => {
+          const fromSettings = gradingNamesSetting?.value;
+          if (fromSettings != null && Array.isArray(fromSettings)) {
+            return (fromSettings as { name?: string; sort_order?: number }[]).map((p) => ({
+              name: p?.name ?? "",
+              sort_order: typeof p?.sort_order === "number" ? p.sort_order : 0,
+            }));
+          }
+          return [];
+        })();
 
   return (
     <div className="space-y-6">

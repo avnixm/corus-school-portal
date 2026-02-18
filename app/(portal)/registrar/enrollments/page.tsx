@@ -11,6 +11,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateEnrollmentForm } from "./CreateEnrollmentForm";
 import { EnrollmentFilters } from "./EnrollmentFilters";
+import { RegistrarAssignSectionCell } from "./RegistrarAssignSectionCell";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +78,7 @@ export default async function EnrollmentsPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-neutral-900">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
             <table className="min-w-full text-left text-sm text-neutral-900">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>
@@ -120,9 +122,23 @@ export default async function EnrollmentsPage({
                     </td>
                     <td className="px-4 py-2">{row.yearLevel ?? "—"}</td>
                     <td className="px-4 py-2">
-                      {row.sectionId
-                        ? sections.find((s) => s.id === row.sectionId)?.name ?? "—"
-                        : "—"}
+                      {row.sectionId ? (
+                        sections.find((s) => s.id === row.sectionId)?.name ?? "—"
+                      ) : (row.status === "approved" || row.status === "enrolled") ? (
+                        <RegistrarAssignSectionCell
+                          enrollmentId={row.id}
+                          sections={sections.map((s) => ({
+                            id: s.id,
+                            name: s.name,
+                            yearLevel: s.yearLevel ?? null,
+                            programId: s.programId ?? null,
+                          }))}
+                          enrollmentProgramId={row.programId ?? null}
+                          enrollmentYearLevel={row.yearLevel}
+                        />
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-4 py-2">
                       <span
@@ -134,7 +150,7 @@ export default async function EnrollmentsPage({
                             : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {row.status}
+                        {formatStatusForDisplay(row.status)}
                       </span>
                     </td>
                     <td className="px-4 py-2">
@@ -174,7 +190,7 @@ export default async function EnrollmentsPage({
                             : "bg-neutral-200 text-neutral-800"
                         }`}
                       >
-                        {row.financeStatus ?? "—"}
+                        {row.financeStatus ? formatStatusForDisplay(row.financeStatus) : "—"}
                       </span>
                     </td>
                     <td className="px-4 py-2">

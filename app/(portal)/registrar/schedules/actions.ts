@@ -109,6 +109,14 @@ export async function getEligibleTeachersForSubjectAction(subjectId: string, sec
   return listEligibleTeachersForSubject(subjectId, contextProgramId);
 }
 
+/** Returns approved time configuration for a section's program. */
+export async function getApprovedTimeConfigForSectionAction(sectionId: string) {
+  const section = await getSectionById(sectionId);
+  if (!section?.programId) return null;
+  const { getApprovedTimeConfigForProgram } = await import("@/db/queries");
+  return getApprovedTimeConfigForProgram(section.programId);
+}
+
 export async function deleteScheduleAction(id: string) {
   const session = (await auth.getSession())?.data;
   if (!session?.user?.id) return { error: "Not authenticated" };

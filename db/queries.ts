@@ -16,6 +16,7 @@ import {
   classSchedules,
   scheduleDays,
   scheduleApprovals,
+  scheduleTimeConfigs,
   requirements,
   requirementRules,
   requirementVerifications,
@@ -1697,6 +1698,7 @@ export async function getEnrollmentsListWithFinanceStatus(filters?: {
   const baseSelect = {
     id: enrollments.id,
     studentId: enrollments.studentId,
+    programId: enrollments.programId,
     schoolYearName: schoolYears.name,
     termName: terms.name,
     program: enrollments.program,
@@ -3008,6 +3010,104 @@ export async function getTodaysClassesForTeacher(
     .orderBy(classSchedules.timeIn);
 }
 
+/** Teacher's schedules from class_schedules (source of truth when teacher_assignments is empty). Includes approved and pending_approval so teachers see assigned classes before dean approval. */
+export async function listTeacherSchedulesFromClassSchedules(
+  teacherUserProfileId: string,
+  filters: { schoolYearId?: string; termId?: string }
+) {
+  const conds = [
+    eq(classSchedules.teacherUserProfileId, teacherUserProfileId),
+    inArray(classSchedules.status, ["approved", "pending_approval"]),
+  ];
+  if (filters.schoolYearId) conds.push(eq(classSchedules.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(classSchedules.termId, filters.termId));
+  return db
+    .select({
+      id: classSchedules.id,
+      scheduleId: classSchedules.id,
+      schoolYearId: classSchedules.schoolYearId,
+      termId: classSchedules.termId,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      timeIn: classSchedules.timeIn,
+      timeOut: classSchedules.timeOut,
+      room: classSchedules.room,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(classSchedules)
+    .innerJoin(schoolYears, eq(classSchedules.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(classSchedules.termId, terms.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .where(and(...conds))
+    .orderBy(classSchedules.timeIn);
+}
+
+/** Teacher's classes for a given day from class_schedules (source of truth when teacher_assignments is empty). */
+export async function getTodaysTeacherClassesFromClassSchedules(
+  teacherUserProfileId: string,
+  dayShort: string,
+  filters: { schoolYearId?: string; termId?: string }
+) {
+  const conds = [
+    eq(classSchedules.teacherUserProfileId, teacherUserProfileId),
+    inArray(classSchedules.status, ["approved", "pending_approval"]),
+    eq(scheduleDays.day, dayShort),
+    eq(scheduleDays.isActive, true),
+  ];
+  if (filters.schoolYearId) conds.push(eq(classSchedules.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(classSchedules.termId, filters.termId));
+  return db
+    .select({
+      scheduleId: classSchedules.id,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      timeIn: classSchedules.timeIn,
+      timeOut: classSchedules.timeOut,
+      room: classSchedules.room,
+    })
+    .from(classSchedules)
+    .innerJoin(scheduleDays, eq(scheduleDays.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .where(and(...conds))
+    .orderBy(classSchedules.timeIn);
+}
+
+/** Teacher's schedule rows with day (one row per schedule per day) for weekly timetable. */
+export async function listTeacherScheduleRowsWithDays(
+  teacherUserProfileId: string,
+  filters: { schoolYearId?: string; termId?: string }
+) {
+  const conds = [
+    eq(classSchedules.teacherUserProfileId, teacherUserProfileId),
+    inArray(classSchedules.status, ["approved", "pending_approval"]),
+    eq(scheduleDays.isActive, true),
+  ];
+  if (filters.schoolYearId) conds.push(eq(classSchedules.schoolYearId, filters.schoolYearId));
+  if (filters.termId) conds.push(eq(classSchedules.termId, filters.termId));
+  return db
+    .select({
+      scheduleId: classSchedules.id,
+      day: scheduleDays.day,
+      subjectCode: subjects.code,
+      subjectDescription: subjects.description,
+      sectionName: sections.name,
+      timeIn: classSchedules.timeIn,
+      timeOut: classSchedules.timeOut,
+      room: classSchedules.room,
+    })
+    .from(classSchedules)
+    .innerJoin(scheduleDays, eq(scheduleDays.scheduleId, classSchedules.id))
+    .innerJoin(subjects, eq(classSchedules.subjectId, subjects.id))
+    .innerJoin(sections, eq(classSchedules.sectionId, sections.id))
+    .where(and(...conds))
+    .orderBy(scheduleDays.day, classSchedules.timeIn);
+}
+
 export async function getScheduleById(scheduleId: string) {
   const [row] = await db
     .select({
@@ -4055,6 +4155,8 @@ export async function createAssessmentFromFeeSetup(params: {
   labTotal: string;
   miscTotal: string;
   otherTotal: string;
+  subtotal: string;
+  discounts: string;
   total: string;
   lines: Array<{
     sourceFeeSetupLineId?: string | null;
@@ -4078,8 +4180,8 @@ export async function createAssessmentFromFeeSetup(params: {
       labTotal: params.labTotal,
       miscTotal: params.miscTotal,
       otherTotal: params.otherTotal,
-      subtotal: params.total,
-      discounts: "0",
+      subtotal: params.subtotal,
+      discounts: params.discounts,
       total: params.total,
     })
     .returning();
@@ -4111,6 +4213,8 @@ export async function getAssessmentFormData(assessmentId: string) {
       labTotal: assessments.labTotal,
       miscTotal: assessments.miscTotal,
       otherTotal: assessments.otherTotal,
+      subtotal: assessments.subtotal,
+      discounts: assessments.discounts,
       total: assessments.total,
       status: assessments.status,
       assessedAt: assessments.assessedAt,
@@ -4165,54 +4269,51 @@ export async function getAssessmentFormData(assessmentId: string) {
   }> = [];
   const enrollmentId = row.enrollmentId;
 
-  // Prefer class enrollments -> offerings -> subjects; fall back to enrollment_subjects or curriculum if query fails or returns nothing
-  let fromOfferings: Array<{ code: string; title: string | null; units: string | null }> = [];
-  try {
-    const fromOfferingsRaw = await db
-      .select({
-        code: subjects.code,
-        title: subjects.title,
-        units: subjects.units,
-      })
-      .from(studentClassEnrollments)
-      .innerJoin(classOfferings, eq(studentClassEnrollments.classOfferingId, classOfferings.id))
-      .innerJoin(subjects, eq(classOfferings.subjectId, subjects.id))
-      .where(
-        and(
-          eq(studentClassEnrollments.enrollmentId, enrollmentId),
-          eq(studentClassEnrollments.status, "enrolled"))
-      );
-    fromOfferings = fromOfferingsRaw.filter(
-      (s, i, arr) => arr.findIndex((x) => x.code === s.code) === i
-    );
-  } catch {
-    // student_class_enrollments may not exist or enrollment may use curriculum/snapshot only; continue to fallbacks
-  }
-  if (fromOfferings.length > 0) {
-    scheduleSubjects = fromOfferings.map((s) => ({
+  // Prefer curriculum subjects (what the assessment is based on) over schedule/enrollments.
+  // The assessment fees are computed from curriculum (total units, lab count); Part I should list those same subjects.
+  const { getCurriculumSubjectsAndTotalUnitsForEnrollment } = await import(
+    "@/lib/curriculum/queries"
+  );
+  const curriculumData = await getCurriculumSubjectsAndTotalUnitsForEnrollment({
+    programId: row.programId ?? null,
+    schoolYearId: row.schoolYearId,
+    termId: row.termId,
+    yearLevel: row.yearLevel ?? null,
+  });
+  if (curriculumData) {
+    scheduleSubjects = curriculumData.subjects.map((s) => ({
       code: s.code,
-      title: s.title ?? "",
-      units: String(s.units ?? 0),
-      prereq: undefined,
-      withLab: undefined,
+      title: s.title,
+      units: s.units,
+      prereq: s.prereqText ?? undefined,
+      withLab: s.withLab,
     }));
   } else {
-    let fromSnapshot: Array<{ code: string; title: string | null; units: string | null }> = [];
+    // Fallback: class enrollments, enrollment_subjects, or section schedule when no curriculum
+    let fromOfferings: Array<{ code: string; title: string | null; units: string | null }> = [];
     try {
-      fromSnapshot = await db
+      const fromOfferingsRaw = await db
         .select({
           code: subjects.code,
           title: subjects.title,
           units: subjects.units,
         })
-        .from(enrollmentSubjects)
-        .innerJoin(subjects, eq(enrollmentSubjects.subjectId, subjects.id))
-        .where(eq(enrollmentSubjects.enrollmentId, enrollmentId));
+        .from(studentClassEnrollments)
+        .innerJoin(classOfferings, eq(studentClassEnrollments.classOfferingId, classOfferings.id))
+        .innerJoin(subjects, eq(classOfferings.subjectId, subjects.id))
+        .where(
+          and(
+            eq(studentClassEnrollments.enrollmentId, enrollmentId),
+            eq(studentClassEnrollments.status, "enrolled"))
+        );
+      fromOfferings = fromOfferingsRaw.filter(
+        (s, i, arr) => arr.findIndex((x) => x.code === s.code) === i
+      );
     } catch {
-      // enrollment_subjects may not exist; continue to curriculum/section fallbacks
+      // student_class_enrollments may not exist
     }
-    if (fromSnapshot.length > 0) {
-      scheduleSubjects = fromSnapshot.map((s) => ({
+    if (fromOfferings.length > 0) {
+      scheduleSubjects = fromOfferings.map((s) => ({
         code: s.code,
         title: s.title ?? "",
         units: String(s.units ?? 0),
@@ -4220,22 +4321,27 @@ export async function getAssessmentFormData(assessmentId: string) {
         withLab: undefined,
       }));
     } else {
-      const { getCurriculumSubjectsAndTotalUnitsForEnrollment } = await import(
-        "@/lib/curriculum/queries"
-      );
-      const curriculumData = await getCurriculumSubjectsAndTotalUnitsForEnrollment({
-        programId: row.programId ?? null,
-        schoolYearId: row.schoolYearId,
-        termId: row.termId,
-        yearLevel: row.yearLevel ?? null,
-      });
-      if (curriculumData) {
-        scheduleSubjects = curriculumData.subjects.map((s) => ({
+      let fromSnapshot: Array<{ code: string; title: string | null; units: string | null }> = [];
+      try {
+        fromSnapshot = await db
+          .select({
+            code: subjects.code,
+            title: subjects.title,
+            units: subjects.units,
+          })
+          .from(enrollmentSubjects)
+          .innerJoin(subjects, eq(enrollmentSubjects.subjectId, subjects.id))
+          .where(eq(enrollmentSubjects.enrollmentId, enrollmentId));
+      } catch {
+        // enrollment_subjects may not exist
+      }
+      if (fromSnapshot.length > 0) {
+        scheduleSubjects = fromSnapshot.map((s) => ({
           code: s.code,
-          title: s.title,
-          units: s.units,
-          prereq: s.prereqText ?? undefined,
-          withLab: s.withLab,
+          title: s.title ?? "",
+          units: String(s.units ?? 0),
+          prereq: undefined,
+          withLab: undefined,
         }));
       } else if (row.sectionId) {
         try {
@@ -4262,7 +4368,7 @@ export async function getAssessmentFormData(assessmentId: string) {
             withLab: undefined,
           }));
         } catch {
-          // class_schedules query may fail; leave scheduleSubjects empty
+          // class_schedules query may fail
         }
       }
     }
@@ -4277,6 +4383,8 @@ export async function getAssessmentFormData(assessmentId: string) {
       labTotal: row.labTotal,
       miscTotal: row.miscTotal,
       otherTotal: row.otherTotal,
+      subtotal: row.subtotal,
+      discounts: row.discounts,
       total: row.total,
       status: row.status,
       assessedAt: row.assessedAt,
@@ -4289,6 +4397,9 @@ export async function getAssessmentFormData(assessmentId: string) {
       fullName: [row.firstName, row.middleName, row.lastName]
         .filter(Boolean)
         .join(" "),
+      firstName: row.firstName,
+      middleName: row.middleName,
+      lastName: row.lastName,
     },
     program: row.program,
     programName: row.programName,
@@ -4740,6 +4851,7 @@ export async function listActiveCapabilitiesByTeacher(teacherId: string) {
       subjectId: subjects.id,
       subjectCode: subjects.code,
       subjectTitle: subjects.title,
+      units: subjects.units,
       capabilityType: teacherSubjectCapabilities.capabilityType,
       status: teacherSubjectCapabilities.status,
       notes: teacherSubjectCapabilities.notes,
@@ -5014,4 +5126,112 @@ export async function detectCapabilityIssues(packageId: string): Promise<Capabil
     }
   }
   return issues;
+}
+
+// Schedule Time Configurations
+export async function createScheduleTimeConfig(values: {
+  programId: string;
+  title: string;
+  startHour: number;
+  endHour: number;
+  timeIncrement: number;
+  createdByUserId: string;
+  schoolYearId?: string | null;
+  termId?: string | null;
+}) {
+  const [config] = await db
+    .insert(scheduleTimeConfigs)
+    .values({
+      ...values,
+      status: "draft",
+    })
+    .returning();
+  return config;
+}
+
+export async function listScheduleTimeConfigs(filters?: {
+  programId?: string;
+  status?: "draft" | "submitted" | "approved" | "rejected";
+}) {
+  let query = db
+    .select({
+      id: scheduleTimeConfigs.id,
+      programId: scheduleTimeConfigs.programId,
+      programCode: programs.code,
+      programName: programs.name,
+      title: scheduleTimeConfigs.title,
+      startHour: scheduleTimeConfigs.startHour,
+      endHour: scheduleTimeConfigs.endHour,
+      timeIncrement: scheduleTimeConfigs.timeIncrement,
+      status: scheduleTimeConfigs.status,
+      createdAt: scheduleTimeConfigs.createdAt,
+      submittedAt: scheduleTimeConfigs.submittedAt,
+    })
+    .from(scheduleTimeConfigs)
+    .leftJoin(programs, eq(scheduleTimeConfigs.programId, programs.id))
+    .orderBy(desc(scheduleTimeConfigs.createdAt));
+
+  if (filters?.programId) {
+    query = query.where(eq(scheduleTimeConfigs.programId, filters.programId)) as typeof query;
+  }
+  if (filters?.status) {
+    query = query.where(eq(scheduleTimeConfigs.status, filters.status)) as typeof query;
+  }
+
+  return query;
+}
+
+export async function getApprovedTimeConfigForProgram(programId: string) {
+  const [config] = await db
+    .select()
+    .from(scheduleTimeConfigs)
+    .where(
+      and(
+        eq(scheduleTimeConfigs.programId, programId),
+        eq(scheduleTimeConfigs.status, "approved")
+      )
+    )
+    .orderBy(desc(scheduleTimeConfigs.createdAt))
+    .limit(1);
+  return config ?? null;
+}
+
+export async function submitScheduleTimeConfig(configId: string) {
+  await db
+    .update(scheduleTimeConfigs)
+    .set({
+      status: "submitted",
+      submittedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(scheduleTimeConfigs.id, configId));
+}
+
+export async function approveScheduleTimeConfig(configId: string, deanUserId: string) {
+  await db
+    .update(scheduleTimeConfigs)
+    .set({
+      status: "approved",
+      reviewedByUserId: deanUserId,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(scheduleTimeConfigs.id, configId));
+}
+
+export async function rejectScheduleTimeConfig(
+  configId: string,
+  deanUserId: string,
+  remarks: string
+) {
+  await db
+    .update(scheduleTimeConfigs)
+    .set({
+      status: "rejected",
+      reviewedByUserId: deanUserId,
+      reviewedAt: new Date(),
+      remarks,
+      updatedAt: new Date(),
+    })
+    .where(eq(scheduleTimeConfigs.id, configId));
 }

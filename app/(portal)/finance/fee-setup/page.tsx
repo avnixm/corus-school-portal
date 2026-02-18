@@ -12,6 +12,7 @@ import { CreateFeeItemForm } from "./CreateFeeItemForm";
 import { CreateProgramFeeRuleForm } from "./CreateProgramFeeRuleForm";
 import { FeeItemRowActions } from "./FeeItemRowActions";
 import { ProgramFeeRuleRowActions } from "./ProgramFeeRuleRowActions";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +106,7 @@ export default async function FeeSetupPage() {
                                 : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {String(row.status).replace(/_/g, " ")}
+                        {formatStatusForDisplay(row.status)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">

@@ -8,7 +8,7 @@ interface HeaderProps {
 export default function Header({ showActions = true }: HeaderProps) {
   return (
     <header className="relative z-10 border-b border-neutral-200/50 bg-white/60 backdrop-blur-md">
-      <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-corus-maroon text-white font-semibold">
             C

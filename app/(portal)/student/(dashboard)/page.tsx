@@ -23,6 +23,7 @@ import {
 import { getStudentBalance } from "@/lib/finance/queries";
 import { getAssessmentsByEnrollment } from "@/lib/finance/queries";
 import Link from "next/link";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import { ProfileCompletenessWidget } from "@/components/student/ProfileCompletenessWidget";
 import { computeProfileCompleteness } from "@/lib/student/profileCompleteness";
@@ -173,7 +174,7 @@ export default async function StudentDashboardPage() {
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline">{data.enrollment.status.replace(/_/g, " ")}</Badge>
+                  <Badge variant="outline">{formatStatusForDisplay(data.enrollment.status)}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-neutral-700">
                   {data.enrollment.status === "preregistered" && "Submit when requirements are ready."}

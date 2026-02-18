@@ -32,6 +32,7 @@ interface SidebarProps {
 }
 
 const STORAGE_KEY = "registrar_sidebar_groups";
+const BASE_PATHS = ["/student", "/registrar", "/admin", "/finance", "/teacher", "/program-head", "/dean"];
 
 function NavItem({ item, isActive }: { item: SidebarItem; isActive: boolean }) {
   return (
@@ -51,11 +52,8 @@ function NavItem({ item, isActive }: { item: SidebarItem; isActive: boolean }) {
 }
 
 function SidebarGroupComponent({ group, pathname }: { group: SidebarGroup; pathname: string }) {
-  // Check if any item in this group is active
   const hasActiveItem = group.items.some((item) => {
-    const isBasePath = ["/student", "/registrar", "/admin", "/finance", "/teacher", "/program-head", "/dean"].includes(
-      item.href
-    );
+    const isBasePath = BASE_PATHS.includes(item.href);
     return isBasePath
       ? pathname === item.href
       : pathname === item.href || pathname.startsWith(item.href + "/");
@@ -115,9 +113,7 @@ function SidebarGroupComponent({ group, pathname }: { group: SidebarGroup; pathn
       >
         <div className="space-y-1 pt-1 pb-2">
           {group.items.map((item) => {
-            const isBasePath = ["/student", "/registrar", "/admin", "/finance", "/teacher", "/program-head", "/dean"].includes(
-              item.href
-            );
+            const isBasePath = BASE_PATHS.includes(item.href);
             const isActive = isBasePath
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(item.href + "/");
@@ -130,85 +126,79 @@ function SidebarGroupComponent({ group, pathname }: { group: SidebarGroup; pathn
   );
 }
 
-export function Sidebar({ items, config, portalLabel = "Student Portal" }: SidebarProps) {
+function SidebarBrand({ portalLabel }: { portalLabel: string }) {
+  return (
+    <div className="flex items-center gap-3 px-6 py-4">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6A0000] text-white font-semibold">
+        C
+      </div>
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold tracking-tight text-[#6A0000]">
+          CORUS
+        </span>
+        <span className="text-xs text-neutral-700">
+          {portalLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Shared nav content for desktop sidebar and mobile Sheet. */
+export function SidebarNavContent({
+  items,
+  config,
+  portalLabel = "Student Portal",
+}: SidebarProps) {
   const pathname = usePathname();
 
-  // Legacy support: if items provided, use old behavior
   if (items && !config) {
     return (
-      <aside className="flex h-screen w-72 flex-col border-r bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3 px-6 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6A0000] text-white font-semibold">
-            C
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight text-[#6A0000]">
-              CORUS
-            </span>
-            <span className="text-xs text-neutral-700">
-              {portalLabel}
-            </span>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-3 py-4">
+      <>
+        <SidebarBrand portalLabel={portalLabel} />
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           {items.map((item) => {
-            const isBasePath = ["/student", "/registrar", "/admin", "/finance", "/teacher", "/program-head", "/dean"].includes(
-              item.href
-            );
+            const isBasePath = BASE_PATHS.includes(item.href);
             const isActive = isBasePath
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(item.href + "/");
-
             return <NavItem key={item.href} item={item} isActive={isActive} />;
           })}
         </nav>
-      </aside>
+      </>
     );
   }
 
-  // New grouped sidebar
   return (
-    <aside className="flex h-screen w-72 flex-col border-r bg-white/80 backdrop-blur-sm">
-      <div className="flex items-center gap-3 px-6 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6A0000] text-white font-semibold">
-          C
-        </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold tracking-tight text-[#6A0000]">
-            CORUS
-          </span>
-          <span className="text-xs text-neutral-700">
-            {portalLabel}
-          </span>
-        </div>
-      </div>
-
+    <>
+      <SidebarBrand portalLabel={portalLabel} />
       <nav className="flex-1 space-y-3 px-3 py-4 overflow-y-auto">
-        {/* Quick Access Section */}
         {config?.quickAccess && config.quickAccess.length > 0 && (
           <div className="space-y-1">
             <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
               Quick Access
             </div>
             {config.quickAccess.map((item) => {
-              const isBasePath = ["/student", "/registrar", "/admin", "/finance", "/teacher", "/program-head", "/dean"].includes(
-                item.href
-              );
+              const isBasePath = BASE_PATHS.includes(item.href);
               const isActive = isBasePath
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(item.href + "/");
-
               return <NavItem key={item.href} item={item} isActive={isActive} />;
             })}
           </div>
         )}
-
-        {/* Collapsible Groups */}
         {config?.groups && config.groups.map((group) => (
           <SidebarGroupComponent key={group.key} group={group} pathname={pathname} />
         ))}
       </nav>
+    </>
+  );
+}
+
+export function Sidebar({ items, config, portalLabel = "Student Portal" }: SidebarProps) {
+  return (
+    <aside className="hidden lg:flex h-screen w-72 flex-col border-r bg-white/80 backdrop-blur-sm shrink-0">
+      <SidebarNavContent items={items} config={config} portalLabel={portalLabel} />
     </aside>
   );
 }

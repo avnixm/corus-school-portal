@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUserWithRole } from "@/lib/auth/getCurrentUserWithRole";
 import { createAnnouncement, updateAnnouncement, deleteAnnouncement } from "@/db/queries";
+import { db } from "@/lib/db";
+import { announcements } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 type Audience = "all" | "students" | "teachers" | "registrar" | "finance" | "program_head" | "dean";
 
@@ -37,6 +40,22 @@ export async function updateDeanAnnouncement(id: string, formData: FormData) {
   if (!user || !canCreate) {
     return { error: "Unauthorized" };
   }
+
+  // Check ownership - only creator or admin can edit
+  const [announcement] = await db
+    .select()
+    .from(announcements)
+    .where(eq(announcements.id, id))
+    .limit(1);
+
+  if (!announcement) {
+    return { error: "Announcement not found" };
+  }
+
+  if (announcement.createdByUserId !== user.userId && user.role !== "admin") {
+    return { error: "You can only edit your own announcements" };
+  }
+
   const title = (formData.get("title") as string)?.trim();
   const body = (formData.get("body") as string)?.trim();
   const audience = (formData.get("audience") as Audience) || "all";
@@ -55,6 +74,22 @@ export async function toggleDeanAnnouncementPinned(id: string, pinned: boolean) 
   if (!user || !canCreate) {
     return { error: "Unauthorized" };
   }
+
+  // Check ownership - only creator or admin can toggle pin
+  const [announcement] = await db
+    .select()
+    .from(announcements)
+    .where(eq(announcements.id, id))
+    .limit(1);
+
+  if (!announcement) {
+    return { error: "Announcement not found" };
+  }
+
+  if (announcement.createdByUserId !== user.userId && user.role !== "admin") {
+    return { error: "You can only pin/unpin your own announcements" };
+  }
+
   await updateAnnouncement(id, { pinned });
   revalidatePath("/dean/announcements");
   revalidatePath("/dean");
@@ -67,6 +102,22 @@ export async function deleteDeanAnnouncement(id: string) {
   if (!user || !canCreate) {
     return { error: "Unauthorized" };
   }
+
+  // Check ownership - only creator or admin can delete
+  const [announcement] = await db
+    .select()
+    .from(announcements)
+    .where(eq(announcements.id, id))
+    .limit(1);
+
+  if (!announcement) {
+    return { error: "Announcement not found" };
+  }
+
+  if (announcement.createdByUserId !== user.userId && user.role !== "admin") {
+    return { error: "You can only delete your own announcements" };
+  }
+
   await deleteAnnouncement(id);
   revalidatePath("/dean/announcements");
   revalidatePath("/dean");

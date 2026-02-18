@@ -13,17 +13,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { createScheduleAction, getSubjectsForSectionAction, getEligibleTeachersForSubjectAction } from "./actions";
+// Select component removed - using native select for better Dialog compatibility
+import { createScheduleAction, getSubjectsForSectionAction, getEligibleTeachersForSubjectAction, getApprovedTimeConfigForSectionAction } from "./actions";
+import { generateTimeSlots, format12Hour } from "@/lib/scheduling/timeSlots";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -79,17 +71,30 @@ export function CreateScheduleForm({
   const [eligibleTeachers, setEligibleTeachers] = useState<{ recommended: { teacherId: string; teacherName: string }[]; departmentMatch: { teacherId: string; teacherName: string }[] }>({ recommended: [], departmentMatch: [] });
   const [authCheckLoading, setAuthCheckLoading] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [timeIn, setTimeIn] = useState("");
+  const [timeOut, setTimeOut] = useState("");
 
   useEffect(() => {
     if (!selectedSectionId) {
       setSubjectsForSection([]);
+      setTimeSlots([]);
       return;
     }
     let cancelled = false;
     setSubjectsLoading(true);
-    getSubjectsForSectionAction(selectedSectionId).then((list) => {
+    Promise.all([
+      getSubjectsForSectionAction(selectedSectionId),
+      getApprovedTimeConfigForSectionAction(selectedSectionId),
+    ]).then(([list, config]) => {
       if (!cancelled) {
         setSubjectsForSection(list);
+        if (config) {
+          const slots = generateTimeSlots(config.startHour, config.endHour, config.timeIncrement);
+          setTimeSlots(slots);
+        } else {
+          setTimeSlots([]);
+        }
         setSubjectsLoading(false);
       }
     });
@@ -102,10 +107,15 @@ export function CreateScheduleForm({
       return;
     }
     setAuthCheckLoading(true);
-    getEligibleTeachersForSubjectAction(selectedSubjectId, selectedSectionId).then((res) => {
-      setEligibleTeachers(res);
-      setAuthCheckLoading(false);
-    });
+    getEligibleTeachersForSubjectAction(selectedSubjectId, selectedSectionId)
+      .then((res) => {
+        setEligibleTeachers(res);
+        setAuthCheckLoading(false);
+      })
+      .catch((err) => {
+        setEligibleTeachers({ recommended: [], departmentMatch: [] });
+        setAuthCheckLoading(false);
+      });
   }, [selectedSubjectId, selectedSectionId]);
 
   const filteredTerms = selectedSyId ? terms.filter((t) => t.schoolYearId === selectedSyId) : [];
@@ -258,43 +268,38 @@ export function CreateScheduleForm({
               </div>
               <div>
                 <Label htmlFor="teacherId">Teacher *</Label>
-                <Select
+                <select
+                  id="teacherId"
                   name="teacherId"
                   value={selectedTeacherId}
-                  onValueChange={setSelectedTeacherId}
+                  onChange={(e) => setSelectedTeacherId(e.target.value)}
                   disabled={!selectedSubjectId || authCheckLoading}
                   required
+                  className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 disabled:opacity-50"
                 >
-                  <SelectTrigger className="mt-1 h-10">
-                    <SelectValue placeholder={authCheckLoading ? "Loading..." : "Select teacher"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eligibleTeachers.recommended.length > 0 && (
-                      <>
-                        <SelectGroup>
-                          <SelectLabel>Recommended (approved for this subject)</SelectLabel>
-                          {eligibleTeachers.recommended.map((t) => (
-                            <SelectItem key={t.teacherId} value={t.teacherId}>
-                              {t.teacherName}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                        {eligibleTeachers.departmentMatch.length > 0 && <SelectSeparator />}
-                      </>
-                    )}
-                    {eligibleTeachers.departmentMatch.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel>Department match (not yet approved – Request capability)</SelectLabel>
-                        {eligibleTeachers.departmentMatch.map((t) => (
-                          <SelectItem key={t.teacherId} value={t.teacherId} disabled>
-                            {t.teacherName} – Not approved
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                  </SelectContent>
-                </Select>
-                {eligibleTeachers.recommended.length === 0 && !authCheckLoading && selectedSubjectId && (
+                  <option value="">
+                    {authCheckLoading ? "Loading..." : "Select teacher"}
+                  </option>
+                  {eligibleTeachers.recommended.length > 0 && (
+                    <optgroup label="✅ Recommended (approved for this subject)">
+                      {eligibleTeachers.recommended.map((t) => (
+                        <option key={t.teacherId} value={t.teacherId}>
+                          {t.teacherName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {eligibleTeachers.departmentMatch.length > 0 && (
+                    <optgroup label="⚠️ Department match (not yet approved)">
+                      {eligibleTeachers.departmentMatch.map((t) => (
+                        <option key={t.teacherId} value={t.teacherId} disabled>
+                          {t.teacherName} – Not approved
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {eligibleTeachers.recommended.length === 0 && !authCheckLoading && selectedSubjectId && selectedSectionId && (
                   <p className="mt-1 text-xs text-amber-600">
                     No teachers with active capability. Request capability approval in Program Head / Teacher Capabilities.
                   </p>
@@ -306,13 +311,75 @@ export function CreateScheduleForm({
               </div>
               <div>
                 <Label htmlFor="timeIn">Time In</Label>
-                <Input id="timeIn" name="timeIn" type="time" className="mt-1 h-10" />
+                {timeSlots.length > 0 ? (
+                  <select
+                    id="timeIn"
+                    name="timeIn"
+                    value={timeIn}
+                    onChange={(e) => setTimeIn(e.target.value)}
+                    required
+                    className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Select time</option>
+                    {timeSlots.map((slot) => (
+                      <option key={slot} value={slot}>
+                        {format12Hour(slot)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="timeIn"
+                    name="timeIn"
+                    type="time"
+                    value={timeIn}
+                    onChange={(e) => setTimeIn(e.target.value)}
+                    className="mt-1 h-10"
+                  />
+                )}
               </div>
               <div>
                 <Label htmlFor="timeOut">Time Out</Label>
-                <Input id="timeOut" name="timeOut" type="time" className="mt-1 h-10" />
+                {timeSlots.length > 0 ? (
+                  <select
+                    id="timeOut"
+                    name="timeOut"
+                    value={timeOut}
+                    onChange={(e) => setTimeOut(e.target.value)}
+                    required
+                    className="mt-1 flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Select time</option>
+                    {timeSlots
+                      .filter((slot) => !timeIn || slot > timeIn)
+                      .map((slot) => (
+                        <option key={slot} value={slot}>
+                          {format12Hour(slot)}
+                        </option>
+                      ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="timeOut"
+                    name="timeOut"
+                    type="time"
+                    value={timeOut}
+                    onChange={(e) => setTimeOut(e.target.value)}
+                    className="mt-1 h-10"
+                  />
+                )}
               </div>
             </div>
+
+            {timeSlots.length === 0 && selectedSectionId && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-900">Custom Time Slots Not Configured</p>
+                <p className="mt-1 text-sm text-amber-700">
+                  To use preset time slots, the Program Head must create and submit a Schedule Time Configuration for this program, 
+                  and the Dean must approve it. Until then, you can use the free-form time inputs.
+                </p>
+              </div>
+            )}
 
             {selectedTeacherId && selectedSubjectId && !isEligible && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4">

@@ -17,6 +17,7 @@ import { CheckCircle, XCircle, ExternalLink, FileText, FileQuestion, Send, Expan
 import { verifySubmissionAction, rejectSubmissionAction } from "@/app/(portal)/registrar/requirements/actions";
 import { createRequirementRequestAction } from "@/app/(portal)/registrar/approvals/actions";
 import type { ApplicableRequirement } from "@/lib/requirements/getApplicableRequirements";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 type Props = {
   enrollmentId: string;
@@ -149,7 +150,7 @@ export function EnrollmentReviewContent({ enrollmentId, applicable, pendingReque
                   <span
                     className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[a.submission.status] ?? "bg-neutral-100 text-neutral-800"}`}
                   >
-                    {a.submission.status}
+                    {formatStatusForDisplay(a.submission.status)}
                   </span>
                 </div>
                 {a.submission.status === "submitted" && (

@@ -48,12 +48,23 @@ export function CreateAssessmentForm({
   const [enrollmentId, setEnrollmentId] = useState("");
   const [lines, setLines] = useState<AssessmentLineInput[]>([]);
   const [notes, setNotes] = useState("");
+  const [fullPaymentDiscount, setFullPaymentDiscount] = useState(false);
 
   const subtotal = lines.reduce((sum, l) => {
     const amt = parseFloat(l.amount || "0");
     const qty = l.qty ?? 1;
     return sum + amt * qty;
   }, 0);
+
+  const discountAmount = fullPaymentDiscount
+    ? lines.reduce((sum, l) => {
+        const amt = parseFloat(l.amount || "0");
+        const qty = l.qty ?? 1;
+        if (l.category === "tuition" || l.category === "lab") return sum + amt * qty * 0.1;
+        return sum;
+      }, 0)
+    : 0;
+  const displayTotal = subtotal - discountAmount;
 
   function handleEnrollmentChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const id = e.target.value;
@@ -113,7 +124,12 @@ export function CreateAssessmentForm({
       }
     }
     startTransition(async () => {
-      const result = await createAssessmentAction(enrollmentId, validLines, notes || undefined);
+      const result = await createAssessmentAction(
+        enrollmentId,
+        validLines,
+        notes || undefined,
+        fullPaymentDiscount
+      );
       if (result?.error) {
         setError(result.error);
         toast.error(result.error);
@@ -124,6 +140,7 @@ export function CreateAssessmentForm({
       setEnrollmentId("");
       setLines([]);
       setNotes("");
+      setFullPaymentDiscount(false);
       router.refresh();
     });
   }
@@ -134,7 +151,7 @@ export function CreateAssessmentForm({
         <Plus className="h-4 w-4" />
         Create Assessment
       </Button>
-      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEnrollmentId(""); setLines([]); setNotes(""); } }}>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEnrollmentId(""); setLines([]); setNotes(""); setFullPaymentDiscount(false); } }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Create Assessment</DialogTitle>
@@ -181,10 +198,11 @@ export function CreateAssessmentForm({
                       <Label className="text-xs">Category</Label>
                       <select
                         value={line.category}
-                        onChange={(e) => updateLine(i, { category: e.target.value as "tuition" | "misc" | "other" })}
+                        onChange={(e) => updateLine(i, { category: e.target.value as "tuition" | "lab" | "misc" | "other" })}
                         className="flex h-8 w-full rounded-md border border-neutral-200 bg-white px-2 text-sm"
                       >
                         <option value="tuition">Tuition</option>
+                        <option value="lab">Lab</option>
                         <option value="misc">Misc</option>
                         <option value="other">Other</option>
                       </select>
@@ -217,6 +235,18 @@ export function CreateAssessmentForm({
                 ))}
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="fullPaymentDiscount"
+                checked={fullPaymentDiscount}
+                onChange={(e) => setFullPaymentDiscount(e.target.checked)}
+                className="h-4 w-4 rounded border-neutral-300"
+              />
+              <Label htmlFor="fullPaymentDiscount" className="font-normal">
+                Apply full payment discount (10% off tuition & lab)
+              </Label>
+            </div>
             <div>
               <Label htmlFor="notes">Notes</Label>
               <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" className="mt-1 h-10" />
@@ -224,14 +254,19 @@ export function CreateAssessmentForm({
             {lines.length > 0 && (
               <div className="rounded-lg border border-[#6A0000]/20 bg-[#6A0000]/5 p-3">
                 <p className="text-sm font-medium text-[#6A0000]">Total Preview</p>
+                {fullPaymentDiscount && discountAmount > 0 && (
+                  <p className="mt-1 text-xs text-green-700">
+                    Less: Full payment discount (10%) −₱{discountAmount.toFixed(2)}
+                  </p>
+                )}
                 <p className="mt-1 text-2xl font-bold text-[#6A0000]">
-                  ₱{subtotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₱{displayTotal.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="mt-1 text-xs text-neutral-600">{lines.length} line item(s)</p>
               </div>
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => { setOpen(false); setEnrollmentId(""); setLines([]); setNotes(""); }} disabled={pending}>
+              <Button type="button" variant="outline" onClick={() => { setOpen(false); setEnrollmentId(""); setLines([]); setNotes(""); setFullPaymentDiscount(false); }} disabled={pending}>
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>

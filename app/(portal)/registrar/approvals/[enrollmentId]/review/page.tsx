@@ -10,11 +10,13 @@ import {
   hasActiveFinanceHoldForEnrollment,
 } from "@/db/queries";
 import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
+import { getEnrollmentRequirementsSummary } from "@/lib/requirements/enrollmentSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
 import { auth } from "@/lib/auth/server";
 import { EnrollmentReviewContent } from "./EnrollmentReviewContent";
+import { EnrollmentApprovalActions } from "../../EnrollmentApprovalActions";
 
 
 export const dynamic = "force-dynamic";
@@ -49,7 +51,7 @@ export default async function EnrollmentReviewPage({
   const schoolYearName = schoolYears.find((sy) => sy.id === enrollment.schoolYearId)?.name ?? "—";
   const termName = terms.find((t) => t.id === enrollment.termId)?.name ?? "—";
 
-  const [applicable, requests, hasFinanceHold] = await Promise.all([
+  const [applicable, requests, hasFinanceHold, requirementsSummary] = await Promise.all([
     getApplicableRequirements({
       studentId: enrollment.studentId,
       enrollmentId: enrollment.id,
@@ -61,6 +63,14 @@ export default async function EnrollmentReviewPage({
     }),
     getRequirementRequestsByEnrollment(enrollment.id),
     hasActiveFinanceHoldForEnrollment(enrollmentId),
+    getEnrollmentRequirementsSummary({
+      studentId: enrollment.studentId,
+      enrollmentId: enrollment.id,
+      program: enrollment.program ?? null,
+      yearLevel: enrollment.yearLevel ?? null,
+      schoolYearId: enrollment.schoolYearId,
+      termId: enrollment.termId,
+    }),
   ]);
 
   const pendingRequestSubmissionIds = new Set(
@@ -108,12 +118,18 @@ export default async function EnrollmentReviewPage({
             Requirement documents
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <EnrollmentReviewContent
             enrollmentId={enrollmentId}
             applicable={applicable}
             pendingRequestSubmissionIds={Array.from(pendingRequestSubmissionIds)}
           />
+          <div className="border-t pt-4">
+            <EnrollmentApprovalActions
+              enrollmentId={enrollmentId}
+              requirementsSummary={requirementsSummary}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

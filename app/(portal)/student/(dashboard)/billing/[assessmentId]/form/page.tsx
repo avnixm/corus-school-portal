@@ -4,6 +4,8 @@ import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PrintButton } from "@/app/(portal)/finance/assessments/[assessmentId]/form/PrintButton";
+import { DownloadAssessmentFormPDFButton } from "@/components/pdf/DownloadAssessmentFormPDFButton";
+import { AssessmentFormPreview } from "@/components/assessment/AssessmentFormPreview";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +27,17 @@ export default async function StudentAssessmentFormPage({
     notFound();
   }
 
-  const { assessment, student, program, programName, yearLevel, schoolYearName, termName, lines, scheduleSubjects } = data;
-  const tuitionAmount = parseFloat(assessment.tuitionAmount ?? "0");
-  const labTotal = parseFloat(assessment.labTotal ?? "0");
-  const miscTotal = parseFloat(assessment.miscTotal ?? "0");
-  const otherTotal = parseFloat(assessment.otherTotal ?? "0");
-  const total = parseFloat(assessment.total ?? "0");
+  const formData = {
+    assessment: data.assessment,
+    student: data.student,
+    program: data.program,
+    programName: data.programName,
+    yearLevel: data.yearLevel,
+    schoolYearName: data.schoolYearName,
+    termName: data.termName,
+    lines: data.lines,
+    scheduleSubjects: data.scheduleSubjects,
+  };
 
   return (
     <div className="space-y-4">
@@ -41,143 +48,13 @@ export default async function StudentAssessmentFormPage({
         >
           ← Billing
         </Link>
-        <PrintButton />
+        <div className="flex gap-2">
+          <DownloadAssessmentFormPDFButton data={formData} />
+          <PrintButton />
+        </div>
       </div>
-
-      <div id="assessment-form" className="rounded-lg border bg-white p-8 print:border-0 print:shadow-none">
-        <header className="mb-8 text-center">
-          <h1 className="text-xl font-bold text-[#6A0000]">CORUS</h1>
-          <p className="text-sm text-neutral-600">Official Enrollment / Assessment Form</p>
-        </header>
-
-        <section className="mb-6">
-          <h2 className="mb-2 text-sm font-semibold text-[#6A0000]">Student Information</h2>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <p>
-              <span className="font-medium">Name:</span> {student.fullName}
-            </p>
-            <p>
-              <span className="font-medium">Student No:</span> {student.studentCode ?? "—"}
-            </p>
-            <p>
-              <span className="font-medium">Program:</span> {program ?? programName ?? "—"}
-            </p>
-            <p>
-              <span className="font-medium">Year Level:</span> {yearLevel ?? "—"}
-            </p>
-            <p>
-              <span className="font-medium">School Year:</span> {schoolYearName ?? "—"}
-            </p>
-            <p>
-              <span className="font-medium">Term:</span> {termName ?? "—"}
-            </p>
-          </div>
-        </section>
-
-        <section className="mb-6">
-          <h2 className="mb-2 text-sm font-semibold text-[#6A0000]">Part I – Student Registration (Subjects)</h2>
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b bg-neutral-50">
-                <th className="px-2 py-1 text-left">Subject</th>
-                <th className="px-2 py-1 text-center">Units</th>
-                <th className="px-2 py-1 text-left">Descriptive Title</th>
-                <th className="px-2 py-1 text-left">Pre-Req</th>
-                <th className="px-2 py-1 text-center">With Lab</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scheduleSubjects.map((s, i) => (
-                <tr key={i} className="border-b">
-                  <td className="px-2 py-1">{s.code}</td>
-                  <td className="px-2 py-1 text-center">{s.units}</td>
-                  <td className="px-2 py-1">{s.title}</td>
-                  <td className="px-2 py-1">{s.prereq ?? "—"}</td>
-                  <td className="px-2 py-1 text-center">{s.withLab ? "Yes" : "—"}</td>
-                </tr>
-              ))}
-              {scheduleSubjects.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-2 py-4 text-center text-neutral-500">
-                    No subjects loaded
-                  </td>
-                </tr>
-              )}
-              <tr className="border-b-2 font-medium">
-                <td colSpan={1} className="px-2 py-1">
-                  Total Units
-                </td>
-                <td className="px-2 py-1 text-center">
-                  {assessment.totalUnits ?? scheduleSubjects.reduce((s, x) => s + parseFloat(x.units || "0"), 0)}
-                </td>
-                <td colSpan={3} className="px-2 py-1" />
-              </tr>
-            </tbody>
-          </table>
-        </section>
-
-        <section className="mb-6">
-          <h2 className="mb-2 text-sm font-semibold text-[#6A0000]">Part II – Assessment of Fees</h2>
-          <div className="flex flex-wrap gap-8">
-            <div className="min-w-[280px] flex-1">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-neutral-50">
-                    <th className="px-2 py-1 text-left">Description</th>
-                    <th className="px-2 py-1 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((l) => (
-                    <tr key={l.id} className="border-b">
-                      <td className="px-2 py-1">{l.description}</td>
-                      <td className="px-2 py-1 text-right">
-                        ₱{parseFloat(l.lineTotal ?? "0").toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="w-64 shrink-0">
-              <div className="rounded-lg border bg-neutral-50 p-4">
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>Tuition Fee</span>
-                    <span>₱{tuitionAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Laboratory Fee</span>
-                    <span>₱{labTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Misc & Other</span>
-                    <span>₱{(miscTotal + otherTotal).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2 font-bold">
-                    <span>TOTAL FEES</span>
-                    <span>₱{total.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <footer className="mt-12 flex flex-wrap gap-12 pt-8">
-          <div>
-            <div className="border-b border-black pb-1 pr-16 font-medium">
-              Student Signature
-            </div>
-            <p className="mt-1 text-xs text-neutral-500">{student.fullName}</p>
-          </div>
-          <div>
-            <div className="border-b border-black pb-1 pr-16 font-medium">
-              Program Head
-            </div>
-            <p className="mt-1 text-xs text-neutral-500">_______________________</p>
-          </div>
-        </footer>
+      <div className="overflow-x-auto print:overflow-visible">
+        <AssessmentFormPreview data={formData} />
       </div>
     </div>
   );

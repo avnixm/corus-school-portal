@@ -46,7 +46,7 @@ export function EnrollmentApprovalsFilters({
 
   return (
     <div className="flex flex-wrap items-end gap-4 rounded-lg border bg-white p-4">
-      <div className="w-40">
+      <div className="w-full sm:w-40 min-w-0">
         <Label>Program</Label>
         <Select
           value={current.program ?? "__all__"}
@@ -62,7 +62,7 @@ export function EnrollmentApprovalsFilters({
         </Select>
       </div>
 
-      <div className="w-36">
+      <div className="w-full sm:w-36 min-w-0">
         <Label>Year level</Label>
         <Select
           value={current.yearLevel ?? "__all__"}
@@ -79,7 +79,7 @@ export function EnrollmentApprovalsFilters({
         </Select>
       </div>
 
-      <div className="w-40">
+      <div className="w-full sm:w-40 min-w-0">
         <Label>Requirements</Label>
         <Select
           value={current.reqsStatus ?? "__all__"}
@@ -94,9 +94,9 @@ export function EnrollmentApprovalsFilters({
         </Select>
       </div>
 
-      <div className="flex-1 min-w-[180px]">
+      <div className="min-w-0 w-full sm:min-w-[180px] sm:flex-1">
         <Label htmlFor="search">Student search</Label>
-        <form onSubmit={handleSearchSubmit} className="flex gap-2">
+        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-2">
           <Input
             id="search"
             name="search"

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -340,7 +341,7 @@ export default async function RegistrarDashboardPage() {
                     {row.subjectCode} — {row.sectionName} ({row.gradingPeriodName})
                   </span>
                   <Badge variant="outline" className="text-xs">
-                    {row.status}
+                    {formatStatusForDisplay(row.status)}
                   </Badge>
                 </Link>
               ))}

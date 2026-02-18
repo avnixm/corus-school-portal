@@ -40,7 +40,7 @@ export default async function ClearancePage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border bg-white/80 text-neutral-900">
+          <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
             <table className="min-w-full text-left text-sm text-neutral-900">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>

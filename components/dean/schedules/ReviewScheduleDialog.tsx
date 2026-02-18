@@ -113,7 +113,7 @@ export function ReviewScheduleDialog({
             {/* Schedule Details */}
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
               <h3 className="font-semibold text-neutral-900 mb-3">Schedule Details</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-neutral-600">Subject:</span>
                   <div className="font-medium text-[#6A0000]">

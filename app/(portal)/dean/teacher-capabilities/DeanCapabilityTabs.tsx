@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -22,7 +23,7 @@ function statusBadge(status: string) {
     case "submitted": return <Badge className="bg-amber-100 text-amber-800">Submitted</Badge>;
     case "approved": return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
     case "rejected": return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-    default: return <Badge variant="outline">{status}</Badge>;
+    default: return <Badge variant="outline">{formatStatusForDisplay(status)}</Badge>;
   }
 }
 
@@ -76,7 +77,7 @@ export function DeanCapabilityTabs({
               No packages in this tab.
             </p>
           ) : (
-            <div className="overflow-hidden rounded-xl border">
+            <div className="overflow-x-auto rounded-xl border">
               <table className="min-w-full text-left text-sm">
                 <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                   <tr>

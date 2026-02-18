@@ -24,10 +24,12 @@ export function AssessmentRowActions({ assessment }: { assessment: Assessment })
   const [error, setError] = useState<string | null>(null);
   const [lines, setLines] = useState<AssessmentLineInput[]>([]);
   const [notes, setNotes] = useState("");
+  const [fullPaymentDiscount, setFullPaymentDiscount] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editing && assessment.id) {
+      setFullPaymentDiscount(parseFloat(assessment.discounts ?? "0") > 0);
       setLoading(true);
       getAssessmentLinesAction(assessment.id)
         .then((res) => {
@@ -35,13 +37,18 @@ export function AssessmentRowActions({ assessment }: { assessment: Assessment })
         })
         .finally(() => setLoading(false));
     }
-  }, [editing, assessment.id]);
+  }, [editing, assessment.id, assessment.discounts]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setPending(true);
-    const result = await updateAssessmentAction(assessment.id, lines, notes || undefined);
+    const result = await updateAssessmentAction(
+      assessment.id,
+      lines,
+      notes || undefined,
+      fullPaymentDiscount
+    );
     setPending(false);
     if (result?.error) {
       setError(result.error);
@@ -134,6 +141,18 @@ export function AssessmentRowActions({ assessment }: { assessment: Assessment })
               </div>
             ))}
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="edit-fullPaymentDiscount"
+            checked={fullPaymentDiscount}
+            onChange={(e) => setFullPaymentDiscount(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-300"
+          />
+          <Label htmlFor="edit-fullPaymentDiscount" className="text-xs font-normal">
+            Apply full payment discount (10% off tuition & lab)
+          </Label>
         </div>
         <div>
           <Label className="text-xs">Notes</Label>

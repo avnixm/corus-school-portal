@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SubmissionActions } from "./SubmissionActions";
 import { Clock } from "lucide-react";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export default async function RegistrarSubmissionReviewPage({
           </Link>
         </div>
         <Badge variant="outline" className={statusBadge(details.status)}>
-          {details.status}
+          {formatStatusForDisplay(details.status)}
         </Badge>
       </section>
 

@@ -77,7 +77,7 @@ export function AcademicSetupClient({
         </div>
       </header>
 
-      <div className="block md:hidden">
+      <div className="block lg:hidden">
         <MobileProgramSelect
           programs={programs}
           value={selectedProgramId ?? ""}
@@ -86,8 +86,8 @@ export function AcademicSetupClient({
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-12">
-        <aside className="hidden md:block md:col-span-4">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-12">
+        <aside className="hidden lg:block lg:col-span-4">
           <ProgramsPanel
             programs={programs}
             selectedId={selectedProgramId}
@@ -96,7 +96,7 @@ export function AcademicSetupClient({
             onEditProgram={openEditProgram}
           />
         </aside>
-        <main className="md:col-span-8">
+        <main className="lg:col-span-8">
           <SubjectsPanel
             subjects={subjects}
             programs={programs}

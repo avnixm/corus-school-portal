@@ -88,7 +88,7 @@ export function DeanCapabilityReview({ pkg, lines }: { pkg: Pkg; lines: Line[] }
           <CardTitle className="text-sm font-semibold text-[#6A0000]">Capability Lines</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border">
+          <div className="overflow-x-auto rounded-xl border">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
                 <tr>

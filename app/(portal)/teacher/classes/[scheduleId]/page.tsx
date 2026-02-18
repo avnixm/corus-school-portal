@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NotebookPen } from "lucide-react";
+import { formatStatusForDisplay } from "@/lib/formatStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ function statusBadge(status: string) {
     released: { class: "border-green-500 text-green-700", label: "Released" },
     none: { class: "border-neutral-300 text-neutral-500", label: "No submission" },
   };
-  const s = map[status] ?? { class: "", label: status };
+  const s = map[status] ?? { class: "", label: formatStatusForDisplay(status) };
   return <Badge variant="outline" className={s.class}>{s.label}</Badge>;
 }
 
@@ -71,7 +72,13 @@ export default async function TeacherClassDetailPage({
             ))}
           </div>
           {periods.length === 0 && (
-            <p className="text-sm text-neutral-600">No grading periods set for this term.</p>
+            <div className="space-y-2">
+              <p className="text-sm text-neutral-600">No grading periods set for this term.</p>
+              <p className="text-xs text-neutral-500">
+                Ask your administrator to create grading periods in{" "}
+                <strong>Admin → Tools</strong> (&quot;Create default grading periods&quot;) for the active term.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -83,7 +90,7 @@ export default async function TeacherClassDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <table className="min-w-full text-sm">
               <thead className="bg-neutral-50 text-left text-xs font-medium text-[#6A0000]">
                 <tr>
