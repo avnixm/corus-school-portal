@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { LogOut, Menu } from "lucide-react";
 import { getStudentNavItems } from "./nav/student";
@@ -34,7 +35,7 @@ function formatRoleLabel(role: string): string {
   return role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ");
 }
 
-function LogoutButton() {
+function LogoutButton({ className }: { className?: string }) {
   const { pending } = useFormStatus();
   return (
     <LoadingButton
@@ -42,10 +43,11 @@ function LogoutButton() {
       variant="ghost"
       size="sm"
       pending={pending}
-      className="h-9 min-h-[44px] w-9 min-w-[44px] p-0 lg:h-6 lg:min-h-0 lg:w-6 lg:min-w-0"
+      className={cn("w-full justify-start gap-2 text-neutral-700", className)}
       title="Sign out"
     >
-      <LogOut className="h-4 w-4 text-neutral-700" />
+      <LogOut className="h-4 w-4 shrink-0" />
+      Sign out
     </LoadingButton>
   );
 }
@@ -152,36 +154,55 @@ export function AppShell({
                 {title}
               </h1>
             </div>
-            <div
-              className={cn(
-                "inline-flex flex-wrap items-center gap-2 rounded-full border px-3 py-1 text-xs",
-                "bg-white/80 text-neutral-800"
-              )}
-            >
-              <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#6A0000]/10 text-[#6A0000] text-xs font-semibold">
+            {signOutAction ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                      "bg-[#6A0000]/10 text-[#6A0000] text-sm font-semibold",
+                      "ring-neutral-200 transition hover:ring-2 focus:outline-none focus:ring-2 focus:ring-[#6A0000]/30"
+                    )}
+                    aria-label="Open profile menu"
+                  >
+                    {initials}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" sideOffset={8} className="w-56 p-2">
+                  <div className="space-y-2">
+                    {displayText && (
+                      <p className="truncate px-2 py-1.5 text-sm font-medium text-neutral-900">
+                        {displayText}
+                      </p>
+                    )}
+                    {role && (
+                      <div className="px-2">
+                        <Badge
+                          variant="outline"
+                          className="rounded-md border-[#6A0000]/40 text-[#6A0000] text-xs"
+                        >
+                          {formatRoleLabel(role)}
+                        </Badge>
+                      </div>
+                    )}
+                    <form action={signOutAction}>
+                      <LogoutButton />
+                    </form>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <span
+                className={cn(
+                  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                  "bg-[#6A0000]/10 text-[#6A0000] text-sm font-semibold"
+                )}
+                aria-hidden
+              >
                 {initials}
               </span>
-              <div className="flex flex-col items-start">
-                {displayText && (
-                  <span className="whitespace-nowrap text-xs font-medium">
-                    {displayText}
-                  </span>
-                )}
-                {role && (
-                  <Badge
-                    variant="outline"
-                    className="mt-0.5 border-[#6A0000]/40 text-[#6A0000] text-xs"
-                  >
-                    {formatRoleLabel(role)}
-                  </Badge>
-                )}
-              </div>
-              {signOutAction && (
-                <form action={signOutAction} className="ml-2">
-                  <LogoutButton />
-                </form>
-              )}
-            </div>
+            )}
           </div>
         </header>
 

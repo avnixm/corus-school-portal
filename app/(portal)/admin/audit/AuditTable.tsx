@@ -128,18 +128,43 @@ export function AuditTable({
           </DialogHeader>
           {detail && (
             <div className="space-y-4 font-mono text-xs text-neutral-900">
-              <div>
-                <p className="font-sans font-medium text-neutral-800">Before</p>
-                <pre className="mt-1 overflow-auto rounded bg-neutral-100 p-2 text-neutral-900">
-                  {JSON.stringify(detail.before, null, 2)}
-                </pre>
+              <div className="rounded-md border bg-neutral-50 p-3 text-sm">
+                <p className="font-sans font-medium text-neutral-800">Summary</p>
+                <ul className="mt-1 space-y-1 font-sans text-neutral-700">
+                  <li><span className="text-neutral-500">Action:</span> {detail.action}</li>
+                  <li><span className="text-neutral-500">Entity:</span> {detail.entityType}{detail.entityId ? ` · ${detail.entityId}` : ""}</li>
+                  {detail.actorUserId && (
+                    <li><span className="text-neutral-500">Actor:</span>{" "}
+                      <Link href={`/admin/users/${detail.actorUserId}`} className="text-[#6A0000] hover:underline">
+                        {detail.actorUserId}
+                      </Link>
+                    </li>
+                  )}
+                  {detail.createdAt && (
+                    <li><span className="text-neutral-500">Time:</span> {new Date(detail.createdAt).toLocaleString()}</li>
+                  )}
+                </ul>
               </div>
-              <div>
-                <p className="font-sans font-medium text-neutral-800">After</p>
-                <pre className="mt-1 overflow-auto rounded bg-neutral-100 p-2 text-neutral-900">
-                  {JSON.stringify(detail.after, null, 2)}
-                </pre>
-              </div>
+              {(detail.before != null || detail.after != null) ? (
+                <>
+                  <div>
+                    <p className="font-sans font-medium text-neutral-800">Before</p>
+                    <pre className="mt-1 overflow-auto rounded bg-neutral-100 p-2 text-neutral-900">
+                      {detail.before != null ? JSON.stringify(detail.before, null, 2) : "—"}
+                    </pre>
+                  </div>
+                  <div>
+                    <p className="font-sans font-medium text-neutral-800">After</p>
+                    <pre className="mt-1 overflow-auto rounded bg-neutral-100 p-2 text-neutral-900">
+                      {detail.after != null ? JSON.stringify(detail.after, null, 2) : "—"}
+                    </pre>
+                  </div>
+                </>
+              ) : (
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 font-sans text-sm text-amber-800">
+                  No state change data was recorded for this action. Only the action type, actor, and entity are logged.
+                </p>
+              )}
               {detail.entityType === "user_profile" && detail.entityId && (
                 <Link
                   href={`/admin/users/${detail.entityId}`}

@@ -36,6 +36,7 @@ export async function markClearedAction(enrollmentId: string) {
       action: "CLEARANCE_MARK_CLEARED",
       entityType: "enrollment_finance_status",
       entityId: enrollmentId,
+      after: { enrollmentId, status: "cleared" },
     });
     revalidatePath("/finance/clearance");
     revalidatePath("/finance");

@@ -171,19 +171,36 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {roleChanges.map((r) => (
-                <li key={r.id} className="flex items-center justify-between text-sm text-neutral-900">
-                  <span className="text-neutral-800">
-                    {r.entityType} {r.entityId ?? ""} · {r.action}
-                  </span>
-                  <Link
-                    href={`/admin/audit?actor=${r.actorUserId ?? ""}`}
-                    className="text-[#6A0000] hover:underline"
-                  >
-                    View
-                  </Link>
-                </li>
-              ))}
+              {roleChanges.map((r) => {
+                const displayName =
+                  (r as { entityName?: string | null; entityEmail?: string | null }).entityName ??
+                  (r as { entityName?: string | null; entityEmail?: string | null }).entityEmail ??
+                  (r.entityId ? `User ${String(r.entityId).slice(0, 8)}…` : "Unknown user");
+                const afterRole =
+                  r.after && typeof r.after === "object" && "role" in r.after
+                    ? roleLabel(String((r.after as { role?: string }).role ?? ""))
+                    : "—";
+                const beforeRole =
+                  r.before && typeof r.before === "object" && "role" in r.before
+                    ? roleLabel(String((r.before as { role?: string }).role ?? ""))
+                    : null;
+                const roleText = beforeRole ? `${beforeRole} → ${afterRole}` : `Role: ${afterRole}`;
+                return (
+                  <li key={r.id} className="flex items-center justify-between text-sm text-neutral-900">
+                    <span className="text-neutral-800">
+                      <span className="font-medium">{displayName}</span>
+                      {" · "}
+                      {roleText}
+                    </span>
+                    <Link
+                      href={`/admin/audit?entityId=${r.entityId ?? ""}&action=ROLE_CHANGE`}
+                      className="text-[#6A0000] hover:underline"
+                    >
+                      View
+                    </Link>
+                  </li>
+                );
+              })}
               {roleChanges.length === 0 && (
                 <li className="text-sm text-neutral-600">No recent role changes</li>
               )}

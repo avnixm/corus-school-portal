@@ -278,6 +278,7 @@ export async function postAssessmentAction(assessmentId: string) {
       action: "ASSESSMENT_POST",
       entityType: "assessment",
       entityId: assessmentId,
+      after: { assessmentId, action: "posted" },
     });
     revalidatePath("/finance/assessments");
     revalidatePath("/finance");

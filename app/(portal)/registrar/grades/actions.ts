@@ -23,6 +23,7 @@ export async function returnSubmissionAction(submissionId: string, remarks: stri
     action: "GRADE_RETURN",
     entityType: "grade_submission",
     entityId: submissionId,
+    after: { submissionId, action: "returned", remarks: remarks.trim() || undefined },
   });
   return { error: null };
 }
@@ -40,6 +41,7 @@ export async function approveSubmissionAction(submissionId: string) {
     action: "GRADE_APPROVE",
     entityType: "grade_submission",
     entityId: submissionId,
+    after: { submissionId, action: "approved" },
   });
   return { error: null };
 }
@@ -57,6 +59,7 @@ export async function releaseSubmissionAction(submissionId: string) {
     action: "GRADE_RELEASE",
     entityType: "grade_submission",
     entityId: submissionId,
+    after: { submissionId, action: "released" },
   });
   return { error: null };
 }
@@ -75,6 +78,7 @@ export async function approveAndReleaseAction(submissionId: string) {
     action: "GRADE_RELEASE",
     entityType: "grade_submission",
     entityId: submissionId,
+    after: { submissionId, action: "approved_and_released" },
   });
   return { error: null };
 }

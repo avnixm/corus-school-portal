@@ -251,12 +251,31 @@ export async function getAuditLogCountLast24h() {
 }
 
 export async function getRecentRoleChanges(limit = 10) {
-  return db
-    .select()
+  const rows = await db
+    .select({
+      id: auditLog.id,
+      actorUserId: auditLog.actorUserId,
+      action: auditLog.action,
+      entityType: auditLog.entityType,
+      entityId: auditLog.entityId,
+      before: auditLog.before,
+      after: auditLog.after,
+      createdAt: auditLog.createdAt,
+      entityName: userProfile.fullName,
+      entityEmail: userProfile.email,
+    })
     .from(auditLog)
+    .leftJoin(
+      userProfile,
+      or(
+        eq(auditLog.entityId, userProfile.userId),
+        sql`${auditLog.entityId} = ${userProfile.id}::text`
+      )
+    )
     .where(eq(auditLog.action, "ROLE_CHANGE"))
     .orderBy(desc(auditLog.createdAt))
     .limit(limit);
+  return rows;
 }
 
 // ============ System settings ============
