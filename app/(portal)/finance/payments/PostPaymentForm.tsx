@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Loader2, Printer } from "lucide-react";
+import { Search, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   postPaymentAction,
@@ -318,10 +319,9 @@ export function PostPaymentForm() {
               />
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" disabled={pending}>
-                {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <LoadingButton type="submit" pending={pending}>
                 Post Payment
-              </Button>
+              </LoadingButton>
               {lastPaymentId && (
                 <a
                   href={`/finance/payments/${lastPaymentId}/receipt`}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil, Trash2 } from "lucide-react";
@@ -163,9 +164,9 @@ export function AssessmentRowActions({ assessment }: { assessment: Assessment })
           />
         </div>
         <div className="flex gap-1">
-          <Button type="submit" size="sm" disabled={pending || lines.length === 0}>
+          <LoadingButton type="submit" size="sm" pending={pending} disabled={lines.length === 0}>
             Save
-          </Button>
+          </LoadingButton>
           <Button
             type="button"
             variant="ghost"
@@ -191,15 +192,15 @@ export function AssessmentRowActions({ assessment }: { assessment: Assessment })
         <Pencil className="h-3 w-3" />
         Edit
       </Button>
-      <Button
+      <LoadingButton
         variant="ghost"
         size="sm"
         onClick={handlePost}
-        disabled={posting}
+        pending={posting}
         className="h-8"
       >
         {posting ? "Posting…" : "Post"}
-      </Button>
+      </LoadingButton>
     </div>
   );
 }

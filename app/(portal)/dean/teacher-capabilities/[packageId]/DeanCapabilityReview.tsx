@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -137,12 +138,12 @@ export function DeanCapabilityReview({ pkg, lines }: { pkg: Pkg; lines: Line[] }
             />
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleApprove} disabled={pending}>
+            <LoadingButton onClick={handleApprove} pending={pending}>
               {pending ? "Processing…" : "Approve"}
-            </Button>
-            <Button variant="outline" onClick={handleReject} disabled={pending} className="border-red-300 text-red-700 hover:bg-red-50">
+            </LoadingButton>
+            <LoadingButton variant="outline" onClick={handleReject} pending={pending} className="border-red-300 text-red-700 hover:bg-red-50">
               Reject
-            </Button>
+            </LoadingButton>
           </div>
         </CardContent>
       </Card>

@@ -31,7 +31,7 @@ const Spinner = React.memo(function Spinner({
   if (delayMs > 0 && !visible) return null;
 
   const containerClasses = center
-    ? "fixed inset-0 min-h-screen flex items-center justify-center"
+    ? "fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-transparent"
     : "inline-flex items-center justify-center";
   const mergedClass = [containerClasses, className].filter(Boolean).join(" ");
 

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
-import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import {
   Card,
   CardContent,
@@ -171,9 +171,13 @@ export default function RegisterPage() {
                   </label>
                 </div>
 
-                <Button className="w-full" type="submit" disabled={isPending}>
-                  {isPending ? "Creating account..." : "Create account"}
-                </Button>
+                <LoadingButton
+                  className="w-full"
+                  type="submit"
+                  pending={isPending}
+                >
+                  {isPending ? "Creating account…" : "Create account"}
+                </LoadingButton>
               </form>
 
               <p className="pt-1 text-center text-xs text-neutral-600">

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { FileDown, Loader2 } from "lucide-react";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { FileDown } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { ReceiptPDF, type ReceiptData } from "./ReceiptPDF";
 
@@ -35,19 +35,16 @@ export function DownloadReceiptPDFButton({
   }
 
   return (
-    <Button
+    <LoadingButton
       variant="outline"
       size={size}
       onClick={handleDownload}
       disabled={loading}
+      pending={loading}
       className="gap-1.5"
     >
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <FileDown className="h-4 w-4" />
-      )}
+      {!loading && <FileDown className="h-4 w-4" />}
       Download PDF
-    </Button>
+    </LoadingButton>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import {
   createDefaultGradingPeriodsAction,
   createDefaultFeeItemsAction,
@@ -92,19 +92,19 @@ export function ToolsActions({
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          <Button
+          <LoadingButton
             onClick={runSeedGrading}
-            disabled={!!pending}
+            pending={pending === "grading"}
           >
             {pending === "grading" ? "Running…" : "Create default grading periods"}
-          </Button>
-          <Button
+          </LoadingButton>
+          <LoadingButton
             variant="outline"
             onClick={runSeedFees}
-            disabled={!!pending}
+            pending={pending === "fees"}
           >
             {pending === "fees" ? "Running…" : "Create default fee items"}
-          </Button>
+          </LoadingButton>
         </div>
         {message && <p className="text-sm text-green-700">{message}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -115,9 +115,9 @@ export function ToolsActions({
   if (variant === "recompute") {
     return (
       <div className="space-y-4">
-        <Button onClick={runRecompute} disabled={!!pending}>
+        <LoadingButton onClick={runRecompute} pending={pending === "recompute"}>
           {pending === "recompute" ? "Running…" : "Recompute enrollment balances"}
-        </Button>
+        </LoadingButton>
         {message && <p className="text-sm text-green-700">{message}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
@@ -126,9 +126,9 @@ export function ToolsActions({
 
   return (
     <div className="space-y-4">
-      <Button onClick={runImport} disabled={!!pending}>
+      <LoadingButton onClick={runImport} pending={pending === "import"}>
         {pending === "import" ? "Running…" : "Run placeholder import"}
-      </Button>
+      </LoadingButton>
       {message && <p className="text-sm text-green-700">{message}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>

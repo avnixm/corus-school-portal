@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -48,16 +49,16 @@ export function ConfirmDialog({
           >
             {cancelText}
           </Button>
-          <Button
+          <LoadingButton
             variant={variant}
+            pending={pending}
             onClick={() => {
               onConfirm();
               if (!pending) onOpenChange(false);
             }}
-            disabled={pending}
           >
-            {pending ? "Processing..." : confirmText}
-          </Button>
+            {pending ? "Processing…" : confirmText}
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

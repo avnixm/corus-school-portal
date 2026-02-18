@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
-import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import {
   Card,
   CardContent,
@@ -121,9 +121,13 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                <Button className="w-full" type="submit" disabled={isPending}>
-                  {isPending ? "Signing in..." : "Sign in"}
-                </Button>
+                <LoadingButton
+                  className="w-full"
+                  type="submit"
+                  pending={isPending}
+                >
+                  {isPending ? "Signing in…" : "Sign in"}
+                </LoadingButton>
               </form>
 
               <p className="pt-1 text-center text-xs text-neutral-600">

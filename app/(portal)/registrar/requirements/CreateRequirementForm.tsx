@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -112,9 +113,9 @@ export function CreateRequirementForm() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending} className="bg-[#6A0000] hover:bg-[#6A0000]/90">
+            <LoadingButton type="submit" pending={pending} className="bg-[#6A0000] hover:bg-[#6A0000]/90">
               Create
-            </Button>
+            </LoadingButton>
           </DialogFooter>
         </form>
       </DialogContent>

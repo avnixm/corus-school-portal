@@ -4,6 +4,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
 import { generateAssessmentFromFeeSetupAction } from "./actions";
 
 type EnrollmentOption = {
@@ -149,10 +149,9 @@ export function GenerateFromFeeSetupButton({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending || enrollments.length === 0}>
-                {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <LoadingButton type="submit" pending={pending} disabled={enrollments.length === 0}>
                 {pending ? "Generating…" : "Generate"}
-              </Button>
+              </LoadingButton>
             </DialogFooter>
           </form>
         </DialogContent>

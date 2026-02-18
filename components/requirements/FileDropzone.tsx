@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 interface FileDropzoneProps {
   onFileSelect: (file: File) => void;
@@ -83,7 +84,7 @@ export function FileDropzone({
         disabled={disabled || isUploading}
       />
       {isUploading ? (
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#6A0000]" />
+        <Spinner size={32} className="mx-auto text-[#6A0000]" />
       ) : (
         <Upload className="mx-auto h-8 w-8 text-neutral-500" />
       )}

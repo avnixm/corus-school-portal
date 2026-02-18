@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { markClearedAction } from "./actions";
@@ -34,15 +33,15 @@ export function MarkClearedButton({
 
   return (
     <>
-      <Button
+      <LoadingButton
         variant="outline"
         size="sm"
         onClick={() => setConfirmOpen(true)}
-        disabled={pending || disabled}
+        disabled={disabled}
+        pending={pending}
       >
-        {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Mark Cleared
-      </Button>
+      </LoadingButton>
 
       <ConfirmDialog
         open={confirmOpen}

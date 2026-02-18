@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { useFormStatus } from "react-dom";
 import { usePathname } from "next/navigation";
 import { Sidebar, SidebarNavContent, SidebarItem, SidebarConfig } from "./Sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { LogOut, Menu } from "lucide-react";
@@ -30,6 +32,22 @@ interface AppShellProps {
 
 function formatRoleLabel(role: string): string {
   return role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ");
+}
+
+function LogoutButton() {
+  const { pending } = useFormStatus();
+  return (
+    <LoadingButton
+      type="submit"
+      variant="ghost"
+      size="sm"
+      pending={pending}
+      className="h-9 min-h-[44px] w-9 min-w-[44px] p-0 lg:h-6 lg:min-h-0 lg:w-6 lg:min-w-0"
+      title="Sign out"
+    >
+      <LogOut className="h-4 w-4 text-neutral-700" />
+    </LoadingButton>
+  );
 }
 
 export function AppShell({
@@ -77,24 +95,12 @@ export function AppShell({
   const showSidebar = (sidebarItems && sidebarItems.length > 0) || sidebarConfig;
   const displayText = userDisplay ?? (userId ? userId.slice(0, 8) : null);
   const initials = userId ? userId.slice(0, 2).toUpperCase() : "?";
-  const [isPending, setIsPending] = React.useState(false);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const pathname = usePathname();
 
   React.useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
-
-  const handleLogout = async () => {
-    if (signOutAction) {
-      setIsPending(true);
-      try {
-        await signOutAction({});
-      } finally {
-        setIsPending(false);
-      }
-    }
-  };
 
   return (
     <div className="flex min-h-screen bg-neutral-50 overflow-x-hidden">
@@ -172,16 +178,7 @@ export function AppShell({
               </div>
               {signOutAction && (
                 <form action={signOutAction} className="ml-2">
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 min-h-[44px] w-9 min-w-[44px] p-0 lg:h-6 lg:min-h-0 lg:w-6 lg:min-w-0"
-                    disabled={isPending}
-                    title="Sign out"
-                  >
-                    <LogOut className="h-4 w-4 text-neutral-700" />
-                  </Button>
+                  <LogoutButton />
                 </form>
               )}
             </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -87,9 +88,9 @@ export function ProgramHeadAssignmentsSection({
             </SelectContent>
           </Select>
         </div>
-        <Button type="submit" disabled={pending || !userId || !programCode}>
+        <LoadingButton type="submit" pending={pending} disabled={!userId || !programCode}>
           Assign
-        </Button>
+        </LoadingButton>
       </form>
       {error && <p className="text-sm text-red-600">{error}</p>}
 

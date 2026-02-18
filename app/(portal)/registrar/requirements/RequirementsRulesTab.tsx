@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -215,9 +216,9 @@ export function RequirementsRulesTab({
               Required
             </Label>
           </div>
-          <Button type="submit" disabled={pending} className="bg-[#6A0000] hover:bg-[#6A0000]/90">
+          <LoadingButton type="submit" pending={pending} className="bg-[#6A0000] hover:bg-[#6A0000]/90">
             Add rule
-          </Button>
+          </LoadingButton>
         </form>
 
         <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">

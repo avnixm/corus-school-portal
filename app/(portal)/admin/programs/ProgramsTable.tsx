@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -124,9 +125,9 @@ export function ProgramsTable({ programs }: { programs: Program[] }) {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending}>
+              <LoadingButton type="submit" pending={pending}>
                 Create
-              </Button>
+              </LoadingButton>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -166,7 +167,7 @@ export function ProgramsTable({ programs }: { programs: Program[] }) {
                 <Button type="button" variant="outline" onClick={() => setEditProgram(null)} disabled={pending}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={pending}>Save</Button>
+                <LoadingButton type="submit" pending={pending}>Save</LoadingButton>
               </DialogFooter>
             </form>
           )}
@@ -189,15 +190,15 @@ export function ProgramsTable({ programs }: { programs: Program[] }) {
                 <Button type="button" variant="outline" onClick={() => setDeleteProgram(null)} disabled={pending}>
                   Cancel
                 </Button>
-                <Button
+                <LoadingButton
                   type="button"
                   variant="outline"
                   className="text-red-600 hover:bg-red-50 hover:text-red-700"
                   onClick={handleDeleteConfirm}
-                  disabled={pending}
+                  pending={pending}
                 >
                   {pending ? "Deleting…" : "Delete"}
-                </Button>
+                </LoadingButton>
               </DialogFooter>
             </div>
           )}
