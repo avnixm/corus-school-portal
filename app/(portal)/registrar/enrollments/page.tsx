@@ -204,13 +204,12 @@ export default async function EnrollmentsPage({
                         : "—"}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {row.status === "pending_approval" && (
-                        <Link href="/registrar/approvals">
-                          <span className="text-xs font-medium text-[#6A0000] hover:underline">
-                            Review
-                          </span>
-                        </Link>
-                      )}
+                      <Link
+                        href={`/registrar/approvals/${row.id}/review`}
+                        className="inline-flex items-center rounded-md border border-[#6A0000]/30 px-2 py-1 text-xs font-medium text-[#6A0000] hover:bg-[#6A0000]/5 hover:underline"
+                      >
+                        {row.status === "pending_approval" ? "Review" : "View"}
+                      </Link>
                     </td>
                   </tr>
                 ))}

@@ -39,7 +39,7 @@ export default async function EnrollmentReviewPage({
 
   const { enrollmentId } = await params;
   const enrollment = await getEnrollmentById(enrollmentId);
-  if (!enrollment || enrollment.status !== "pending_approval") notFound();
+  if (!enrollment) notFound();
 
   const [student, schoolYears, terms] = await Promise.all([
     getStudentById(enrollment.studentId),
@@ -124,12 +124,14 @@ export default async function EnrollmentReviewPage({
             applicable={applicable}
             pendingRequestSubmissionIds={Array.from(pendingRequestSubmissionIds)}
           />
-          <div className="border-t pt-4">
-            <EnrollmentApprovalActions
-              enrollmentId={enrollmentId}
-              requirementsSummary={requirementsSummary}
-            />
-          </div>
+          {enrollment.status === "pending_approval" && (
+            <div className="border-t pt-4">
+              <EnrollmentApprovalActions
+                enrollmentId={enrollmentId}
+                requirementsSummary={requirementsSummary}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
