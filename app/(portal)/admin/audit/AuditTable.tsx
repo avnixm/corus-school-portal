@@ -12,6 +12,7 @@ import {
 type Row = {
   id: string;
   actorUserId: string | null;
+  actorFullName: string | null;
   action: string;
   entityType: string;
   entityId: string | null;
@@ -69,7 +70,9 @@ export function AuditTable({
                       href={`/admin/users/${r.actorUserId}`}
                       className="text-[#6A0000] hover:underline"
                     >
-                      {r.actorUserId.slice(0, 8)}
+                      {r.actorFullName
+                        ? `${r.actorFullName} · ${r.actorUserId}`
+                        : r.actorUserId.slice(0, 8)}
                     </Link>
                   ) : (
                     "—"
@@ -136,7 +139,9 @@ export function AuditTable({
                   {detail.actorUserId && (
                     <li><span className="text-neutral-500">Actor:</span>{" "}
                       <Link href={`/admin/users/${detail.actorUserId}`} className="text-[#6A0000] hover:underline">
-                        {detail.actorUserId}
+                        {detail.actorFullName
+                          ? `${detail.actorFullName} · ${detail.actorUserId}`
+                          : detail.actorUserId}
                       </Link>
                     </li>
                   )}

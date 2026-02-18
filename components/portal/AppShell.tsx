@@ -171,19 +171,21 @@ export function AppShell({
                 </PopoverTrigger>
                 <PopoverContent align="end" sideOffset={8} className="w-56 p-2">
                   <div className="space-y-2">
-                    {displayText && (
-                      <p className="truncate px-2 py-1.5 text-sm font-medium text-neutral-900">
-                        {displayText}
-                      </p>
-                    )}
-                    {role && (
-                      <div className="px-2">
-                        <Badge
-                          variant="outline"
-                          className="rounded-md border-[#6A0000]/40 text-[#6A0000] text-xs"
-                        >
-                          {formatRoleLabel(role)}
-                        </Badge>
+                    {(displayText || role) && (
+                      <div className="flex items-center gap-2 px-2 py-1.5">
+                        {displayText && (
+                          <p className="truncate text-sm font-medium text-neutral-900">
+                            {displayText}
+                          </p>
+                        )}
+                        {role && (
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 rounded-md border-[#6A0000]/40 text-[#6A0000] text-xs"
+                          >
+                            {formatRoleLabel(role)}
+                          </Badge>
+                        )}
                       </div>
                     )}
                     <form action={signOutAction}>

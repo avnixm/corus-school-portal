@@ -232,8 +232,19 @@ export async function getAuditLogPage(params: {
   const limit = params.limit ?? 50;
   const offset = params.offset ?? 0;
   const rows = await db
-    .select()
+    .select({
+      id: auditLog.id,
+      actorUserId: auditLog.actorUserId,
+      actorFullName: userProfile.fullName,
+      action: auditLog.action,
+      entityType: auditLog.entityType,
+      entityId: auditLog.entityId,
+      before: auditLog.before,
+      after: auditLog.after,
+      createdAt: auditLog.createdAt,
+    })
     .from(auditLog)
+    .leftJoin(userProfile, eq(auditLog.actorUserId, userProfile.userId))
     .where(where)
     .orderBy(desc(auditLog.createdAt))
     .limit(limit)

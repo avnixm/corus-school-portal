@@ -19,7 +19,7 @@ export function RequirementsBadge({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium uppercase ${
           complete
             ? "bg-green-100 text-green-800"
             : blocking.length > 0

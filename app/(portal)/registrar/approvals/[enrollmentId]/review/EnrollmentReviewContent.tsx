@@ -194,12 +194,12 @@ export function EnrollmentReviewContent({ enrollmentId, applicable, pendingReque
                   <span className="font-mono text-xs text-neutral-500">{a.requirement.code}</span>
                   <span className="ml-1 font-medium text-neutral-900">{a.requirement.name}</span>
                   {(a.submission.markAsToFollow ?? false) && (
-                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium uppercase text-amber-800">
                       To follow
                     </span>
                   )}
                   <span
-                    className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[a.submission.status] ?? "bg-neutral-100 text-neutral-800"}`}
+                    className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium uppercase ${STATUS_STYLE[a.submission.status] ?? "bg-neutral-100 text-neutral-800"}`}
                   >
                     {formatStatusForDisplay(a.submission.status)}
                   </span>
