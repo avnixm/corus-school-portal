@@ -185,7 +185,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-4 text-neutral-900 sm:px-6 sm:py-6 lg:px-8">
+        <main className="flex-1 bg-white px-4 py-4 text-neutral-900 sm:px-6 sm:py-6 lg:px-8">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>

@@ -111,12 +111,7 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Portal app uses light theme only; dark mode disabled to prevent black flash on load */
 
 body {
   background: var(--background);
