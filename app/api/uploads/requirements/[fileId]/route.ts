@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 
 /**
  * GET returns a signed URL for the file (or placeholder).
+ * Currently returns local URL until S3 is configured.
  * TODO: When S3 is configured, generate presigned URL from storage_key.
  */
 export async function GET(

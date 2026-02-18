@@ -128,10 +128,20 @@ export async function getProfileInitial(): Promise<ProfileInitial> {
   const user = await getCurrentUserWithRole();
   if (!user || user.role !== "student") return { ok: false, redirect: "login" };
 
-  const studentRow = profile.student as typeof profile.student & {
+  type StudentRowWithOptionalFields = typeof profile.student & {
     sex?: string | null;
     gender?: string | null;
     religion?: string | null;
+    suffix?: string | null;
+    alternateContact?: string | null;
+    placeOfBirth?: string | null;
+    citizenship?: string | null;
+    civilStatus?: string | null;
+    lrn?: string | null;
+    guardianConsentAt?: Date | null;
+    shsStrand?: string | null;
+  };
+  const studentRow = profile.student as StudentRowWithOptionalFields;
     guardianName?: string | null;
     guardianRelationship?: string | null;
     guardianMobile?: string | null;
@@ -156,18 +166,18 @@ export async function getProfileInitial(): Promise<ProfileInitial> {
         firstName: profile.student.firstName,
         middleName: profile.student.middleName,
         lastName: profile.student.lastName,
-        suffix: (studentRow as any)?.suffix ?? null,
+        suffix: studentRow?.suffix ?? null,
         email: profile.student.email,
         contactNo: profile.student.contactNo,
-        alternateContact: (studentRow as any)?.alternateContact ?? null,
+        alternateContact: studentRow?.alternateContact ?? null,
         birthday: profile.student.birthday ?? null,
-        placeOfBirth: (studentRow as any)?.placeOfBirth ?? null,
-        citizenship: (studentRow as any)?.citizenship ?? null,
-        civilStatus: (studentRow as any)?.civilStatus ?? null,
+        placeOfBirth: studentRow?.placeOfBirth ?? null,
+        citizenship: studentRow?.citizenship ?? null,
+        civilStatus: studentRow?.civilStatus ?? null,
         sex: studentRow?.sex ?? null,
         gender: studentRow?.gender ?? null,
         religion: studentRow?.religion ?? null,
-        lrn: (studentRow as any)?.lrn ?? null,
+        lrn: studentRow?.lrn ?? null,
         addressStreet: addr?.street ?? null,
         addressBarangay: addr?.barangay ?? null,
         addressMunicipality: addr?.municipality ?? null,
@@ -185,11 +195,11 @@ export async function getProfileInitial(): Promise<ProfileInitial> {
         guardianName: studentRow?.guardianName ?? null,
         guardianRelationship: studentRow?.guardianRelationship ?? null,
         guardianMobile: studentRow?.guardianMobile ?? null,
-        guardianConsentAt: (studentRow as any)?.guardianConsentAt?.toISOString() ?? null,
+        guardianConsentAt: studentRow?.guardianConsentAt?.toISOString() ?? null,
         studentType: studentRow?.studentType ?? null,
         lastSchoolId: profile.student.lastSchoolId,
         lastSchoolYearCompleted: profile.student.lastSchoolYearCompleted,
-        shsStrand: (studentRow as any)?.shsStrand ?? null,
+        shsStrand: studentRow?.shsStrand ?? null,
       },
     };
   }
