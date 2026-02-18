@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { verifySubmissionAction, rejectSubmissionAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +40,13 @@ export function QueueTable({ rows }: { rows: QueueRow[] }) {
 
   function handleVerify(id: string) {
     startTransition(async () => {
-      await verifySubmissionAction(id);
-      router.refresh();
+      try {
+        await verifySubmissionAction(id);
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to verify submission.";
+        toast.error(message);
+      }
     });
   }
 
@@ -51,10 +57,15 @@ export function QueueTable({ rows }: { rows: QueueRow[] }) {
       return;
     }
     startTransition(async () => {
-      await rejectSubmissionAction(id, remarks);
-      setRejectingId(null);
-      setRemarks("");
-      router.refresh();
+      try {
+        await rejectSubmissionAction(id, remarks);
+        setRejectingId(null);
+        setRemarks("");
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to reject submission.";
+        toast.error(message);
+      }
     });
   }
 

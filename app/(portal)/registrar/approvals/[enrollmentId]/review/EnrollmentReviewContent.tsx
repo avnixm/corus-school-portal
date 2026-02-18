@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition, useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,28 +52,44 @@ export function EnrollmentReviewContent({ enrollmentId, applicable, pendingReque
     setFullViewFile(file);
     setFullViewUrl(null);
     setFullViewError(null);
-    const res = await fetch(`/api/uploads/requirements/${file.id}`, { credentials: "include" });
-    const data = await res.json();
-    const url = data?.url;
-    if (!url) {
-      setFullViewError(data?.message || "Could not load file.");
-      return;
+    try {
+      const res = await fetch(`/api/uploads/requirements/${file.id}`, { credentials: "include" });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const message = errorData?.message || "Could not load file.";
+        setFullViewError(message);
+        toast.error(message);
+        return;
+      }
+      const data = await res.json();
+      const url = data?.url;
+      if (!url) {
+        const message = data?.message || "Could not load file.";
+        setFullViewError(message);
+        toast.error(message);
+        return;
+      }
+      // Load view URL with credentials so session is sent; use blob URL so img/iframe can display it
+      const viewRes = await fetch(url, { credentials: "include" });
+      if (!viewRes.ok) {
+        const message =
+          viewRes.status === 404
+            ? "File not available. It may have been uploaded before storage was enabled—ask the student to re-upload."
+            : "Could not load file for viewing.";
+        setFullViewError(message);
+        toast.error(message);
+        return;
+      }
+      const blob = await viewRes.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = blobUrl;
+      setFullViewUrl(blobUrl);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load file.";
+      setFullViewError(message);
+      toast.error(message);
     }
-    // Load view URL with credentials so session is sent; use blob URL so img/iframe can display it
-    const viewRes = await fetch(url, { credentials: "include" });
-    if (!viewRes.ok) {
-      setFullViewError(
-        viewRes.status === 404
-          ? "File not available. It may have been uploaded before storage was enabled—ask the student to re-upload."
-          : "Could not load file for viewing."
-      );
-      return;
-    }
-    const blob = await viewRes.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-    blobUrlRef.current = blobUrl;
-    setFullViewUrl(blobUrl);
   }, []);
 
   function closeFullView() {
@@ -86,30 +103,54 @@ export function EnrollmentReviewContent({ enrollmentId, applicable, pendingReque
   }
 
   async function handleViewFile(fileId: string) {
-    const res = await fetch(`/api/uploads/requirements/${fileId}`);
-    const data = await res.json();
-    if (data?.url) window.open(data.url, "_blank");
-    else if (data?.message) alert(data.message);
-    else alert("Could not open file.");
+    try {
+      const res = await fetch(`/api/uploads/requirements/${fileId}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const message = errorData?.message || "Could not open file.";
+        toast.error(message);
+        return;
+      }
+      const data = await res.json();
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      } else {
+        const message = data?.message || "Could not open file.";
+        toast.error(message);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to open file.";
+      toast.error(message);
+    }
   }
 
   function submitApprove() {
     if (!approveDialog) return;
     startTransition(async () => {
-      await verifySubmissionAction(approveDialog.submissionId, approvalMessage || undefined);
-      setApproveDialog(null);
-      setApprovalMessage("");
-      router.refresh();
+      try {
+        await verifySubmissionAction(approveDialog.submissionId, approvalMessage || undefined);
+        setApproveDialog(null);
+        setApprovalMessage("");
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to approve submission.";
+        toast.error(message);
+      }
     });
   }
 
   function submitReject() {
     if (!rejectDialog || !remarks.trim()) return;
     startTransition(async () => {
-      await rejectSubmissionAction(rejectDialog.submissionId, remarks);
-      setRejectDialog(null);
-      setRemarks("");
-      router.refresh();
+      try {
+        await rejectSubmissionAction(rejectDialog.submissionId, remarks);
+        setRejectDialog(null);
+        setRemarks("");
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to reject submission.";
+        toast.error(message);
+      }
     });
   }
 
@@ -120,11 +161,21 @@ export function EnrollmentReviewContent({ enrollmentId, applicable, pendingReque
       return;
     }
     startTransition(async () => {
-      const result = await createRequirementRequestAction(enrollmentId, submissionId, requestMessage);
-      setRequestingId(null);
-      setRequestMessage("");
-      if (result?.error) alert(result.error);
-      else router.refresh();
+      try {
+        const result = await createRequirementRequestAction(enrollmentId, submissionId, requestMessage);
+        setRequestingId(null);
+        setRequestMessage("");
+        if (result?.error) {
+          toast.error(result.error);
+        } else {
+          router.refresh();
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to send request.";
+        toast.error(message);
+        setRequestingId(null);
+        setRequestMessage("");
+      }
     });
   }
 
