@@ -23,7 +23,8 @@ interface AppShellProps {
   userDisplay?: string;
   userId?: string;
   role?: string;
-  signOutAction?: (prevState: unknown) => Promise<unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  signOutAction?: (prevState: any) => Promise<any>;
   children: React.ReactNode;
 }
 

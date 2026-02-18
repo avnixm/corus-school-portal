@@ -140,14 +140,13 @@ export async function getProfileInitial(): Promise<ProfileInitial> {
     lrn?: string | null;
     guardianConsentAt?: Date | null;
     shsStrand?: string | null;
-  };
-  const studentRow = profile.student as StudentRowWithOptionalFields;
     guardianName?: string | null;
     guardianRelationship?: string | null;
     guardianMobile?: string | null;
     studentType?: string | null;
     profileCompletedAt?: Date | null;
   };
+  const studentRow = profile.student as StudentRowWithOptionalFields;
 
   const profileCompletedAt = (profile.student as { profileCompletedAt?: Date | null })?.profileCompletedAt;
 
