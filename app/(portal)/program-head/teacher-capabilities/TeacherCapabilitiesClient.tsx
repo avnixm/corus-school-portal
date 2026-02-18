@@ -139,7 +139,25 @@ export function TeacherCapabilitiesClient({
   }, [selectedPackageId, isDraft, lines.length]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
+            Teacher Capabilities
+          </h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            Propose teaching capabilities for your department. Submit packages for Dean approval.
+          </p>
+        </div>
+        <Button
+          onClick={handleNewPackage}
+          className="gap-2 bg-[#6A0000] text-white hover:bg-[#4A0000]"
+        >
+          <Plus className="h-4 w-4" />
+          New Package
+        </Button>
+      </div>
+
       <div className="flex flex-wrap items-center gap-4">
         <div>
           <label className="text-xs text-neutral-600">Program</label>
@@ -194,14 +212,6 @@ export function TeacherCapabilitiesClient({
           value={selectedPackageId}
           onChange={setSelectedPackageId}
         />
-        <Button
-          size="sm"
-          onClick={handleNewPackage}
-          className="gap-2 bg-[#6A0000] text-white hover:bg-[#4A0000] self-end"
-        >
-          <Plus className="h-4 w-4" />
-          New Package
-        </Button>
       </div>
 
       {issues.length > 0 && isDraft && (
