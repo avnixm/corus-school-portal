@@ -1,7 +1,9 @@
+import { Spinner } from "@/components/ui/spinner";
+
 export default function StudentSetupLoading() {
   return (
-    <div className="mx-auto max-w-xl space-y-6 px-4 py-6">
-      <p className="text-sm text-neutral-600">Loading…</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+      <Spinner className="text-[#6A0000]" />
     </div>
   );
 }

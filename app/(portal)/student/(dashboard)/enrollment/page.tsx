@@ -104,7 +104,7 @@ export default async function StudentEnrollmentPage() {
               variant={isApproved ? "default" : "outline"}
               className={
                 isApproved
-                  ? "bg-[#6A0000]"
+                  ? "bg-[#6A0000] text-white"
                   : isRejected
                     ? "bg-red-100 text-red-800 border-red-200"
                     : ""
@@ -113,7 +113,7 @@ export default async function StudentEnrollmentPage() {
               {status.replace(/_/g, " ")}
             </Badge>
             <span className="text-sm text-neutral-600">
-              {enrollment.program ?? "—"} · Year {enrollment.yearLevel ?? "—"}
+              {enrollment.program ?? "—"} · {enrollment.schoolYearName ?? "—"} · {enrollment.yearLevel ?? "—"}
             </span>
           </div>
 
@@ -211,7 +211,7 @@ export default async function StudentEnrollmentPage() {
                         </Badge>
                       )}
                       <span className="text-neutral-600">
-                        {enc.program ?? "—"} · Year {enc.yearLevel ?? "—"}
+                        {enc.program ?? "—"} · {enc.schoolYearName ?? "—"} · {enc.yearLevel ?? "—"}
                       </span>
                     </div>
                     <Badge
