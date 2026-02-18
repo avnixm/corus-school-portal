@@ -27,9 +27,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} style={{ colorScheme: "light" }}>
       <body
-        className="min-h-screen bg-background text-foreground antialiased"
+        className="min-h-screen bg-white text-foreground antialiased"
       >
         {children}
         <Toaster position="top-right" richColors />
