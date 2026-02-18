@@ -15,11 +15,6 @@ export default async function ProgramHeadClearanceEnrollmentPage({
 }) {
   const { enrollmentId } = await params;
   const enrollment = await getEnrollmentById(enrollmentId);
-  const [student, balance, ledgerEntries] = await Promise.all([
-    enrollment ? getStudentById(enrollment.studentId) : null,
-    getStudentBalance(enrollmentId),
-    getLedgerEntriesByEnrollment(enrollmentId),
-  ]);
 
   if (!enrollment) {
     return (
@@ -33,6 +28,12 @@ export default async function ProgramHeadClearanceEnrollmentPage({
       </div>
     );
   }
+
+  const [student, balance, ledgerEntries] = await Promise.all([
+    getStudentById(enrollment.studentId),
+    getStudentBalance(enrollmentId),
+    getLedgerEntriesByEnrollment(enrollmentId),
+  ]);
 
   const studentName = student
     ? [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" ")
