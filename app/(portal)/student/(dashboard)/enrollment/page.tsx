@@ -104,10 +104,10 @@ export default async function StudentEnrollmentPage() {
               variant={isApproved ? "default" : "outline"}
               className={
                 isApproved
-                  ? "bg-[#6A0000] text-white"
+                  ? "bg-[#6A0000] text-white uppercase"
                   : isRejected
-                    ? "bg-red-100 text-red-800 border-red-200"
-                    : ""
+                    ? "bg-red-100 text-red-800 border-red-200 uppercase"
+                    : "uppercase"
               }
             >
               {status.replace(/_/g, " ")}
@@ -206,7 +206,7 @@ export default async function StudentEnrollmentPage() {
                         {enc.schoolYearName} · {enc.termName}
                       </span>
                       {isCurrent && (
-                        <Badge variant="secondary" className="bg-[#6A0000]/10 text-[#6A0000]">
+                        <Badge variant="secondary" className="bg-[#6A0000]/10 text-[#6A0000] uppercase">
                           Current
                         </Badge>
                       )}
@@ -218,10 +218,10 @@ export default async function StudentEnrollmentPage() {
                       variant="outline"
                       className={
                         enc.status === "approved" || enc.status === "enrolled"
-                          ? "border-green-300 text-green-800"
+                          ? "border-green-300 text-green-800 uppercase"
                           : enc.status === "rejected"
-                            ? "border-red-200 text-red-800"
-                            : ""
+                            ? "border-red-200 text-red-800 uppercase"
+                            : "uppercase"
                       }
                     >
                       {formatStatusForDisplay(enc.status)}

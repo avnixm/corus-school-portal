@@ -96,7 +96,7 @@ export default async function FeeSetupPage() {
                     <td className="px-4 py-3 text-neutral-700">{row.termName ?? "Any"}</td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
+                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium uppercase ${
                           row.status === "approved"
                             ? "bg-green-100 text-green-800"
                             : row.status === "rejected"
@@ -172,7 +172,7 @@ export default async function FeeSetupPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
+                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium uppercase ${
                           row.active ? "bg-green-100 text-green-800" : "bg-neutral-100 text-neutral-600"
                         }`}
                       >

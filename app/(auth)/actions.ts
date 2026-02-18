@@ -96,6 +96,14 @@ export async function login(
   if (session?.user?.id) {
     try {
       const profile = await getUserProfileByUserId(session.user.id);
+      
+      // Check if user is active
+      if (profile && profile.active === false) {
+        // Sign out the user if they're inactive and redirect to not-authorized page
+        await auth.signOut();
+        redirect("/not-authorized?reason=account_inactive");
+      }
+      
       const role = profile?.role ?? "student";
       redirect(roleHomePath(role));
     } catch {

@@ -144,7 +144,7 @@ export default async function ProgramHeadSubmissionsPage({
                       {s.teacherFirstName} {s.teacherLastName}
                     </td>
                     <td className="px-4 py-2">
-                      <span className={`rounded px-2 py-0.5 text-xs ${statusClass(s.status)}`}>
+                      <span className={`rounded px-2 py-0.5 text-xs uppercase ${statusClass(s.status)}`}>
                         {formatStatusForDisplay(s.status)}
                       </span>
                     </td>

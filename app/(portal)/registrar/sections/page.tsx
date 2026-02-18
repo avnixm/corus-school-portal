@@ -66,7 +66,7 @@ export default async function SectionsPage({
                     <td className="px-4 py-2 font-medium">{row.name}</td>
                     <td className="px-4 py-2">
                       <span
-                        className={`rounded px-2 py-0.5 text-xs ${
+                        className={`rounded px-2 py-0.5 text-xs uppercase ${
                           row.active !== false ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-800"
                         }`}
                       >

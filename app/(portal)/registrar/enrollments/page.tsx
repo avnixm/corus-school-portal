@@ -142,7 +142,7 @@ export default async function EnrollmentsPage({
                     </td>
                     <td className="px-4 py-2">
                       <span
-                        className={`rounded px-2 py-0.5 text-xs ${
+                        className={`rounded px-2 py-0.5 text-xs uppercase ${
                           row.status === "approved"
                             ? "bg-green-100 text-green-800"
                             : row.status === "rejected"
@@ -161,7 +161,7 @@ export default async function EnrollmentsPage({
                             <span className="flex flex-col gap-0.5">
                               <span className="text-neutral-800">Classes: {summary.classesAssigned}</span>
                               {summary.schedulePending && (
-                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
+                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs uppercase text-amber-800">
                                   Schedule pending
                                 </span>
                               )}
@@ -176,7 +176,7 @@ export default async function EnrollmentsPage({
                     </td>
                     <td className="px-4 py-2">
                       <span
-                        className={`rounded px-2 py-0.5 text-xs ${
+                        className={`rounded px-2 py-0.5 text-xs uppercase ${
                           row.financeStatus === "cleared"
                             ? "bg-green-100 text-green-800"
                             : row.financeStatus === "paid"

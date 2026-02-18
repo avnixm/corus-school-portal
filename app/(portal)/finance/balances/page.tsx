@@ -94,7 +94,7 @@ export default async function BalancesPage({
                     </td>
                     <td className="px-4 py-2">
                       <span
-                        className={`rounded px-2 py-0.5 text-xs ${
+                        className={`rounded px-2 py-0.5 text-xs uppercase ${
                           row.financeStatus === "paid"
                             ? "bg-green-100 text-green-800"
                             : row.financeStatus === "partially_paid"

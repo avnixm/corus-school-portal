@@ -58,19 +58,34 @@ export function RoleSelect({
     if (!result?.error) router.refresh();
   }
 
+  function getRoleColorClasses(role: string): string {
+    switch (role) {
+      case "admin":
+        return "bg-amber-100 text-amber-800 border-amber-300";
+      case "registrar":
+        return "bg-[#6A0000]/10 text-[#6A0000] border-[#6A0000]/30";
+      case "student":
+        return "bg-blue-100 text-blue-800 border-blue-300";
+      case "teacher":
+        return "bg-purple-100 text-purple-800 border-purple-300";
+      case "finance":
+        return "bg-green-100 text-green-800 border-green-300";
+      case "program_head":
+        return "bg-indigo-100 text-indigo-800 border-indigo-300";
+      case "dean":
+        return "bg-teal-100 text-teal-800 border-teal-300";
+      default:
+        return "bg-neutral-100 text-neutral-800 border-neutral-300";
+    }
+  }
+
   return (
     <>
       <select
         value={currentRole}
         onChange={handleChange}
         disabled={pending}
-        className={`rounded px-2 py-0.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40 ${
-          currentRole === "admin"
-            ? "bg-amber-100 text-amber-800"
-            : currentRole === "registrar"
-            ? "bg-[#6A0000]/10 text-[#6A0000]"
-            : "bg-neutral-100 text-neutral-800"
-        } ${pending ? "opacity-70 cursor-wait" : "cursor-pointer"}`}
+        className={`rounded px-2 py-0.5 text-xs font-medium uppercase border focus:outline-none focus:ring-2 focus:ring-[#6A0000]/40 ${getRoleColorClasses(currentRole)} ${pending ? "opacity-70 cursor-wait" : "cursor-pointer"}`}
       >
         {ROLES.map((r) => (
           <option key={r} value={r}>

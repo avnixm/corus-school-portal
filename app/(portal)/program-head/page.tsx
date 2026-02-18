@@ -244,7 +244,7 @@ export default async function ProgramHeadDashboardPage() {
                       {s.teacherFirstName} {s.teacherLastName}
                     </td>
                     <td className="px-4 py-2">
-                      <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                      <span className="rounded bg-amber-100 px-2 py-0.5 text-xs uppercase text-amber-800">
                         {formatStatusForDisplay(s.status)}
                       </span>
                     </td>

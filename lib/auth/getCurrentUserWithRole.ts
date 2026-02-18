@@ -47,6 +47,11 @@ export async function getCurrentUserWithRole(): Promise<CurrentUser | null> {
       };
     }
 
+    // Check if user is active - return null if inactive
+    if (profile.active === false) {
+      return null;
+    }
+
     // Admin-created users have emailVerificationBypassed; treat as verified so they are not sent to verify-email.
     const effectiveVerified =
       emailVerified || (profile.emailVerificationBypassed ?? false);

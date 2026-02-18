@@ -150,7 +150,7 @@ export default async function StudentDetailPage({
                     <td className="px-4 py-2">{row.yearLevel ?? "—"}</td>
                     <td className="px-4 py-2">
                       <span
-                        className={`rounded px-2 py-0.5 text-xs ${
+                        className={`rounded px-2 py-0.5 text-xs uppercase ${
                           row.status === "approved"
                             ? "bg-green-100 text-green-800"
                             : row.status === "rejected"

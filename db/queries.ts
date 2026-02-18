@@ -37,6 +37,7 @@ import {
   programHeadAssignments,
   systemSettings,
   auditLog,
+  supportRequests,
   governanceFlags,
   feeSetups,
   feeSetupLines,
@@ -177,6 +178,37 @@ export async function getUsersListSearch(params?: {
     result = result.filter((r) => r.role === roleFilter);
   }
   return result;
+}
+
+// ============ Support requests ============
+
+export async function createSupportRequest(entry: {
+  reason: string;
+  email?: string | null;
+  phone?: string | null;
+  message: string;
+  userId?: string | null;
+}) {
+  const email = entry.email?.trim() ? entry.email.trim().toLowerCase() : null;
+  const phone = entry.phone?.trim() ? entry.phone.trim() : null;
+  const message = entry.message.trim();
+  const reason = entry.reason.trim() || "unknown";
+
+  return db.insert(supportRequests).values({
+    reason,
+    email,
+    phone,
+    message,
+    userId: entry.userId ?? null,
+  });
+}
+
+export async function listSupportRequests(limit = 200) {
+  return db
+    .select()
+    .from(supportRequests)
+    .orderBy(desc(supportRequests.createdAt))
+    .limit(limit);
 }
 
 // ============ Audit log ============

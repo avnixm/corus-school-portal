@@ -196,7 +196,7 @@ export function DeanAnnouncementsList({
                         {getRoleDisplayLabel(a.createdByRole)}
                       </span>
                       {a.pinned && (
-                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs uppercase text-amber-800">
                           Pinned
                         </span>
                       )}

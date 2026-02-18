@@ -72,7 +72,7 @@ export default async function ClearancePage() {
                     </td>
                     <td className="px-4 py-2">
                       {holdEnrollmentIds.has(row.id) ? (
-                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium uppercase text-amber-800">
                           Active hold
                         </span>
                       ) : (

@@ -70,7 +70,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Sea
                     </td>
                     <td className="px-4 py-2">
                       {(row as { isGe?: boolean }).isGe ? (
-                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">GE</span>
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs uppercase text-amber-800">GE</span>
                       ) : (
                         (row as { programCode?: string | null }).programCode ?? "—"
                       )}
@@ -78,7 +78,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Sea
                     <td className="px-4 py-2">{row.units ?? "—"}</td>
                     <td className="px-4 py-2">
                       <span
-                        className={`rounded px-2 py-0.5 text-xs ${
+                        className={`rounded px-2 py-0.5 text-xs uppercase ${
                           row.active ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-800"
                         }`}
                       >

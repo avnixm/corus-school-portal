@@ -142,6 +142,26 @@ export const auditLog = pgTable("audit_log", {
 });
 
 /**
+ * Support requests (unauthenticated / inactive users)
+ */
+export const supportRequests = pgTable(
+  "support_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reason: varchar("reason", { length: 64 }).notNull(), // e.g. account_inactive
+    email: varchar("email", { length: 255 }),
+    phone: varchar("phone", { length: 64 }),
+    message: text("message").notNull(),
+    userId: text("user_id"), // optional auth user id if available
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    createdAtIdx: index("support_requests_created_at_idx").on(table.createdAt),
+    reasonIdx: index("support_requests_reason_idx").on(table.reason),
+  })
+);
+
+/**
  * Academic calendar / setup
  */
 
