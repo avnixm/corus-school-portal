@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/db/cache";
 import { auth } from "@/lib/auth/server";
 import { getUserProfileByUserId } from "@/db/queries";
 import {
@@ -57,6 +58,7 @@ export async function createRequirementAction(formData: FormData) {
   revalidatePath("/registrar/approvals/requirements");
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
+  revalidateTag(CACHE_TAGS.refRequirements, "max");
   return { success: true };
 }
 
@@ -92,6 +94,7 @@ export async function updateRequirementAction(id: string, formData: FormData) {
   }
   revalidatePath("/registrar/approvals/requirements");
   revalidatePath("/registrar/approvals");
+  revalidateTag(CACHE_TAGS.refRequirements, "max");
   return { success: true };
 }
 
@@ -101,6 +104,7 @@ export async function toggleRequirementActiveAction(id: string, isActive: boolea
   await updateRequirement(id, { isActive });
   revalidatePath("/registrar/approvals/requirements");
   revalidatePath("/registrar/approvals");
+  revalidateTag(CACHE_TAGS.refRequirements, "max");
   return { success: true };
 }
 
@@ -116,6 +120,7 @@ export async function deleteRequirementAction(id: string) {
   }
   revalidatePath("/registrar/approvals/requirements");
   revalidatePath("/registrar/approvals");
+  revalidateTag(CACHE_TAGS.refRequirements, "max");
   return { success: true };
 }
 
@@ -145,6 +150,7 @@ export async function createRuleAction(formData: FormData) {
   });
   revalidatePath("/registrar/approvals/requirements");
   revalidatePath("/registrar/approvals");
+  revalidateTag(CACHE_TAGS.refRequirementRules, "max");
   return { success: true };
 }
 
@@ -169,6 +175,7 @@ export async function updateRuleAction(id: string, formData: FormData) {
   });
   revalidatePath("/registrar/approvals/requirements");
   revalidatePath("/registrar/approvals");
+  revalidateTag(CACHE_TAGS.refRequirementRules, "max");
   return { success: true };
 }
 
@@ -178,6 +185,7 @@ export async function deleteRuleAction(id: string) {
   await deleteRequirementRule(id);
   revalidatePath("/registrar/approvals/requirements");
   revalidatePath("/registrar/approvals");
+  revalidateTag(CACHE_TAGS.refRequirementRules, "max");
   return { success: true };
 }
 
@@ -190,6 +198,8 @@ export async function verifyRequirementAction(id: string) {
   revalidatePath("/registrar/approvals/queue");
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
+  revalidateTag(CACHE_TAGS.registrarApprovals, "max");
+  revalidateTag(CACHE_TAGS.registrarQueue, "max");
   return { success: true };
 }
 
@@ -202,6 +212,8 @@ export async function rejectRequirementAction(id: string, notes: string) {
   revalidatePath("/registrar/approvals/queue");
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
+  revalidateTag(CACHE_TAGS.registrarApprovals, "max");
+  revalidateTag(CACHE_TAGS.registrarQueue, "max");
   return { success: true };
 }
 
@@ -222,8 +234,13 @@ export async function verifySubmissionAction(submissionId: string, messageToStud
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar/approvals");
   revalidatePath("/student/requirements");
+  revalidateTag(CACHE_TAGS.registrarApprovals, "max");
+  revalidateTag(CACHE_TAGS.registrarQueue, "max");
   const sub = await getRequirementSubmissionById(submissionId);
-  if (sub?.studentId) revalidatePath(`/registrar/students/${sub.studentId}`);
+  if (sub?.studentId) {
+    revalidatePath(`/registrar/students/${sub.studentId}`);
+    revalidateTag(CACHE_TAGS.studentDashboard(sub.studentId), "max");
+  }
   return { success: true };
 }
 
@@ -243,9 +260,13 @@ export async function rejectSubmissionAction(submissionId: string, remarks: stri
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar/approvals/queue");
   revalidatePath("/registrar/approvals");
-  revalidatePath("/registrar/approvals");
   revalidatePath("/student/requirements");
+  revalidateTag(CACHE_TAGS.registrarApprovals, "max");
+  revalidateTag(CACHE_TAGS.registrarQueue, "max");
   const sub = await getRequirementSubmissionById(submissionId);
-  if (sub?.studentId) revalidatePath(`/registrar/students/${sub.studentId}`);
+  if (sub?.studentId) {
+    revalidatePath(`/registrar/students/${sub.studentId}`);
+    revalidateTag(CACHE_TAGS.studentDashboard(sub.studentId), "max");
+  }
   return { success: true };
 }

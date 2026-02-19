@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/db/cache";
 import {
   postPayment,
   voidPayment,
@@ -85,6 +86,8 @@ export async function postPaymentAction(formData: FormData) {
     revalidatePath("/finance");
     revalidatePath("/student");
     revalidatePath("/student/billing");
+    revalidateTag(CACHE_TAGS.finance(enrollmentId), "max");
+    revalidateTag(CACHE_TAGS.studentDashboard(studentId), "max");
     return { success: true, paymentId: payment?.id ?? null };
   } catch (e) {
     return { error: "Failed to post payment" };
@@ -103,6 +106,10 @@ export async function voidPaymentAction(paymentId: string) {
     revalidatePath("/finance");
     revalidatePath("/student");
     revalidatePath("/student/billing");
+    if (payment.enrollmentId) {
+      revalidateTag(CACHE_TAGS.finance(payment.enrollmentId), "max");
+      if (payment.studentId) revalidateTag(CACHE_TAGS.studentDashboard(payment.studentId), "max");
+    }
     return { success: true };
   } catch (e) {
     return { error: "Failed to void payment" };

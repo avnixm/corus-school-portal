@@ -4,8 +4,7 @@ import { hasActiveFinanceHoldForEnrollment } from "@/db/queries";
 import {
   getStudentBalance,
   getAssessmentsByEnrollment,
-  getPaymentsByEnrollment,
-  getPaymentWithDetails,
+  getPaymentsWithDetailsByEnrollment,
 } from "@/lib/finance/queries";
 import {
   getGradingPeriodsBySchoolYearAndTerm,
@@ -51,10 +50,10 @@ export default async function StudentBillingPage() {
     missingFormNames = await getEnrolledStudentMissingRequiredFormNames(enrollment.id);
   }
 
-  const [efs, assessments, payments, hasHold, periods] = await Promise.all([
+  const [efs, assessments, receiptDetails, hasHold, periods] = await Promise.all([
     getStudentBalance(enrollment.id),
     getAssessmentsByEnrollment(enrollment.id),
-    getPaymentsByEnrollment(enrollment.id),
+    getPaymentsWithDetailsByEnrollment(enrollment.id),
     hasActiveFinanceHoldForEnrollment(enrollment.id),
     getGradingPeriodsBySchoolYearAndTerm(enrollment.schoolYearId, enrollment.termId),
   ]);
@@ -72,15 +71,13 @@ export default async function StudentBillingPage() {
   }
 
   const postedAssessment = assessments.find((a) => a.status === "posted");
-  const [receiptDetails, assessmentFormData] = await Promise.all([
-    Promise.all(payments.map((p) => getPaymentWithDetails(p.id))),
-    postedAssessment
-      ? getAssessmentFormData(postedAssessment.id)
-      : Promise.resolve(null),
-  ]);
+  const assessmentFormData = postedAssessment
+    ? await getAssessmentFormData(postedAssessment.id)
+    : null;
   const totalAssessed = postedAssessment ? Number(postedAssessment.total) : 0;
   const balance = efs ? Number(efs.balance) : 0;
-  const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalPaid = receiptDetails.reduce((sum, p) => sum + Number(p.amount), 0);
+  const payments = receiptDetails;
   const status = efs?.status ?? "unassessed";
 
   const statusLabel =

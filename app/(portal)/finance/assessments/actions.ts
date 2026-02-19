@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/db/cache";
 import {
   getEnrollmentById,
   insertAuditLog,
@@ -282,6 +283,9 @@ export async function postAssessmentAction(assessmentId: string) {
     });
     revalidatePath("/finance/assessments");
     revalidatePath("/finance");
+    if (result?.enrollmentId) {
+      revalidateTag(CACHE_TAGS.finance(result.enrollmentId), "max");
+    }
     return { success: true };
   } catch (e) {
     return { error: "Failed to post assessment" };

@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/db/cache";
 import {
   createEnrollment,
   getEnrollmentById,
@@ -98,6 +99,10 @@ export async function updateEnrollmentStatus(
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
   revalidatePath("/finance/assessments");
+  revalidateTag(CACHE_TAGS.registrarApprovals, "max");
+  revalidateTag(CACHE_TAGS.enrollment(enrollmentId), "max");
+  revalidateTag(CACHE_TAGS.studentDashboard(enrollment.studentId), "max");
+  revalidateTag(CACHE_TAGS.finance(enrollmentId), "max");
   return { success: true };
 }
 

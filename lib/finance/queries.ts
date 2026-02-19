@@ -311,6 +311,80 @@ export async function getPaymentsByEnrollment(enrollmentId: string) {
     .orderBy(desc(payments.receivedAt));
 }
 
+/** Batch: all payment details for an enrollment (one query instead of N× getPaymentWithDetails). */
+export async function getPaymentsWithDetailsByEnrollment(enrollmentId: string) {
+  const [rows, assRow] = await Promise.all([
+    db
+      .select({
+        paymentId: payments.id,
+        amount: payments.amount,
+        method: payments.method,
+        referenceNo: payments.referenceNo,
+        remarks: payments.remarks,
+        status: payments.status,
+        receivedAt: payments.receivedAt,
+        enrollmentId: payments.enrollmentId,
+        installmentSequence: payments.installmentSequence,
+        studentId: students.id,
+        studentCode: students.studentCode,
+        firstName: students.firstName,
+        middleName: students.middleName,
+        lastName: students.lastName,
+        schoolYearName: schoolYears.name,
+        termName: terms.name,
+        program: enrollments.program,
+        yearLevel: enrollments.yearLevel,
+        balance: enrollmentFinanceStatus.balance,
+      })
+      .from(payments)
+      .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+      .innerJoin(students, eq(payments.studentId, students.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(terms, eq(enrollments.termId, terms.id))
+      .leftJoin(
+        enrollmentFinanceStatus,
+        eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
+      )
+      .where(and(eq(payments.enrollmentId, enrollmentId), eq(payments.status, "posted")))
+      .orderBy(desc(payments.receivedAt)),
+    db
+      .select({ discounts: assessments.discounts })
+      .from(assessments)
+      .where(eq(assessments.enrollmentId, enrollmentId))
+      .orderBy(desc(assessments.updatedAt))
+      .limit(1)
+      .then((r) => r[0]),
+  ]);
+
+  const assessmentDiscounts = assRow ? parseFloat(assRow.discounts ?? "0") : 0;
+
+  return rows.map((row) => {
+    const isFullPayment = row.remarks?.toLowerCase().includes("full payment") ?? false;
+    const showDiscount = isFullPayment && assessmentDiscounts > 0;
+    return {
+      id: row.paymentId,
+      amount: row.amount,
+      method: row.method,
+      referenceNo: row.referenceNo,
+      remarks: row.remarks,
+      receivedAt: row.receivedAt,
+      studentId: row.studentId,
+      studentCode: row.studentCode,
+      fullName: [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" "),
+      schoolYearName: row.schoolYearName,
+      termName: row.termName,
+      program: row.program,
+      yearLevel: row.yearLevel,
+      balanceAfter: row.balance,
+      installmentSequence: row.installmentSequence ?? undefined,
+      ...(showDiscount && {
+        discountAmount: assessmentDiscounts.toFixed(2),
+        originalAmount: (parseFloat(row.amount ?? "0") + assessmentDiscounts).toFixed(2),
+      }),
+    };
+  });
+}
+
 export async function getRecentPayments(limit = 20) {
   try {
     return await db
