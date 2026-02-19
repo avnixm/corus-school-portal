@@ -101,7 +101,18 @@ export async function getUsersList() {
 
 export async function getProfileAndStudentByUserId(userId: string) {
   const [profile] = await db
-    .select()
+    .select({
+      id: userProfile.id,
+      userId: userProfile.userId,
+      email: userProfile.email,
+      fullName: userProfile.fullName,
+      role: userProfile.role,
+      emailVerificationBypassed: userProfile.emailVerificationBypassed,
+      active: userProfile.active,
+      program: userProfile.program,
+      createdAt: userProfile.createdAt,
+      updatedAt: userProfile.updatedAt,
+    })
     .from(userProfile)
     .where(eq(userProfile.userId, userId))
     .limit(1);
@@ -109,7 +120,18 @@ export async function getProfileAndStudentByUserId(userId: string) {
   if (!profile) return null;
 
   const [student] = await db
-    .select()
+    .select({
+      id: students.id,
+      userProfileId: students.userProfileId,
+      studentCode: students.studentCode,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      program: students.program,
+      yearLevel: students.yearLevel,
+      createdAt: students.createdAt,
+      updatedAt: students.updatedAt,
+    })
     .from(students)
     .where(eq(students.userProfileId, profile.id))
     .limit(1);
@@ -1345,7 +1367,19 @@ export async function getPendingEnrollmentApprovalsList(search?: string) {
 
 export async function getEnrollmentById(id: string) {
   const [row] = await db
-    .select()
+    .select({
+      id: enrollments.id,
+      studentId: enrollments.studentId,
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+      programId: enrollments.programId,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      sectionId: enrollments.sectionId,
+      status: enrollments.status,
+      createdAt: enrollments.createdAt,
+      updatedAt: enrollments.updatedAt,
+    })
     .from(enrollments)
     .where(eq(enrollments.id, id))
     .limit(1);
@@ -1664,7 +1698,13 @@ export async function getTermsList() {
 
 export async function getActiveSchoolYear() {
   const [row] = await db
-    .select()
+    .select({
+      id: schoolYears.id,
+      name: schoolYears.name,
+      isActive: schoolYears.isActive,
+      createdAt: schoolYears.createdAt,
+      updatedAt: schoolYears.updatedAt,
+    })
     .from(schoolYears)
     .where(eq(schoolYears.isActive, true))
     .limit(1);
@@ -1675,7 +1715,14 @@ export async function getActiveTerm() {
   const sy = await getActiveSchoolYear();
   if (!sy) return null;
   const [row] = await db
-    .select()
+    .select({
+      id: terms.id,
+      name: terms.name,
+      schoolYearId: terms.schoolYearId,
+      isActive: terms.isActive,
+      createdAt: terms.createdAt,
+      updatedAt: terms.updatedAt,
+    })
     .from(terms)
     .where(and(eq(terms.schoolYearId, sy.id), eq(terms.isActive, true)))
     .limit(1);
@@ -2526,7 +2573,17 @@ export async function getRequirementRulesForContext(filters: {
 }) {
   try {
     const q = db
-      .select()
+      .select({
+        id: requirementRules.id,
+        requirementId: requirementRules.requirementId,
+        appliesTo: requirementRules.appliesTo,
+        program: requirementRules.program,
+        yearLevel: requirementRules.yearLevel,
+        schoolYearId: requirementRules.schoolYearId,
+        termId: requirementRules.termId,
+        isRequired: requirementRules.isRequired,
+        sortOrder: requirementRules.sortOrder,
+      })
       .from(requirementRules)
       .where(eq(requirementRules.appliesTo, filters.appliesTo))
       .orderBy(requirementRules.sortOrder);
@@ -2723,7 +2780,16 @@ export async function rejectSubmission(submissionId: string, remarks: string) {
 
 export async function getRequirementFilesBySubmissionId(submissionId: string) {
   return db
-    .select()
+    .select({
+      id: requirementFiles.id,
+      submissionId: requirementFiles.submissionId,
+      fileName: requirementFiles.fileName,
+      fileType: requirementFiles.fileType,
+      fileSize: requirementFiles.fileSize,
+      storageKey: requirementFiles.storageKey,
+      url: requirementFiles.url,
+      uploadedAt: requirementFiles.uploadedAt,
+    })
     .from(requirementFiles)
     .where(eq(requirementFiles.submissionId, submissionId));
 }

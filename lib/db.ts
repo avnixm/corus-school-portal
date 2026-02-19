@@ -1,3 +1,8 @@
+/**
+ * Drizzle + Neon serverless DB client.
+ * Uses DATABASE_URL (must be Neon pooled URL, hostname contains "-pooler") for runtime.
+ * For migrations, use DATABASE_URL_DIRECT if your tooling requires a direct connection.
+ */
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
 import * as schema from "@/db/schema";

@@ -829,6 +829,11 @@ export const enrollments = pgTable(
       table.schoolYearId,
       table.termId
     ),
+    syTermStatusIdx: index("enrollments_sy_term_status_idx").on(
+      table.schoolYearId,
+      table.termId,
+      table.status
+    ),
   })
 );
 
@@ -851,6 +856,7 @@ export const enrollmentApprovals = pgTable("enrollment_approvals", {
   remarks: text("remarks"),
 }, (table) => ({
   enrollmentIdUnique: uniqueIndex("enrollment_approvals_enrollment_id_unique").on(table.enrollmentId),
+  statusIdx: index("enrollment_approvals_status_idx").on(table.status),
 }));
 
 /**
@@ -1277,6 +1283,7 @@ export const requirementFiles = pgTable(
       table.submissionId,
       table.storageKey
     ),
+    submissionIdIdx: index("requirement_files_submission_id_idx").on(table.submissionId),
   })
 );
 
