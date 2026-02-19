@@ -74,6 +74,13 @@ export default async function StudentRequirementsPage({
   const waitForApproval = required.filter((a) => a.submission.status === "submitted");
   const needResubmit = required.filter((a) => a.submission.status === "rejected");
 
+  const verifiedSubmissionIds = new Set(
+    applicable.filter((a) => a.submission.status === "verified").map((a) => a.submission.id)
+  );
+  const pendingRequestsUnverified = pendingRequests.filter(
+    (r) => !verifiedSubmissionIds.has(r.submissionId)
+  );
+
   return (
     <div className="space-y-6">
       {fromRequiredRedirect && (
@@ -169,11 +176,11 @@ export default async function StudentRequirementsPage({
               Upload a file for each requirement below. When ready, click <strong>Submit for verification</strong> on each item.
             </p>
           </div>
-          {pendingRequests.length > 0 && (
+          {pendingRequestsUnverified.length > 0 && (
             <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
               <p className="font-medium">Registrar requested these documents:</p>
               <ul className="mt-1 list-inside list-disc">
-                {pendingRequests.map((r) => (
+                {pendingRequestsUnverified.map((r) => (
                   <li key={r.submissionId}>{r.requirementName}</li>
                 ))}
               </ul>
@@ -183,7 +190,7 @@ export default async function StudentRequirementsPage({
           <StudentRequirementsClient
             items={applicable}
             enrollmentId={enrollmentId}
-            pendingRequestSubmissionIds={pendingRequests.map((r) => r.submissionId)}
+            pendingRequestSubmissionIds={pendingRequestsUnverified.map((r) => r.submissionId)}
           />
         </>
       )}

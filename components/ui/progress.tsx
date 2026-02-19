@@ -1,42 +1,40 @@
+// path: components/ui/progress.tsx
 "use client"
 
 import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
+
 import { cn } from "@/lib/utils"
 
+/**
+ * DEBUG CHECKLIST (Progress fill invisible):
+ * - Cause: Indicator fill relied on Tailwind bg-primary / CSS var; in some builds or
+ *   Tailwind v4 configs the token did not apply to the Indicator, so fill was transparent.
+ * - Fix: Use width-based fill (not only transform) + inline backgroundColor so fill does
+ *   not depend on Tailwind. Pass value to Root for a11y. Use CORUS maroon.
+ * - Prevention: Keep Indicator background as inline style or explicit bg-corus-maroon;
+ *   ensure value is number 0–100; avoid removing overflow-hidden from Root.
+ */
 const Progress = React.forwardRef<
   React.ComponentRef<typeof ProgressPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
->(({ className, value = 0, max = 100, ...props }, ref) => {
-  const pct = Math.min(max, Math.max(0, Number(value) ?? 0))
-  const widthPct = max > 0 ? (pct / max) * 100 : 0
+>(({ className, value, ...props }, ref) => {
+  const pct = Math.min(100, Math.max(0, Number(value ?? 0)))
   return (
     <ProgressPrimitive.Root
       ref={ref}
-      role="progressbar"
-      aria-valuenow={pct}
-      aria-valuemin={0}
-      aria-valuemax={max}
-      aria-valuetext={`${Math.round(widthPct)}%`}
+      value={pct}
       className={cn(
-        "relative h-2.5 w-full overflow-hidden rounded-full bg-neutral-200",
+        "relative h-4 w-full overflow-hidden rounded-full bg-secondary",
         className
       )}
-      value={pct}
-      max={max}
       {...props}
     >
-      {/* Plain div for fill so width is fully under our control; Radix Indicator can conflict with Tailwind/serialization */}
-      <div
-        aria-hidden
-        className="rounded-full bg-primary transition-[width] duration-500 ease-out"
+      <ProgressPrimitive.Indicator
+        className="h-full flex-none rounded-full transition-all duration-300 ease-out"
         style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          height: "100%",
-          width: `${widthPct}%`,
-          minWidth: widthPct > 0 ? 6 : 0,
+          width: `${pct}%`,
+          backgroundColor: "var(--corus-maroon, #6A0000)",
         }}
       />
     </ProgressPrimitive.Root>

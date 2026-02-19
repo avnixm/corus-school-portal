@@ -2,54 +2,14 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1770988891538,
-      "tag": "0000_mysterious_nova",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770990520849,
-      "tag": "0001_awesome_triathlon",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771012987982,
-      "tag": "0002_nostalgic_aaron_stack",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1771015336056,
-      "tag": "0003_cuddly_shriek",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1771016250106,
-      "tag": "0004_windy_the_leader",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1771018598257,
-      "tag": "0005_oval_epoch",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1771029431160,
-      "tag": "0006_cool_archangel",
-      "breakpoints": true
-    }
+    {"idx":0,"version":"7","when":1770988891538,"tag":"0000_mysterious_nova","breakpoints":true},
+    {"idx":1,"version":"7","when":1770990520849,"tag":"0001_awesome_triathlon","breakpoints":true},
+    {"idx":2,"version":"7","when":1771012987982,"tag":"0002_nostalgic_aaron_stack","breakpoints":true},
+    {"idx":3,"version":"7","when":1771015336056,"tag":"0003_cuddly_shriek","breakpoints":true},
+    {"idx":4,"version":"7","when":1771016250106,"tag":"0004_windy_the_leader","breakpoints":true},
+    {"idx":5,"version":"7","when":1771018598257,"tag":"0005_oval_epoch","breakpoints":true},
+    {"idx":6,"version":"7","when":1771029431160,"tag":"0006_cool_archangel","breakpoints":true},
+    {"idx":7,"version":"7","when":1771030000000,"tag":"0008_promissory_notes_installment","breakpoints":true},
+    {"idx":8,"version":"7","when":1771031000000,"tag":"0009_payments_installment_sequence","breakpoints":true}
   ]
 }

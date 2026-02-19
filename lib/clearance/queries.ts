@@ -13,9 +13,12 @@ import {
   enrollmentSubjects,
   subjects,
   sections,
+  classSchedules,
+  userProfile,
 } from "@/db/schema";
 import { getSystemSetting } from "@/db/queries";
-import { eq, and, desc, inArray, or } from "drizzle-orm";
+import { getApprovedEnrollmentsByStudent } from "@/lib/finance/queries";
+import { eq, and, desc, inArray, or, sql } from "drizzle-orm";
 
 const BLOCKING_EFS_STATUSES = ["assessed", "partially_paid", "hold"] as const;
 
@@ -262,6 +265,7 @@ export type ClearanceQueueRow = {
   studentCode: string;
   studentName: string;
   schoolYearName: string;
+  termId: string;
   termName: string;
   periodName: string;
   program: string | null;
@@ -272,6 +276,124 @@ export type ClearanceQueueRow = {
   remarks: string | null;
   balance: string | null;
 };
+
+/** Enrollments that are financially blocked (balance or hold) but may not have a clearance request yet. Used so Finance can create PN for any student with balance. */
+export async function listEnrollmentsBlockedByFinance(): Promise<ClearanceQueueRow[]> {
+  const blockedEfs = await db
+    .select({
+      enrollmentId: enrollments.id,
+      studentId: enrollments.studentId,
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      balance: enrollmentFinanceStatus.balance,
+      status: enrollmentFinanceStatus.status,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+      studentCode: students.studentCode,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+    })
+    .from(enrollments)
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(enrollments.termId, terms.id))
+    .leftJoin(
+      enrollmentFinanceStatus,
+      eq(enrollments.id, enrollmentFinanceStatus.enrollmentId)
+    )
+    .where(
+      and(
+        eq(enrollments.status, "approved"),
+        or(
+          and(
+            inArray(enrollmentFinanceStatus.status, ["assessed", "partially_paid", "hold"]),
+            sql`CAST(${enrollmentFinanceStatus.balance} AS numeric) > 0`
+          ),
+          sql`EXISTS (
+            SELECT 1 FROM governance_flags gf
+            WHERE gf.status = 'active' AND gf.flag_type = 'finance_hold'
+            AND (gf.enrollment_id = ${enrollments.id} OR gf.student_id = ${enrollments.studentId})
+          )`
+        )
+    )
+  );
+
+  const rows: ClearanceQueueRow[] = [];
+  for (const r of blockedEfs) {
+    if (!r.enrollmentId || !r.schoolYearId || !r.termId) continue;
+    const [period] = await db
+      .select({ id: gradingPeriods.id, name: gradingPeriods.name })
+      .from(gradingPeriods)
+      .where(
+        and(
+          eq(gradingPeriods.schoolYearId, r.schoolYearId),
+          eq(gradingPeriods.termId, r.termId),
+          eq(gradingPeriods.isActive, true)
+        )
+      )
+      .orderBy(gradingPeriods.sortOrder)
+      .limit(1);
+    if (!period) continue;
+    rows.push({
+      requestId: "",
+      periodId: period.id,
+      enrollmentId: r.enrollmentId,
+      studentId: r.studentId,
+      studentCode: r.studentCode ?? "",
+      studentName: [r.firstName, r.middleName, r.lastName].filter(Boolean).join(" "),
+      schoolYearName: r.schoolYearName,
+      termId: r.termId,
+      termName: r.termName,
+      periodName: period.name,
+      program: r.program,
+      yearLevel: r.yearLevel,
+      itemId: "",
+      officeType: "finance",
+      itemStatus: "blocked",
+      remarks: "Balance due or hold",
+      balance: r.balance ?? "0",
+    });
+  }
+  return rows;
+}
+
+export type PromissoryNoteTotals = {
+  currentTermBalance: string;
+  previousUnpaidTotal: string;
+  totalOutstanding: string;
+  totalPromisedDefault: string;
+};
+
+/** Totals for creating a promissory note: current balance, previous unpaid (other terms), and combined. */
+export async function getTotalsForPromissoryNote(
+  enrollmentId: string,
+  studentId: string,
+  includePreviousBalances: boolean
+): Promise<PromissoryNoteTotals> {
+  const all = await getApprovedEnrollmentsByStudent(studentId);
+  const current = all.find((r) => r.id === enrollmentId);
+  const currentTermBalance = current ? (current.balance ?? "0") : "0";
+  const previousEnrollments = all.filter((r) => r.id !== enrollmentId);
+  let previousUnpaidTotal = "0";
+  for (const r of previousEnrollments) {
+    const b = parseFloat(r.balance ?? "0");
+    if (b > 0) previousUnpaidTotal = (parseFloat(previousUnpaidTotal) + b).toFixed(2);
+  }
+  const currentNum = parseFloat(currentTermBalance);
+  const previousNum = parseFloat(previousUnpaidTotal);
+  const totalOutstanding = includePreviousBalances
+    ? (currentNum + previousNum).toFixed(2)
+    : currentTermBalance;
+  return {
+    currentTermBalance,
+    previousUnpaidTotal,
+    totalOutstanding,
+    totalPromisedDefault: totalOutstanding,
+  };
+}
 
 /** List clearance queue for an office (e.g. finance blocked, registrar pending). */
 export async function listClearanceQueue(
@@ -293,6 +415,7 @@ export async function listClearanceQueue(
       enrollmentId: clearanceRequests.enrollmentId,
       studentId: clearanceRequests.studentId,
       schoolYearName: schoolYears.name,
+      termId: clearanceRequests.termId,
       termName: terms.name,
       periodName: gradingPeriods.name,
       program: enrollments.program,
@@ -335,6 +458,7 @@ export async function listClearanceQueue(
     studentCode: r.studentCode ?? "",
     studentName: [r.firstName, r.middleName, r.lastName].filter(Boolean).join(" "),
     schoolYearName: r.schoolYearName,
+    termId: r.termId,
     termName: r.termName,
     periodName: r.periodName,
     program: r.program,
@@ -485,8 +609,13 @@ export async function signClearanceWithPromissoryNote(
     .limit(1);
   if (!note) return { error: "Promissory note not found" };
   if (note.status !== "approved") return { error: "Promissory note is not approved" };
-  if (note.enrollmentId !== data.request.enrollmentId || note.periodId !== data.request.periodId)
-    return { error: "Promissory note does not match this clearance" };
+  if (note.enrollmentId !== data.request.enrollmentId) return { error: "Promissory note does not match this clearance" };
+  const [notePeriod, reqPeriod] = await Promise.all([
+    db.select({ termId: gradingPeriods.termId }).from(gradingPeriods).where(eq(gradingPeriods.id, note.periodId)).limit(1),
+    db.select({ termId: gradingPeriods.termId }).from(gradingPeriods).where(eq(gradingPeriods.id, data.request.periodId)).limit(1),
+  ]);
+  if (!notePeriod[0] || !reqPeriod[0] || notePeriod[0].termId !== reqPeriod[0].termId)
+    return { error: "Promissory note does not match this clearance (different semester)" };
 
   await db
     .update(clearanceItems)
@@ -639,9 +768,22 @@ export async function getClearancePrintData(
       code: subjects.code,
       title: subjects.title,
       units: enrollmentSubjects.units,
+      teacherName: classSchedules.teacherName,
+      teacherFullName: userProfile.fullName,
     })
     .from(enrollmentSubjects)
     .innerJoin(subjects, eq(enrollmentSubjects.subjectId, subjects.id))
+    .innerJoin(enrollments, eq(enrollmentSubjects.enrollmentId, enrollments.id))
+    .leftJoin(
+      classSchedules,
+      and(
+        eq(classSchedules.sectionId, enrollments.sectionId!),
+        eq(classSchedules.subjectId, subjects.id),
+        eq(classSchedules.schoolYearId, enrollments.schoolYearId),
+        eq(classSchedules.termId, enrollments.termId)
+      )
+    )
+    .leftJoin(userProfile, eq(classSchedules.teacherUserProfileId, userProfile.id))
     .where(eq(enrollmentSubjects.enrollmentId, enrollmentId));
 
   const OFFICE_LABELS: Record<string, string> = {
@@ -665,7 +807,8 @@ export async function getClearancePrintData(
       code: s.code,
       title: s.title,
       units: s.units,
-      teacher: null as string | null,
+      teacher:
+        (s.teacherName?.trim() || s.teacherFullName?.trim() || null) ?? null,
     })),
     items: data.items.map((i) => ({
       officeType: i.officeType,
@@ -696,6 +839,12 @@ export async function getGradingPeriodsBySchoolYearAndTerm(
 
 // ---------- Promissory notes ----------
 
+export type InstallmentScheduleItem = {
+  sequence: number;
+  dueDate: string;
+  amount: string;
+};
+
 export type PromissoryNoteWithDetails = {
   id: string;
   enrollmentId: string;
@@ -710,6 +859,12 @@ export type PromissoryNoteWithDetails = {
   yearLevel: string | null;
   amountPromised: string;
   dueDate: string;
+  totalOutstandingAmount: string | null;
+  totalPromisedAmount: string | null;
+  installmentMonths: number | null;
+  installmentSchedule: InstallmentScheduleItem[] | null;
+  startDate: string | null;
+  finalDueDate: string | null;
   reason: string;
   financeRemarks: string | null;
   status: string;
@@ -722,26 +877,74 @@ export type PromissoryNoteWithDetails = {
   updatedAt: Date | null;
 };
 
-/** Returns the approved promissory note for (enrollmentId, periodId), if any, for Finance to see before signing. */
-export async function getApprovedPromissoryNoteByEnrollmentAndPeriod(
+/** Returns any promissory note for (enrollmentId, periodId)'s term (draft, submitted, or approved). PN is per-semester. */
+export async function getExistingPromissoryNoteByEnrollmentAndPeriod(
   enrollmentId: string,
   periodId: string
-): Promise<{ id: string; refNo: string } | null> {
+): Promise<{ id: string; status: string } | null> {
+  const [clearancePeriod] = await db
+    .select({ termId: gradingPeriods.termId })
+    .from(gradingPeriods)
+    .where(eq(gradingPeriods.id, periodId))
+    .limit(1);
+  if (!clearancePeriod) return null;
+
   const [row] = await db
     .select({
       id: promissoryNotes.id,
+      status: promissoryNotes.status,
     })
     .from(promissoryNotes)
+    .innerJoin(gradingPeriods, eq(promissoryNotes.periodId, gradingPeriods.id))
     .where(
       and(
         eq(promissoryNotes.enrollmentId, enrollmentId),
-        eq(promissoryNotes.periodId, periodId),
-        eq(promissoryNotes.status, "approved")
+        eq(gradingPeriods.termId, clearancePeriod.termId)
       )
     )
     .limit(1);
   if (!row) return null;
-  return { id: row.id, refNo: row.id.slice(0, 8) };
+  return { id: row.id, status: row.status };
+}
+
+/** Returns the approved promissory note for (enrollmentId, periodId)'s term), if any. PN is per-semester: one approved PN covers all grading periods in that term. */
+export async function getApprovedPromissoryNoteByEnrollmentAndPeriod(
+  enrollmentId: string,
+  periodId: string
+): Promise<{ id: string; refNo: string } | null> {
+  const existing = await getExistingPromissoryNoteByEnrollmentAndPeriod(enrollmentId, periodId);
+  if (!existing || existing.status !== "approved") return null;
+  return { id: existing.id, refNo: existing.id.slice(0, 8) };
+}
+
+/** Returns the promissory note installment schedule for an enrollment (that term's PN), if any. Used e.g. by Post Payment form to show correct number of installments and amounts. */
+export async function getPromissoryNoteScheduleByEnrollmentId(
+  enrollmentId: string
+): Promise<InstallmentScheduleItem[] | null> {
+  const [enrollment] = await db
+    .select({
+      schoolYearId: enrollments.schoolYearId,
+      termId: enrollments.termId,
+    })
+    .from(enrollments)
+    .where(eq(enrollments.id, enrollmentId))
+    .limit(1);
+  if (!enrollment) return null;
+  const periods = await getGradingPeriodsBySchoolYearAndTerm(
+    enrollment.schoolYearId,
+    enrollment.termId
+  );
+  const firstPeriod = periods[0];
+  if (!firstPeriod) return null;
+  const existing = await getExistingPromissoryNoteByEnrollmentAndPeriod(
+    enrollmentId,
+    firstPeriod.id
+  );
+  if (!existing) return null;
+  const pn = await getPromissoryNote(existing.id);
+  if (!pn?.installmentSchedule || !Array.isArray(pn.installmentSchedule) || pn.installmentSchedule.length === 0)
+    return null;
+  return pn.installmentSchedule;
 }
 
 export async function getPromissoryNote(id: string): Promise<PromissoryNoteWithDetails | null> {
@@ -753,6 +956,12 @@ export async function getPromissoryNote(id: string): Promise<PromissoryNoteWithD
       periodId: promissoryNotes.periodId,
       amountPromised: promissoryNotes.amountPromised,
       dueDate: promissoryNotes.dueDate,
+      totalOutstandingAmount: promissoryNotes.totalOutstandingAmount,
+      totalPromisedAmount: promissoryNotes.totalPromisedAmount,
+      installmentMonths: promissoryNotes.installmentMonths,
+      installmentSchedule: promissoryNotes.installmentSchedule,
+      startDate: promissoryNotes.startDate,
+      finalDueDate: promissoryNotes.finalDueDate,
       reason: promissoryNotes.reason,
       financeRemarks: promissoryNotes.financeRemarks,
       status: promissoryNotes.status,
@@ -783,6 +992,7 @@ export async function getPromissoryNote(id: string): Promise<PromissoryNoteWithD
     .limit(1);
 
   if (!row) return null;
+  const schedule = row.installmentSchedule as InstallmentScheduleItem[] | null;
   return {
     id: row.id,
     enrollmentId: row.enrollmentId,
@@ -796,7 +1006,13 @@ export async function getPromissoryNote(id: string): Promise<PromissoryNoteWithD
     program: row.program,
     yearLevel: row.yearLevel,
     amountPromised: row.amountPromised ?? "0",
-    dueDate: row.dueDate,
+    dueDate: row.dueDate ?? "",
+    totalOutstandingAmount: row.totalOutstandingAmount ?? null,
+    totalPromisedAmount: row.totalPromisedAmount ?? null,
+    installmentMonths: row.installmentMonths ?? null,
+    installmentSchedule: Array.isArray(schedule) ? schedule : null,
+    startDate: row.startDate ?? null,
+    finalDueDate: row.finalDueDate ?? null,
     reason: row.reason,
     financeRemarks: row.financeRemarks,
     status: row.status,
@@ -808,6 +1024,93 @@ export async function getPromissoryNote(id: string): Promise<PromissoryNoteWithD
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** All promissory notes (approved or submitted) for a student, keyed by enrollment. One PN per enrollment per term. */
+export async function getPromissoryNotesByStudentId(
+  studentId: string
+): Promise<PromissoryNoteWithDetails[]> {
+  const rows = await db
+    .select({
+      id: promissoryNotes.id,
+      enrollmentId: promissoryNotes.enrollmentId,
+      studentId: promissoryNotes.studentId,
+      periodId: promissoryNotes.periodId,
+      amountPromised: promissoryNotes.amountPromised,
+      dueDate: promissoryNotes.dueDate,
+      totalOutstandingAmount: promissoryNotes.totalOutstandingAmount,
+      totalPromisedAmount: promissoryNotes.totalPromisedAmount,
+      installmentMonths: promissoryNotes.installmentMonths,
+      installmentSchedule: promissoryNotes.installmentSchedule,
+      startDate: promissoryNotes.startDate,
+      finalDueDate: promissoryNotes.finalDueDate,
+      reason: promissoryNotes.reason,
+      financeRemarks: promissoryNotes.financeRemarks,
+      status: promissoryNotes.status,
+      createdByUserId: promissoryNotes.createdByUserId,
+      submittedAt: promissoryNotes.submittedAt,
+      deanByUserId: promissoryNotes.deanByUserId,
+      deanAt: promissoryNotes.deanAt,
+      deanRemarks: promissoryNotes.deanRemarks,
+      createdAt: promissoryNotes.createdAt,
+      updatedAt: promissoryNotes.updatedAt,
+      periodName: gradingPeriods.name,
+      schoolYearName: schoolYears.name,
+      termName: terms.name,
+      program: enrollments.program,
+      yearLevel: enrollments.yearLevel,
+      studentCode: students.studentCode,
+      firstName: students.firstName,
+      middleName: students.middleName,
+      lastName: students.lastName,
+    })
+    .from(promissoryNotes)
+    .innerJoin(students, eq(promissoryNotes.studentId, students.id))
+    .innerJoin(enrollments, eq(promissoryNotes.enrollmentId, enrollments.id))
+    .innerJoin(gradingPeriods, eq(promissoryNotes.periodId, gradingPeriods.id))
+    .innerJoin(schoolYears, eq(gradingPeriods.schoolYearId, schoolYears.id))
+    .innerJoin(terms, eq(gradingPeriods.termId, terms.id))
+    .where(
+      and(
+        eq(promissoryNotes.studentId, studentId),
+        inArray(promissoryNotes.status, ["approved", "submitted"])
+      )
+    )
+    .orderBy(desc(promissoryNotes.updatedAt));
+
+  const scheduleType = (s: unknown) =>
+    Array.isArray(s) ? (s as InstallmentScheduleItem[]) : null;
+  return rows.map((r) => ({
+    id: r.id,
+    enrollmentId: r.enrollmentId,
+    studentId: r.studentId,
+    studentCode: r.studentCode ?? "",
+    studentName: [r.firstName, r.middleName, r.lastName].filter(Boolean).join(" "),
+    periodId: r.periodId,
+    periodName: r.periodName,
+    schoolYearName: r.schoolYearName,
+    termName: r.termName,
+    program: r.program,
+    yearLevel: r.yearLevel,
+    amountPromised: r.amountPromised ?? "0",
+    dueDate: r.dueDate ?? "",
+    totalOutstandingAmount: r.totalOutstandingAmount ?? null,
+    totalPromisedAmount: r.totalPromisedAmount ?? null,
+    installmentMonths: r.installmentMonths ?? null,
+    installmentSchedule: scheduleType(r.installmentSchedule),
+    startDate: r.startDate ?? null,
+    finalDueDate: r.finalDueDate ?? null,
+    reason: r.reason,
+    financeRemarks: r.financeRemarks,
+    status: r.status,
+    createdByUserId: r.createdByUserId,
+    submittedAt: r.submittedAt,
+    deanByUserId: r.deanByUserId,
+    deanAt: r.deanAt,
+    deanRemarks: r.deanRemarks,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
 }
 
 export async function listSubmittedPromissoryNotes(): Promise<
@@ -834,7 +1137,9 @@ export async function listSubmittedPromissoryNotes(): Promise<
       lastName: students.lastName,
       periodName: gradingPeriods.name,
       amountPromised: promissoryNotes.amountPromised,
+      totalPromisedAmount: promissoryNotes.totalPromisedAmount,
       dueDate: promissoryNotes.dueDate,
+      finalDueDate: promissoryNotes.finalDueDate,
       submittedAt: promissoryNotes.submittedAt,
     })
     .from(promissoryNotes)
@@ -850,8 +1155,30 @@ export async function listSubmittedPromissoryNotes(): Promise<
     studentCode: r.studentCode,
     studentName: [r.firstName, r.middleName, r.lastName].filter(Boolean).join(" "),
     periodName: r.periodName,
-    amountPromised: r.amountPromised,
-    dueDate: r.dueDate,
+    amountPromised: r.amountPromised ?? r.totalPromisedAmount ?? null,
+    dueDate: r.dueDate ?? r.finalDueDate ?? "",
     submittedAt: r.submittedAt,
   }));
+}
+
+/** Enrollment+term pairs where finance clearance has already been signed (cleared). Used to hide them from Blocked list. */
+export async function getEnrollmentTermIdsWithClearedFinance(): Promise<Set<string>> {
+  const rows = await db
+    .select({
+      enrollmentId: clearanceRequests.enrollmentId,
+      termId: clearanceRequests.termId,
+    })
+    .from(clearanceItems)
+    .innerJoin(clearanceRequests, eq(clearanceItems.clearanceRequestId, clearanceRequests.id))
+    .where(
+      and(
+        eq(clearanceItems.officeType, "finance"),
+        eq(clearanceItems.status, "cleared")
+      )
+    );
+  const set = new Set<string>();
+  for (const r of rows) {
+    if (r.enrollmentId && r.termId) set.add(`${r.enrollmentId}:${r.termId}`);
+  }
+  return set;
 }

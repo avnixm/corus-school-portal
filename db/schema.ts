@@ -1097,6 +1097,7 @@ export const payments = pgTable("payments", {
   referenceNo: varchar("reference_no", { length: 128 }),
   remarks: text("remarks"),
   status: paymentStatusEnum("status").notNull().default("posted"),
+  installmentSequence: integer("installment_sequence"), // 1-6 when payment is for a specific PN installment
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -1457,8 +1458,14 @@ export const promissoryNotes = pgTable("promissory_notes", {
   periodId: uuid("period_id")
     .notNull()
     .references(() => gradingPeriods.id),
-  amountPromised: numeric("amount_promised", { precision: 12, scale: 2 }).notNull(),
-  dueDate: date("due_date").notNull(),
+  amountPromised: numeric("amount_promised", { precision: 12, scale: 2 }),
+  dueDate: date("due_date"),
+  totalOutstandingAmount: numeric("total_outstanding_amount", { precision: 12, scale: 2 }),
+  totalPromisedAmount: numeric("total_promised_amount", { precision: 12, scale: 2 }),
+  installmentMonths: integer("installment_months"),
+  installmentSchedule: jsonb("installment_schedule"),
+  startDate: date("start_date"),
+  finalDueDate: date("final_due_date"),
   reason: text("reason").notNull(),
   financeRemarks: text("finance_remarks"),
   status: promissoryNoteStatusEnum("status").notNull().default("draft"),

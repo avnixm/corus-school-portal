@@ -153,7 +153,7 @@ export function RequirementCard({
           </div>
         )}
 
-        {hasPendingRequest && (
+        {hasPendingRequest && submission.status !== "verified" && (
           <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <p>Registrar requested this document. Please upload below.</p>

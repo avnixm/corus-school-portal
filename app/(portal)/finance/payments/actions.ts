@@ -7,6 +7,8 @@ import {
   searchStudentsByCodeOrName,
   getApprovedEnrollmentsByStudent,
 } from "@/lib/finance/queries";
+import { getPromissoryNoteScheduleByEnrollmentId } from "@/lib/clearance/queries";
+import type { InstallmentScheduleItem } from "@/lib/clearance/queries";
 import { requireRole } from "@/lib/rbac";
 
 async function checkAuth() {
@@ -27,6 +29,15 @@ export async function getEnrollmentsForStudentAction(studentId: string) {
   return getApprovedEnrollmentsByStudent(studentId);
 }
 
+export async function getPromissoryScheduleForEnrollmentAction(
+  enrollmentId: string
+): Promise<InstallmentScheduleItem[] | null> {
+  const { error } = await checkAuth();
+  if (error) return null;
+  if (!enrollmentId?.trim()) return null;
+  return getPromissoryNoteScheduleByEnrollmentId(enrollmentId.trim());
+}
+
 export async function postPaymentAction(formData: FormData) {
   const { error, userId } = await checkAuth();
   if (error || !userId) return { error: error ?? "Unauthorized" };
@@ -41,6 +52,15 @@ export async function postPaymentAction(formData: FormData) {
     | "card"
     | "other";
   const remarks = (formData.get("remarks") as string)?.trim() || null;
+  const installmentSequenceRaw = (formData.get("installmentSequence") as string)?.trim();
+  let installmentSequence: number | undefined;
+  if (installmentSequenceRaw !== undefined && installmentSequenceRaw !== "") {
+    const n = parseInt(installmentSequenceRaw, 10);
+    if (isNaN(n) || n < 1 || n > 6) {
+      return { error: "Installment must be 1–6 when posting an installment payment" };
+    }
+    installmentSequence = n;
+  }
 
   if (!studentId || !enrollmentId || !amount || parseFloat(amount) <= 0) {
     return { error: "Student, enrollment, and valid amount are required" };
@@ -58,6 +78,7 @@ export async function postPaymentAction(formData: FormData) {
       method,
       remarks,
       receivedByUserId: userId,
+      installmentSequence,
     });
     revalidatePath("/finance/payments");
     revalidatePath("/finance/balances");

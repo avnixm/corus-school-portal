@@ -42,6 +42,19 @@ export default async function DeanPromissoryNotePrintPage({
           periodName={note.periodName}
           amountPromised={note.amountPromised}
           dueDate={note.dueDate}
+          totalOutstandingAmount={note.totalOutstandingAmount}
+          totalPromisedAmount={note.totalPromisedAmount}
+          installmentMonths={note.installmentMonths}
+          installmentSchedule={note.installmentSchedule}
+          startDate={note.startDate}
+          finalDueDate={note.finalDueDate}
+          previousUnpaidNotCovered={
+            note.totalOutstandingAmount != null &&
+            note.totalPromisedAmount != null &&
+            parseFloat(note.totalOutstandingAmount) > parseFloat(note.totalPromisedAmount)
+              ? (parseFloat(note.totalOutstandingAmount) - parseFloat(note.totalPromisedAmount)).toFixed(2)
+              : null
+          }
           reason={note.reason}
           financeRemarks={note.financeRemarks}
           status={note.status}

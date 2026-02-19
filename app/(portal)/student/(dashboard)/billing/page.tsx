@@ -7,6 +7,11 @@ import {
   getPaymentsByEnrollment,
   getPaymentWithDetails,
 } from "@/lib/finance/queries";
+import {
+  getGradingPeriodsBySchoolYearAndTerm,
+  getExistingPromissoryNoteByEnrollmentAndPeriod,
+  getPromissoryNote,
+} from "@/lib/clearance/queries";
 import { getEnrolledStudentMissingRequiredFormNames } from "@/lib/requirements/progress";
 import Link from "next/link";
 import { Printer, CheckCircle, Clock, AlertCircle } from "lucide-react";
@@ -46,12 +51,25 @@ export default async function StudentBillingPage() {
     missingFormNames = await getEnrolledStudentMissingRequiredFormNames(enrollment.id);
   }
 
-  const [efs, assessments, payments, hasHold] = await Promise.all([
+  const [efs, assessments, payments, hasHold, periods] = await Promise.all([
     getStudentBalance(enrollment.id),
     getAssessmentsByEnrollment(enrollment.id),
     getPaymentsByEnrollment(enrollment.id),
     hasActiveFinanceHoldForEnrollment(enrollment.id),
+    getGradingPeriodsBySchoolYearAndTerm(enrollment.schoolYearId, enrollment.termId),
   ]);
+
+  const firstPeriodId = periods[0]?.id;
+  let promissoryNote: Awaited<ReturnType<typeof getPromissoryNote>> = null;
+  if (firstPeriodId) {
+    const existingPn = await getExistingPromissoryNoteByEnrollmentAndPeriod(
+      enrollment.id,
+      firstPeriodId
+    );
+    if (existingPn && (existingPn.status === "approved" || existingPn.status === "submitted")) {
+      promissoryNote = await getPromissoryNote(existingPn.id);
+    }
+  }
 
   const postedAssessment = assessments.find((a) => a.status === "posted");
   const [receiptDetails, assessmentFormData] = await Promise.all([
@@ -238,6 +256,106 @@ export default async function StudentBillingPage() {
           </CardContent>
         </Card>
       </div>
+
+      {promissoryNote && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-[#6A0000]">Promissory note</CardTitle>
+            <p className="text-xs text-neutral-600">
+              {promissoryNote.status === "approved"
+                ? "Approved — pay according to the schedule below."
+                : "Submitted — pending Dean approval."}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm">
+              <span className="font-medium text-neutral-600">Total promised:</span>{" "}
+              <span className="font-semibold text-[#6A0000]">
+                ₱
+                {parseFloat(
+                  promissoryNote.totalPromisedAmount ?? promissoryNote.amountPromised ?? "0"
+                ).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              {promissoryNote.installmentMonths != null && promissoryNote.installmentMonths > 1 && (
+                <span className="text-neutral-600">
+                  {" "}
+                  in {promissoryNote.installmentMonths} month
+                  {promissoryNote.installmentMonths > 1 ? "s" : ""}
+                </span>
+              )}
+            </p>
+            {promissoryNote.installmentSchedule && promissoryNote.installmentSchedule.length > 0 ? (
+              <div className="overflow-x-auto rounded-lg border border-neutral-200">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-neutral-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium text-neutral-700">Payment</th>
+                      <th className="px-3 py-2 text-left font-medium text-neutral-700">Due date</th>
+                      <th className="px-3 py-2 text-right font-medium text-neutral-700">Amount</th>
+                      <th className="px-3 py-2 text-left font-medium text-neutral-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promissoryNote.installmentSchedule.map((row) => {
+                      const paidAmount = payments
+                        .filter(
+                          (p) =>
+                            p.installmentSequence != null && p.installmentSequence === row.sequence
+                        )
+                        .reduce((sum, p) => sum + parseFloat(String(p.amount ?? "0")), 0);
+                      const dueAmount = parseFloat(row.amount);
+                      const isPaid = paidAmount >= dueAmount;
+                      const isPartiallyPaid = paidAmount > 0 && paidAmount < dueAmount;
+                      return (
+                        <tr key={row.sequence} className="border-t border-neutral-100">
+                          <td className="px-3 py-2">
+                            {row.sequence === 1
+                              ? "1st payment"
+                              : row.sequence === 2
+                                ? "2nd payment"
+                                : row.sequence === 3
+                                  ? "3rd payment"
+                                  : `${row.sequence}th payment`}
+                          </td>
+                          <td className="px-3 py-2">
+                            {new Date(row.dueDate + "Z").toLocaleDateString("en-PH")}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium text-[#6A0000]">
+                            ₱
+                            {parseFloat(row.amount).toLocaleString("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="px-3 py-2">
+                            {isPaid ? (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                Paid
+                              </Badge>
+                            ) : isPartiallyPaid ? (
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                                Partially paid
+                              </Badge>
+                            ) : (
+                              <span className="text-neutral-500">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              promissoryNote.dueDate && (
+                <p className="text-sm text-neutral-600">
+                  Due: {new Date(promissoryNote.dueDate).toLocaleDateString("en-PH")}
+                </p>
+              )
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

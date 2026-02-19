@@ -61,16 +61,103 @@ export default async function DeanPromissoryNoteReviewPage({
           <p>
             <span className="text-neutral-600">Period:</span> {note.periodName}
           </p>
-          <p>
-            <span className="text-neutral-600">Amount promised:</span> ₱
-            {parseFloat(note.amountPromised).toLocaleString("en-PH", {
-              minimumFractionDigits: 2,
-            })}
-          </p>
-          <p>
-            <span className="text-neutral-600">Due date:</span>{" "}
-            {new Date(note.dueDate).toLocaleDateString("en-PH")}
-          </p>
+          {note.totalOutstandingAmount != null && note.totalPromisedAmount != null && (
+            <>
+              <p>
+                <span className="text-neutral-600">Total outstanding:</span> ₱
+                {parseFloat(note.totalOutstandingAmount).toLocaleString("en-PH", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+              <p>
+                <span className="text-neutral-600">Total amount promised:</span> ₱
+                {parseFloat(note.totalPromisedAmount).toLocaleString("en-PH", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+              {note.installmentMonths != null && (
+                <p>
+                  <span className="text-neutral-600">Payment term:</span>{" "}
+                  {note.installmentMonths} month{note.installmentMonths > 1 ? "s" : ""}
+                </p>
+              )}
+              {note.startDate && (
+                <p>
+                  <span className="text-neutral-600">Start date:</span>{" "}
+                  {new Date(note.startDate).toLocaleDateString("en-PH")}
+                </p>
+              )}
+              {note.finalDueDate && (
+                <p>
+                  <span className="text-neutral-600">Final due date:</span>{" "}
+                  {new Date(note.finalDueDate).toLocaleDateString("en-PH")}
+                </p>
+              )}
+            </>
+          )}
+          {(note.totalPromisedAmount == null || note.totalOutstandingAmount == null) && (
+            <>
+              <p>
+                <span className="text-neutral-600">Amount promised:</span> ₱
+                {parseFloat(note.amountPromised).toLocaleString("en-PH", {
+                  minimumFractionDigits: 2,
+                })}
+              </p>
+              <p>
+                <span className="text-neutral-600">Due date:</span>{" "}
+                {note.dueDate ? new Date(note.dueDate).toLocaleDateString("en-PH") : "—"}
+              </p>
+            </>
+          )}
+          {note.installmentSchedule && note.installmentSchedule.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-2 font-medium text-neutral-700">Installment schedule</p>
+              <div className="overflow-x-auto rounded border border-neutral-200">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-neutral-50">
+                    <tr>
+                      <th className="px-3 py-1.5 text-left font-medium text-neutral-600">
+                        Payment
+                      </th>
+                      <th className="px-3 py-1.5 text-left font-medium text-neutral-600">
+                        Due date
+                      </th>
+                      <th className="px-3 py-1.5 text-right font-medium text-neutral-600">
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {note.installmentSchedule.map((row) => (
+                      <tr key={row.sequence} className="border-t border-neutral-100">
+                        <td className="px-3 py-1.5">
+                          {row.sequence === 1
+                            ? "1st payment"
+                            : row.sequence === 2
+                              ? "2nd payment"
+                              : row.sequence === 3
+                                ? "3rd payment"
+                                : `${row.sequence}th payment`}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {new Date(row.dueDate + "Z").toLocaleDateString("en-PH")}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-medium">
+                          ₱
+                          {parseFloat(row.amount).toLocaleString("en-PH", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           <p>
             <span className="text-neutral-600">Reason:</span> {note.reason}
           </p>

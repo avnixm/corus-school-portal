@@ -1379,32 +1379,37 @@ export async function hasActiveFinanceHoldForEnrollment(enrollmentId: string) {
 
 /** Returns the set of enrollment IDs that have an active finance_hold (on enrollment or on student). */
 export async function getEnrollmentIdsWithActiveFinanceHold(): Promise<Set<string>> {
-  const byEnrollment = await db
-    .select({ enrollmentId: governanceFlags.enrollmentId })
-    .from(governanceFlags)
-    .where(
-      and(
-        eq(governanceFlags.status, "active"),
-        eq(governanceFlags.flagType, "finance_hold"),
-        sql`${governanceFlags.enrollmentId} IS NOT NULL`
-      )
-    );
-  const byStudent = await db
-    .select({ id: enrollments.id })
-    .from(enrollments)
-    .innerJoin(governanceFlags, eq(governanceFlags.studentId, enrollments.studentId))
-    .where(
-      and(
-        eq(governanceFlags.status, "active"),
-        eq(governanceFlags.flagType, "finance_hold")
-      )
-    );
-  const set = new Set<string>();
-  for (const r of byEnrollment) {
-    if (r.enrollmentId) set.add(r.enrollmentId);
+  try {
+    const byEnrollment = await db
+      .select({ enrollmentId: governanceFlags.enrollmentId })
+      .from(governanceFlags)
+      .where(
+        and(
+          eq(governanceFlags.status, "active"),
+          eq(governanceFlags.flagType, "finance_hold"),
+          isNotNull(governanceFlags.enrollmentId)
+        )
+      );
+    const byStudent = await db
+      .select({ id: enrollments.id })
+      .from(enrollments)
+      .innerJoin(governanceFlags, eq(governanceFlags.studentId, enrollments.studentId))
+      .where(
+        and(
+          eq(governanceFlags.status, "active"),
+          eq(governanceFlags.flagType, "finance_hold")
+        )
+      );
+    const set = new Set<string>();
+    for (const r of byEnrollment) {
+      if (r.enrollmentId) set.add(r.enrollmentId);
+    }
+    for (const r of byStudent) set.add(r.id);
+    return set;
+  } catch (err) {
+    console.error("getEnrollmentIdsWithActiveFinanceHold failed:", err);
+    return new Set<string>();
   }
-  for (const r of byStudent) set.add(r.id);
-  return set;
 }
 
 export async function approveEnrollmentById(

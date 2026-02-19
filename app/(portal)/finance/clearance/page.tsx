@@ -3,7 +3,9 @@ import { getEnrollmentIdsWithActiveFinanceHold } from "@/db/queries";
 import { getEnrollmentsForClearance } from "@/lib/finance/queries";
 import {
   listClearanceQueue,
-  getApprovedPromissoryNoteByEnrollmentAndPeriod,
+  listEnrollmentsBlockedByFinance,
+  getExistingPromissoryNoteByEnrollmentAndPeriod,
+  getEnrollmentTermIdsWithClearedFinance,
 } from "@/lib/clearance/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MarkClearedButton } from "./MarkClearedButton";
@@ -22,22 +24,40 @@ function fullName(r: {
 export const metadata = { title: "Clearance" };
 
 export default async function ClearancePage() {
-  const [rows, holdEnrollmentIds, blockedRows] = await Promise.all([
-    getEnrollmentsForClearance(),
-    getEnrollmentIdsWithActiveFinanceHold(),
-    listClearanceQueue({ officeType: "finance", itemStatus: "blocked" }),
-  ]);
+  const [rows, holdEnrollmentIds, queueBlocked, financiallyBlocked, clearedFinanceKeys] =
+    await Promise.all([
+      getEnrollmentsForClearance(),
+      getEnrollmentIdsWithActiveFinanceHold(),
+      listClearanceQueue({ officeType: "finance", itemStatus: "blocked" }),
+      listEnrollmentsBlockedByFinance(),
+      getEnrollmentTermIdsWithClearedFinance(),
+    ]);
 
-  const approvedPnByKey = new Map<string, { id: string; refNo: string }>();
+  const queueEnrollmentKeys = new Set(
+    queueBlocked.map((r) => `${r.enrollmentId}:${r.periodId}`)
+  );
+  const blockedRows = [
+    ...queueBlocked,
+    ...financiallyBlocked.filter(
+      (r) => !queueEnrollmentKeys.has(`${r.enrollmentId}:${r.periodId}`)
+    ),
+  ].filter((row) => !clearedFinanceKeys.has(`${row.enrollmentId}:${row.termId}`));
+
+  const existingPnByKey = new Map<string, { id: string; status: string }>();
   await Promise.all(
     blockedRows.map(async (row) => {
-      const pn = await getApprovedPromissoryNoteByEnrollmentAndPeriod(
+      const pn = await getExistingPromissoryNoteByEnrollmentAndPeriod(
         row.enrollmentId,
         row.periodId
       );
-      if (pn) approvedPnByKey.set(`${row.enrollmentId}:${row.periodId}`, pn);
+      if (pn) existingPnByKey.set(`${row.enrollmentId}:${row.periodId}`, pn);
     })
   );
+  const approvedPnByKey = new Map<string, { id: string; refNo: string }>();
+  existingPnByKey.forEach((pn, key) => {
+    if (pn.status === "approved")
+      approvedPnByKey.set(key, { id: pn.id, refNo: pn.id.slice(0, 8) });
+  });
 
   return (
     <div className="space-y-8">
@@ -63,7 +83,7 @@ export default async function ClearancePage() {
                 <tr>
                   <th className="px-4 py-2">Student</th>
                   <th className="px-4 py-2">School Year / Term</th>
-                  <th className="px-4 py-2">Period</th>
+                  <th className="px-4 py-2">Term</th>
                   <th className="px-4 py-2">Program</th>
                   <th className="px-4 py-2">Balance</th>
                   <th className="px-4 py-2 text-right">Actions</th>
@@ -72,7 +92,7 @@ export default async function ClearancePage() {
               <tbody>
                 {blockedRows.map((row) => (
                   <tr
-                    key={row.itemId}
+                    key={row.itemId || `${row.enrollmentId}:${row.periodId}`}
                     className="border-b last:border-0 hover:bg-neutral-50/80"
                   >
                     <td className="px-4 py-2">
@@ -81,7 +101,7 @@ export default async function ClearancePage() {
                     <td className="px-4 py-2">
                       {row.schoolYearName} • {row.termName}
                     </td>
-                    <td className="px-4 py-2">{row.periodName}</td>
+                    <td className="px-4 py-2">{row.termName}</td>
                     <td className="px-4 py-2">
                       {row.program ?? "—"} {row.yearLevel ?? ""}
                     </td>
@@ -92,9 +112,10 @@ export default async function ClearancePage() {
                       <FinanceBlockedRowActions
                         enrollmentId={row.enrollmentId}
                         periodId={row.periodId}
-                        itemId={row.itemId}
+                        itemId={row.itemId || null}
                         hasHold={holdEnrollmentIds.has(row.enrollmentId)}
                         approvedPn={approvedPnByKey.get(`${row.enrollmentId}:${row.periodId}`) ?? null}
+                        existingPn={existingPnByKey.get(`${row.enrollmentId}:${row.periodId}`) ?? null}
                       />
                     </td>
                   </tr>

@@ -11,6 +11,7 @@ import {
   clearClearanceItem,
   blockClearanceItem,
   signClearanceWithPromissoryNote,
+  getTotalsForPromissoryNote,
 } from "@/lib/clearance/queries";
 import { createPromissoryNote, submitPromissoryNote } from "@/lib/clearance/promissory";
 
@@ -108,22 +109,61 @@ export async function blockClearanceItemAction(clearanceItemId: string, remarks:
   return { success: true };
 }
 
+export async function getTotalsForPromissoryNoteAction(
+  enrollmentId: string,
+  studentId: string,
+  includePreviousBalances: boolean
+) {
+  const { error } = await checkAuth();
+  if (error) return { error: error ?? "Unauthorized" as const };
+
+  const totals = await getTotalsForPromissoryNote(
+    enrollmentId,
+    studentId,
+    includePreviousBalances
+  );
+  return totals;
+}
+
 export async function createPromissoryNoteAction(params: {
   enrollmentId: string;
   studentId: string;
   periodId: string;
-  amountPromised: string;
-  dueDate: string;
+  includePreviousBalances?: boolean;
+  limitToCurrentTermOnly?: boolean;
+  totalOutstandingAmount: string;
+  totalPromisedAmount: string;
+  installmentMonths: number;
+  startDate: string;
   reason: string;
   financeRemarks?: string | null;
 }) {
   const { error, userId } = await checkAuth();
   if (error || !userId) return { error: error ?? "Unauthorized" };
 
-  const note = await createPromissoryNote(params, userId);
+  const months = Math.max(1, Math.min(6, params.installmentMonths));
+  if (parseFloat(params.totalPromisedAmount) <= 0) {
+    return { error: "Total promised amount must be greater than 0" };
+  }
+
+  const result = await createPromissoryNote(
+    {
+      enrollmentId: params.enrollmentId,
+      studentId: params.studentId,
+      periodId: params.periodId,
+      totalOutstandingAmount: params.totalOutstandingAmount,
+      totalPromisedAmount: params.totalPromisedAmount,
+      installmentMonths: months,
+      startDate: params.startDate,
+      reason: params.reason,
+      financeRemarks: params.financeRemarks ?? null,
+    },
+    userId
+  );
+  if ("error" in result) return result;
   revalidatePath("/finance/clearance");
   revalidatePath(`/finance/clearance/${params.enrollmentId}/promissory-note/new`);
-  return { success: true as const, noteId: note.id };
+  return { success: true as const, noteId: result.id };
 }
 
 export async function submitPromissoryNoteAction(noteId: string) {

@@ -799,6 +799,7 @@ export async function postPayment(params: {
   referenceNo?: string | null;
   remarks?: string | null;
   receivedByUserId: string;
+  installmentSequence?: number; // 1-6 when payment is for a specific PN installment
 }) {
   const { recomputeEnrollmentBalance } = await import("./recomputeEnrollmentBalance");
   const referenceNo = params.referenceNo?.trim() || (await generateReceiptReferenceNo());
@@ -814,6 +815,10 @@ export async function postPayment(params: {
       remarks: params.remarks ?? null,
       receivedByUserId: params.receivedByUserId,
       status: "posted",
+      installmentSequence:
+        params.installmentSequence != null && params.installmentSequence >= 1 && params.installmentSequence <= 6
+          ? params.installmentSequence
+          : null,
     })
     .returning();
 

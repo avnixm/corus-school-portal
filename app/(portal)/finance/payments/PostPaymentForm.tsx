@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -13,7 +13,9 @@ import {
   postPaymentAction,
   searchStudentsAction,
   getEnrollmentsForStudentAction,
+  getPromissoryScheduleForEnrollmentAction,
 } from "./actions";
+import type { InstallmentScheduleItem } from "@/lib/clearance/queries";
 
 function fullName(r: {
   firstName: string;
@@ -53,11 +55,38 @@ export function PostPaymentForm() {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "gcash" | "bank" | "card" | "other">("cash");
   const [paymentFor, setPaymentFor] = useState<"installment" | "downpayment" | "fullpayment" | "misc">("installment");
+  const [installmentSequence, setInstallmentSequence] = useState<number | "">("");
+  const [installmentSchedule, setInstallmentSchedule] = useState<
+    InstallmentScheduleItem[] | null
+  >(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [miscSpecify, setMiscSpecify] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
 
   const selectedEnrollment = enrollments.find((e) => e.id === enrollmentId);
+
+  useEffect(() => {
+    if (!enrollmentId || paymentFor !== "installment") {
+      setInstallmentSchedule(null);
+      setInstallmentSequence("");
+      setAmount("");
+      return;
+    }
+    let cancelled = false;
+    setScheduleLoading(true);
+    setInstallmentSchedule(null);
+    setInstallmentSequence("");
+    setAmount("");
+    getPromissoryScheduleForEnrollmentAction(enrollmentId).then((schedule) => {
+      if (cancelled) return;
+      setScheduleLoading(false);
+      setInstallmentSchedule(schedule ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enrollmentId, paymentFor]);
   const currentBalance = selectedEnrollment ? parseFloat(selectedEnrollment.balance ?? "0") : 0;
   const paymentAmount = parseFloat(amount || "0");
   const rawNewBalance = currentBalance - paymentAmount;
@@ -77,6 +106,7 @@ export function PostPaymentForm() {
     setSelectedStudent(student);
     setLastPaymentId(null);
     setPaymentFor("installment");
+    setInstallmentSequence("");
     setMiscSpecify("");
     const encs = await getEnrollmentsForStudentAction(student.id);
     setEnrollments(encs);
@@ -106,6 +136,21 @@ export function PostPaymentForm() {
       setError("Specify what the miscellaneous payment is for (e.g. t-shirt, ID)");
       return;
     }
+    if (paymentFor === "installment") {
+      const maxSeq = installmentSchedule?.length ?? 0;
+      if (
+        installmentSequence === "" ||
+        installmentSequence < 1 ||
+        (maxSeq > 0 && installmentSequence > maxSeq)
+      ) {
+        setError(
+          installmentSchedule?.length
+            ? "Select which installment this payment is for"
+            : "This enrollment has no promissory note schedule; select a different payment type or enrollment."
+        );
+        return;
+      }
+    }
     let remarks = "";
     if (paymentFor === "installment" && selectedEnrollment) {
       remarks = `Installment - ${selectedEnrollment.schoolYearName} ${selectedEnrollment.termName}`;
@@ -127,6 +172,9 @@ export function PostPaymentForm() {
         formData.set("amount", amt.toFixed(2));
         formData.set("method", method);
         formData.set("remarks", remarks);
+        if (paymentFor === "installment" && typeof installmentSequence === "number") {
+          formData.set("installmentSequence", String(installmentSequence));
+        }
         const result = await postPaymentAction(formData);
         if (result?.error) {
           setError(result.error);
@@ -135,6 +183,7 @@ export function PostPaymentForm() {
         }
         toast.success(`Payment of ₱${amt.toFixed(2)} posted successfully`);
         setAmount("");
+        setInstallmentSequence("");
         setMiscSpecify("");
         setAdditionalNotes("");
         if ("paymentId" in result && result.paymentId) {
@@ -212,6 +261,8 @@ export function PostPaymentForm() {
                 onChange={(e) => {
                   setEnrollmentId(e.target.value);
                   setPaymentFor("installment");
+                  setInstallmentSequence("");
+                  setAmount("");
                 }}
                 required
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
@@ -283,6 +334,7 @@ export function PostPaymentForm() {
                 onChange={(e) => {
                   const val = e.target.value as "installment" | "downpayment" | "fullpayment" | "misc";
                   setPaymentFor(val);
+                  if (val !== "installment") setInstallmentSequence("");
                   if (val !== "misc") setMiscSpecify("");
                   if (val === "fullpayment") {
                     setAmount(currentBalance > 0 ? currentBalance.toFixed(2) : "");
@@ -298,6 +350,55 @@ export function PostPaymentForm() {
                 <option value="misc">Miscellaneous</option>
               </select>
             </div>
+            {paymentFor === "installment" && (
+              <div>
+                <Label htmlFor="installmentSequence">Which installment? *</Label>
+                <select
+                  id="installmentSequence"
+                  value={installmentSequence === "" ? "" : installmentSequence}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const seq = v === "" ? "" : parseInt(v, 10);
+                    setInstallmentSequence(seq);
+                    if (typeof seq === "number" && installmentSchedule?.length) {
+                      const item = installmentSchedule.find((s) => s.sequence === seq);
+                      if (item) setAmount(item.amount);
+                    }
+                  }}
+                  required
+                  disabled={scheduleLoading || (installmentSchedule?.length ?? 0) === 0}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                >
+                  <option value="">
+                    {scheduleLoading
+                      ? "Loading…"
+                      : installmentSchedule === null
+                        ? "Select enrollment first"
+                        : !installmentSchedule?.length
+                          ? "No promissory note schedule for this enrollment"
+                          : "Select installment"}
+                  </option>
+                  {(installmentSchedule ?? []).map((item) => (
+                    <option key={item.sequence} value={item.sequence}>
+                      {item.sequence === 1
+                        ? "1st"
+                        : item.sequence === 2
+                          ? "2nd"
+                          : item.sequence === 3
+                            ? "3rd"
+                            : `${item.sequence}th`}{" "}
+                      payment — ₱
+                      {parseFloat(item.amount).toLocaleString("en-PH", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      (due{" "}
+                      {new Date(item.dueDate + "Z").toLocaleDateString("en-PH")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {paymentFor === "misc" && (
               <div>
                 <Label htmlFor="miscSpecify">Specify (e.g. t-shirt, ID, lab coat) *</Label>

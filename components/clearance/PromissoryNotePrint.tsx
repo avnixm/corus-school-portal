@@ -1,5 +1,11 @@
 import { SCHOOL } from "@/lib/school-branding";
 
+export type InstallmentScheduleItem = {
+  sequence: number;
+  dueDate: string;
+  amount: string;
+};
+
 export type PromissoryNotePrintProps = {
   studentName: string;
   studentCode: string;
@@ -10,6 +16,13 @@ export type PromissoryNotePrintProps = {
   periodName: string;
   amountPromised: string;
   dueDate: string;
+  totalOutstandingAmount?: string | null;
+  totalPromisedAmount?: string | null;
+  installmentMonths?: number | null;
+  installmentSchedule?: InstallmentScheduleItem[] | null;
+  startDate?: string | null;
+  finalDueDate?: string | null;
+  previousUnpaidNotCovered?: string | null;
   reason: string;
   financeRemarks: string | null;
   status: string;
@@ -19,6 +32,13 @@ export type PromissoryNotePrintProps = {
   deanRemarks: string | null;
   referenceNo: string;
 };
+
+function formatPeso(value: string) {
+  return parseFloat(value || "0").toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 export function PromissoryNotePrint({
   studentName,
@@ -30,6 +50,13 @@ export function PromissoryNotePrint({
   periodName,
   amountPromised,
   dueDate,
+  totalOutstandingAmount,
+  totalPromisedAmount,
+  installmentMonths,
+  installmentSchedule,
+  startDate,
+  finalDueDate,
+  previousUnpaidNotCovered,
   reason,
   financeRemarks,
   status,
@@ -39,6 +66,14 @@ export function PromissoryNotePrint({
   deanRemarks,
   referenceNo,
 }: PromissoryNotePrintProps) {
+  const hasInstallment =
+    totalPromisedAmount != null &&
+    installmentMonths != null &&
+    startDate != null &&
+    finalDueDate != null;
+  const totalPromised = totalPromisedAmount ?? amountPromised;
+  const nMonths = installmentMonths ?? 1;
+
   return (
     <div
       id="promissory-note"
@@ -73,16 +108,83 @@ export function PromissoryNotePrint({
       </section>
 
       <section className="mb-4 border-t border-neutral-200 pt-4">
+        {totalOutstandingAmount != null && (
+          <p className="text-sm">
+            <span className="font-medium text-neutral-600">Total Outstanding:</span> ₱
+            {formatPeso(totalOutstandingAmount)}
+          </p>
+        )}
         <p className="text-sm">
-          <span className="font-medium text-neutral-600">Amount promised:</span> ₱
-          {parseFloat(amountPromised).toLocaleString("en-PH", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
+          <span className="font-medium text-neutral-600">Total Amount Promised:</span> ₱
+          {formatPeso(totalPromised)}
         </p>
+        {hasInstallment && (
+          <p className="text-sm">
+            <span className="font-medium text-neutral-600">Payment term:</span> {nMonths}{" "}
+            month{nMonths > 1 ? "s" : ""}
+          </p>
+        )}
+        {previousUnpaidNotCovered && parseFloat(previousUnpaidNotCovered) > 0 && (
+          <p className="mt-1 text-sm text-amber-800">
+            The following amounts are not covered by this note: ₱
+            {formatPeso(previousUnpaidNotCovered)} (previous terms).
+          </p>
+        )}
+      </section>
+
+      {hasInstallment && installmentSchedule && installmentSchedule.length > 0 && (
+        <section className="mb-4 border-t border-neutral-200 pt-4">
+          <h3 className="mb-2 text-sm font-semibold text-neutral-800">
+            Installment Schedule
+          </h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-neutral-300">
+                <th className="pb-2 text-left font-medium text-neutral-600">Payment</th>
+                <th className="pb-2 text-right font-medium text-neutral-600">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {installmentSchedule.map((row) => (
+                <tr key={row.sequence} className="border-b border-neutral-100">
+                  <td className="py-1.5">
+                    {row.sequence === 1
+                      ? "1st payment"
+                      : row.sequence === 2
+                        ? "2nd payment"
+                        : row.sequence === 3
+                          ? "3rd payment"
+                          : `${row.sequence}th payment`}{" "}
+                    (Due: {new Date(row.dueDate + "Z").toLocaleDateString("en-PH")})
+                  </td>
+                  <td className="py-1.5 text-right font-medium">
+                    ₱{formatPeso(row.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      <section className="mb-4 border-t border-neutral-200 pt-4">
         <p className="text-sm">
-          <span className="font-medium text-neutral-600">Due date:</span>{" "}
-          {dueDate ? new Date(dueDate).toLocaleDateString("en-PH") : "—"}
+          {hasInstallment && startDate && finalDueDate ? (
+            <>
+              I, <strong>{studentName}</strong>, hereby promise to pay the total amount of
+              ₱{formatPeso(totalPromised)} in {nMonths} monthly installment(s) starting on{" "}
+              {new Date(startDate).toLocaleDateString("en-PH")}, as scheduled above, with
+              final payment due on {new Date(finalDueDate).toLocaleDateString("en-PH")}.
+            </>
+          ) : (
+            <>
+              I, <strong>{studentName}</strong>, hereby promise to pay the total amount of
+              ₱{formatPeso(totalPromised)}
+              {dueDate
+                ? ` on or before ${new Date(dueDate).toLocaleDateString("en-PH")}.`
+                : "."}
+            </>
+          )}
         </p>
         <p className="mt-2 text-sm">
           <span className="font-medium text-neutral-600">Reason / terms:</span>

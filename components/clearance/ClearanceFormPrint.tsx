@@ -99,6 +99,7 @@ export function ClearanceFormPrint({
               <th className="p-2">Description</th>
               <th className="w-16 p-2 text-right">Units</th>
               <th className="p-2">Teacher</th>
+              <th className="w-40 p-2">Signature</th>
             </tr>
           </thead>
           <tbody>
@@ -108,6 +109,9 @@ export function ClearanceFormPrint({
                 <td className="p-2">{s.title}</td>
                 <td className="p-2 text-right">{String(s.units)}</td>
                 <td className="p-2">{s.teacher ?? "—"}</td>
+                <td className="p-2">
+                  <span className="inline-block min-h-[1.5em] w-full border-b border-neutral-400" />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -122,13 +126,17 @@ export function ClearanceFormPrint({
           <thead>
             <tr className="border-b border-neutral-300 bg-neutral-50 text-left text-xs font-medium text-[#6A0000]">
               <th className="p-2">Office</th>
-              <th className="w-48 p-2">Signature / Date</th>
+              <th className="w-48 p-2">Signature</th>
+              <th className="w-32 p-2">Date</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, i) => (
               <tr key={i} className="border-b border-neutral-100">
                 <td className="p-2">{item.officeLabel}</td>
+                <td className="p-2">
+                  <span className="inline-block min-h-[1.5em] w-full border-b border-neutral-400" />
+                </td>
                 <td className="p-2">
                   <span className="inline-block min-h-[1.5em] w-full border-b border-neutral-400" />
                 </td>

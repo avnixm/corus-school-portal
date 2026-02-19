@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getEnrollmentById } from "@/db/queries";
-import { getGradingPeriodsBySchoolYearAndTerm } from "@/lib/clearance/queries";
+import {
+  getGradingPeriodsBySchoolYearAndTerm,
+  getOrCreateClearanceRequest,
+} from "@/lib/clearance/queries";
 import { getStudentById } from "@/db/queries";
 import { requireRole } from "@/lib/rbac";
 import { CreatePromissoryNoteForm } from "./CreatePromissoryNoteForm";
@@ -32,6 +35,9 @@ export default async function NewPromissoryNotePage({
   if (!student) notFound();
 
   const defaultPeriodId = queryPeriodId ?? periods[0]?.id ?? "";
+  if (defaultPeriodId) {
+    await getOrCreateClearanceRequest(enrollmentId, defaultPeriodId);
+  }
   const studentName = [student.firstName, student.middleName, student.lastName]
     .filter(Boolean)
     .join(" ");
