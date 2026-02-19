@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { getCurrentUserWithRole } from "./getCurrentUserWithRole";
 import { getProfileAndStudentByUserId } from "@/db/queries";
 
@@ -62,7 +63,7 @@ export async function getCurrentStudent(): Promise<CurrentStudent | null> {
  * Gets current user's profile and linked student (student may be null).
  * Use for Profile page and pages that need profile even without student.
  */
-export async function getCurrentUserWithStudent(): Promise<CurrentUserWithStudent | null> {
+async function getCurrentUserWithStudentImpl(): Promise<CurrentUserWithStudent | null> {
   const user = await getCurrentUserWithRole();
   if (!user?.userId) return null;
 
@@ -92,3 +93,5 @@ export async function getCurrentUserWithStudent(): Promise<CurrentUserWithStuden
       : null,
   };
 }
+
+export const getCurrentUserWithStudent = cache(getCurrentUserWithStudentImpl);

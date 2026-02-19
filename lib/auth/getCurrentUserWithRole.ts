@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { auth } from "./server";
 import { getUserProfileByUserId, createUserProfile } from "@/db/queries";
 
@@ -10,7 +11,7 @@ export type CurrentUser = {
   readonly emailVerified: boolean;
 };
 
-export async function getCurrentUserWithRole(): Promise<CurrentUser | null> {
+async function getCurrentUserWithRoleImpl(): Promise<CurrentUser | null> {
   const sessionResponse = await auth.getSession();
   const session = sessionResponse?.data;
 
@@ -89,3 +90,5 @@ export async function getCurrentUserWithRole(): Promise<CurrentUser | null> {
     };
   }
 }
+
+export const getCurrentUserWithRole = cache(getCurrentUserWithRoleImpl);

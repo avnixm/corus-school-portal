@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { db } from "@/lib/db";
 import type { Role } from "@/db/schema";
 import {
@@ -1696,7 +1697,7 @@ export async function getTermsList() {
   return db.select().from(terms).orderBy(terms.name);
 }
 
-export async function getActiveSchoolYear() {
+async function getActiveSchoolYearImpl() {
   const [row] = await db
     .select({
       id: schoolYears.id,
@@ -1711,7 +1712,9 @@ export async function getActiveSchoolYear() {
   return row ?? null;
 }
 
-export async function getActiveTerm() {
+export const getActiveSchoolYear = cache(getActiveSchoolYearImpl);
+
+async function getActiveTermImpl() {
   const sy = await getActiveSchoolYear();
   if (!sy) return null;
   const [row] = await db
@@ -1728,6 +1731,8 @@ export async function getActiveTerm() {
     .limit(1);
   return row ?? null;
 }
+
+export const getActiveTerm = cache(getActiveTermImpl);
 
 export async function getStudentsList(search?: string) {
   const baseWhere = isNull(students.deletedAt);
