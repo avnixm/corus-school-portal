@@ -40,7 +40,8 @@ export async function markClearedAction(enrollmentId: string) {
     });
     revalidatePath("/finance/clearance");
     revalidatePath("/finance");
-    revalidatePath("/registrar/enrollments");
+    revalidatePath("/registrar/records/enrollments");
+    revalidatePath("/registrar/records");
     return { success: true };
   } catch (e) {
     return { error: "Failed to mark cleared" };
@@ -62,7 +63,8 @@ export async function putOnHoldAction(enrollmentId: string, reason?: string) {
       .where(eq(enrollmentFinanceStatus.enrollmentId, enrollmentId));
     revalidatePath("/finance/clearance");
     revalidatePath("/finance");
-    revalidatePath("/registrar/enrollments");
+    revalidatePath("/registrar/records/enrollments");
+    revalidatePath("/registrar/records");
     return { success: true };
   } catch (e) {
     return { error: "Failed to put on hold" };

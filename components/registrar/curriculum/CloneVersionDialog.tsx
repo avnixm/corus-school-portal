@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { ErrorDialog } from "@/components/ui/ErrorDialog";
 import { cloneCurriculumVersionAction } from "@/app/(portal)/registrar/curriculum/actions";
+import { useCurriculumBasePath } from "@/lib/registrar/curriculum/CurriculumRouteContext";
 
 type Program = { id: string; code: string; name: string };
 type SchoolYear = { id: string; name: string };
@@ -37,6 +38,7 @@ export function CloneVersionDialog({
   schoolYears: SchoolYear[];
   onClose: () => void;
 }) {
+  const basePath = useCurriculumBasePath();
   const [programId, setProgramId] = useState(sourceVersion.programId);
   const [schoolYearId, setSchoolYearId] = useState(sourceVersion.schoolYearId);
   const [name, setName] = useState(`${sourceVersion.name} (Copy)`);
@@ -59,7 +61,7 @@ export function CloneVersionDialog({
       setErrorMessage(result.error);
       setSubmitting(false);
     } else if (result.versionId) {
-      window.location.href = `/registrar/curriculum?programId=${programId}&schoolYearId=${schoolYearId}&yearLevel=1st%20Year`;
+      window.location.href = `${basePath}?programId=${programId}&schoolYearId=${schoolYearId}&yearLevel=1st%20Year`;
     }
   };
 

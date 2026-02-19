@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/server";
-import { getUserProfileByUserId } from "@/db/queries";
+import { getUserProfileByUserId } from "@/lib/auth/getUserProfileForMiddleware";
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
