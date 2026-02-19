@@ -20,7 +20,8 @@ export async function updateTeacherDepartmentAction(teacherId: string, programId
   if ("error" in auth) return { error: auth.error };
 
   await updateTeacherDepartment(teacherId, programId);
-  revalidatePath("/registrar/teachers");
+  revalidatePath("/registrar/staff/teachers");
+  revalidatePath("/registrar/staff");
   return { success: true };
 }
 

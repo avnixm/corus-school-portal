@@ -7,7 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 
-export function StudentsSearch() {
+export function StudentsSearch({
+  basePath = "/registrar/students",
+  tabValue,
+}: {
+  basePath?: string;
+  tabValue?: string;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -20,8 +26,9 @@ export function StudentsSearch() {
     const params = new URLSearchParams(searchParams.toString());
     if (q.trim()) params.set("search", q.trim());
     else params.delete("search");
+    if (tabValue) params.set("tab", tabValue);
     startTransition(() => {
-      router.push(`/registrar/students?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`);
     });
   }
 

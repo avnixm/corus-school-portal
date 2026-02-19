@@ -80,10 +80,10 @@ export default async function RegistrarDashboardPage() {
             </p>
           </div>
           <Link
-            href="/registrar/workbench"
+            href="/registrar/approvals"
             className="rounded-lg border-2 border-[#6A0000] bg-[#6A0000] px-4 py-2 text-sm font-medium text-white hover:bg-[#6A0000]/90"
           >
-            Open Workbench →
+            Approvals & Compliance →
           </Link>
         </div>
       </section>
@@ -133,7 +133,7 @@ export default async function RegistrarDashboardPage() {
               {requirementsAwaitingCount}
             </div>
             <Link
-              href="/registrar/requirements/queue"
+              href="/registrar/approvals/queue"
               className="mt-2 inline-block text-xs font-medium text-[#6A0000] hover:underline"
             >
               View queue →
@@ -185,7 +185,7 @@ export default async function RegistrarDashboardPage() {
               {recentRegistrationsCount}
             </div>
             <Link
-              href="/registrar/students"
+              href="/registrar/records/students"
               className="mt-2 inline-block text-xs font-medium text-[#6A0000] hover:underline"
             >
               View →
@@ -241,7 +241,7 @@ export default async function RegistrarDashboardPage() {
               )}
             </div>
             <Link
-              href="/registrar/students"
+              href="/registrar/records/students"
               className="mt-3 inline-block text-xs font-medium text-[#6A0000] hover:underline"
             >
               View all →
@@ -297,7 +297,7 @@ export default async function RegistrarDashboardPage() {
               {recentRequirementSubmissions.map((row) => (
                 <Link
                   key={row.id}
-                  href="/registrar/requirements/queue"
+                  href="/registrar/approvals/queue"
                   className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
                 >
                   <span className="font-medium text-[#6A0000]">
@@ -315,7 +315,7 @@ export default async function RegistrarDashboardPage() {
               )}
             </div>
             <Link
-              href="/registrar/requirements/queue"
+              href="/registrar/approvals/queue"
               className="mt-3 inline-block text-xs font-medium text-[#6A0000] hover:underline"
             >
               View queue →

@@ -5,24 +5,43 @@ import { Label } from "@/components/ui/label";
 
 type Program = { id: string; code: string; name: string };
 
-export function SubjectsFilters({ programs }: { programs: Program[] }) {
+export function SubjectsFilters({
+  programs,
+  basePath = "/registrar/subjects",
+  tabValue,
+}: {
+  programs: Program[];
+  basePath?: string;
+  tabValue?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId") ?? "";
-  const tab = searchParams.get("tab") ?? "program";
+  const tab = tabValue
+    ? (searchParams.get("subjectView") ?? "program")
+    : (searchParams.get("tab") ?? "program");
 
   function setProgramId(value: string) {
     const next = new URLSearchParams(searchParams);
     if (value) next.set("programId", value);
     else next.delete("programId");
-    router.push(`/registrar/subjects?${next.toString()}`);
+    if (tabValue) {
+      next.set("tab", tabValue);
+      if (searchParams.get("subjectView")) next.set("subjectView", searchParams.get("subjectView")!);
+    }
+    router.push(`${basePath}?${next.toString()}`);
   }
 
   function setTab(value: "program" | "ge") {
     const next = new URLSearchParams(searchParams);
-    next.set("tab", value);
+    if (tabValue) {
+      next.set("tab", tabValue);
+      next.set("subjectView", value);
+    } else {
+      next.set("tab", value);
+    }
     if (value === "ge") next.delete("programId");
-    router.push(`/registrar/subjects?${next.toString()}`);
+    router.push(`${basePath}?${next.toString()}`);
   }
 
   return (

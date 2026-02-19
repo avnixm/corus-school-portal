@@ -17,7 +17,8 @@ export async function createSectionAction(formData: FormData) {
   }
 
   await createSection({ programId, name, yearLevel });
-  revalidatePath("/registrar/sections");
+  revalidatePath("/registrar/academics/sections");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
   revalidatePath("/registrar");
   return { success: true };
@@ -40,7 +41,8 @@ export async function updateSectionAction(id: string, formData: FormData) {
     name,
     yearLevel,
   });
-  revalidatePath("/registrar/sections");
+  revalidatePath("/registrar/academics/sections");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }
@@ -50,7 +52,8 @@ export async function toggleSectionActiveAction(id: string, active: boolean) {
   if ("error" in auth) return { error: auth.error };
 
   await toggleSectionActive(id, active);
-  revalidatePath("/registrar/sections");
+  revalidatePath("/registrar/academics/sections");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }

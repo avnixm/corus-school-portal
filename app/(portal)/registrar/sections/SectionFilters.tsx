@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 
 type Program = { id: string; code: string; name: string };
 
-export function SectionFilters({ programs }: { programs: Program[] }) {
+export function SectionFilters({
+  programs,
+  basePath = "/registrar/sections",
+  tabValue,
+}: {
+  programs: Program[];
+  basePath?: string;
+  tabValue?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
@@ -18,8 +26,9 @@ export function SectionFilters({ programs }: { programs: Program[] }) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    if (tabValue) params.set("tab", tabValue);
     startTransition(() => {
-      router.push(`/registrar/sections?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`);
     });
   }
 
@@ -64,7 +73,11 @@ export function SectionFilters({ programs }: { programs: Program[] }) {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => router.push("/registrar/sections")}
+        onClick={() => {
+          const params = new URLSearchParams();
+          if (tabValue) params.set("tab", tabValue);
+          router.push(`${basePath}${params.toString() ? `?${params.toString()}` : ""}`);
+        }}
         disabled={pending}
       >
         Clear

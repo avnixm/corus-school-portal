@@ -1,20 +1,51 @@
-import { getSectionsWithAdvisers } from "@/db/queries";
-import { getProgramsList, getSchoolYearsList } from "@/db/queries";
-import { listTeachersFromUserProfile } from "@/db/queries";
+import {
+  listTeachersWithDepartmentAndCapabilityCount,
+  getProgramsList,
+} from "@/db/queries";
+import {
+  getSectionsWithAdvisers,
+  getProgramsList as getProgramsForAdvisers,
+  getSchoolYearsList,
+  listTeachersFromUserProfile,
+} from "@/db/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AdviserFilters } from "./AdviserFilters";
-import { AdviserAssignmentRow } from "./AdviserAssignmentRow";
+import { TeacherTable } from "@/components/registrar/teachers/TeacherTable";
+import { AdviserFilters } from "../advisers/AdviserFilters";
+import { AdviserAssignmentRow } from "../advisers/AdviserAssignmentRow";
 
-export const dynamic = "force-dynamic";
+export type StaffSearchParams = {
+  tab?: string;
+  programId?: string;
+  yearLevel?: string;
+  schoolYearId?: string;
+};
 
-export const metadata = { title: "Advisers" };
+export async function TeachersTab() {
+  const [teachers, programs] = await Promise.all([
+    listTeachersWithDepartmentAndCapabilityCount(),
+    getProgramsList(true),
+  ]);
 
-export default async function AdvisersPage({
-  searchParams,
+  return (
+    <div className="space-y-4">
+      <Card>
+        <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
+          <TeacherTable teachers={teachers} programs={programs} />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export async function AdvisersTab({
+  params,
+  basePath = "/registrar/staff",
+  tabValue,
 }: {
-  searchParams: Promise<{ programId?: string; yearLevel?: string; schoolYearId?: string }>;
+  params: StaffSearchParams;
+  basePath?: string;
+  tabValue?: string;
 }) {
-  const params = await searchParams;
   const schoolYearId = params.schoolYearId ?? "";
   const [sections, programs, schoolYears, teachers] = await Promise.all([
     schoolYearId
@@ -23,24 +54,19 @@ export default async function AdvisersPage({
           yearLevel: params.yearLevel,
         })
       : Promise.resolve([]),
-    getProgramsList(),
+    getProgramsForAdvisers(),
     getSchoolYearsList(),
     listTeachersFromUserProfile(),
   ]);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
-          Adviser Assignments
-        </h2>
-        <p className="text-sm text-neutral-800">
-          Assign advisers per program, year level, and block (section). Select a school year first.
-        </p>
-      </div>
-
-      <AdviserFilters programs={programs} schoolYears={schoolYears} />
-
+      <AdviserFilters
+        programs={programs}
+        schoolYears={schoolYears}
+        basePath={basePath}
+        tabValue={tabValue}
+      />
       {!schoolYearId ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-neutral-600">
@@ -82,7 +108,10 @@ export default async function AdvisersPage({
                   ))}
                   {sections.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-neutral-600">
+                      <td
+                        colSpan={4}
+                        className="px-4 py-8 text-center text-neutral-600"
+                      >
                         No sections match the current filters.
                       </td>
                     </tr>

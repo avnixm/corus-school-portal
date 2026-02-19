@@ -17,11 +17,13 @@ type Section = {
 type Program = { id: string; code: string; name: string };
 
 export function ScheduleFilters({
+  basePath = "/registrar/schedules",
   schoolYears,
   terms,
   sections,
   programs,
 }: {
+  basePath?: string;
   schoolYears: SchoolYear[];
   terms: Term[];
   sections: Section[];
@@ -54,7 +56,7 @@ export function ScheduleFilters({
     }
     if (key === "yearLevel") params.delete("sectionId");
     startTransition(() => {
-      router.push(`/registrar/schedules?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`);
     });
   }
 
@@ -154,7 +156,7 @@ export function ScheduleFilters({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => router.push("/registrar/schedules")}
+        onClick={() => router.push(basePath)}
         disabled={pending}
       >
         Clear

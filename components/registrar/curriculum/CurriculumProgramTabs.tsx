@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCurriculumBasePath } from "@/lib/registrar/curriculum/CurriculumRouteContext";
 
 type Program = { id: string; code: string; name: string };
 type SchoolYear = { id: string; name: string };
@@ -28,6 +29,7 @@ export function CurriculumProgramTabs({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const basePath = useCurriculumBasePath();
   const yearLevel = searchParams.get("yearLevel") ?? "1st Year";
 
   const handleProgramChange = (programId: string) => {
@@ -35,7 +37,7 @@ export function CurriculumProgramTabs({
     params.set("programId", programId);
     if (selectedSchoolYearId) params.set("schoolYearId", selectedSchoolYearId);
     params.set("yearLevel", yearLevel);
-    router.push(`/registrar/curriculum?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const handleSchoolYearChange = (schoolYearId: string) => {
@@ -43,7 +45,7 @@ export function CurriculumProgramTabs({
     if (selectedProgramId) params.set("programId", selectedProgramId);
     params.set("schoolYearId", schoolYearId);
     params.set("yearLevel", yearLevel);
-    router.push(`/registrar/curriculum?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   return (

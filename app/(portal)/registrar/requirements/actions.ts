@@ -54,7 +54,8 @@ export async function createRequirementAction(formData: FormData) {
     }
     return { error: msg };
   }
-  revalidatePath("/registrar/requirements");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -89,7 +90,8 @@ export async function updateRequirementAction(id: string, formData: FormData) {
     const msg = err instanceof Error ? err.message : String(err);
     return { error: msg };
   }
-  revalidatePath("/registrar/requirements");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
   return { success: true };
 }
 
@@ -97,7 +99,8 @@ export async function toggleRequirementActiveAction(id: string, isActive: boolea
   const authResult = await requireRegistrar();
   if ("error" in authResult) return { error: authResult.error };
   await updateRequirement(id, { isActive });
-  revalidatePath("/registrar/requirements");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
   return { success: true };
 }
 
@@ -111,7 +114,8 @@ export async function deleteRequirementAction(id: string) {
     const msg = err instanceof Error ? err.message : String(err);
     return { error: msg };
   }
-  revalidatePath("/registrar/requirements");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
   return { success: true };
 }
 
@@ -139,7 +143,8 @@ export async function createRuleAction(formData: FormData) {
     isRequired,
     sortOrder,
   });
-  revalidatePath("/registrar/requirements");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
   return { success: true };
 }
 
@@ -162,7 +167,8 @@ export async function updateRuleAction(id: string, formData: FormData) {
     isRequired,
     sortOrder,
   });
-  revalidatePath("/registrar/requirements");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
   return { success: true };
 }
 
@@ -170,7 +176,8 @@ export async function deleteRuleAction(id: string) {
   const authResult = await requireRegistrar();
   if ("error" in authResult) return { error: authResult.error };
   await deleteRequirementRule(id);
-  revalidatePath("/registrar/requirements");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
   return { success: true };
 }
 
@@ -178,8 +185,10 @@ export async function verifyRequirementAction(id: string) {
   const authResult = await requireRegistrar();
   if ("error" in authResult) return { error: authResult.error };
   await verifyRequirement(id, authResult.userId);
-  revalidatePath("/registrar/requirements");
-  revalidatePath("/registrar/requirements/queue");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
+  revalidatePath("/registrar/approvals/queue");
+  revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -188,8 +197,10 @@ export async function rejectRequirementAction(id: string, notes: string) {
   const authResult = await requireRegistrar();
   if ("error" in authResult) return { error: authResult.error };
   await rejectRequirement(id, notes);
-  revalidatePath("/registrar/requirements");
-  revalidatePath("/registrar/requirements/queue");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
+  revalidatePath("/registrar/approvals/queue");
+  revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -205,8 +216,10 @@ export async function verifySubmissionAction(submissionId: string, messageToStud
     entityId: submissionId,
     after: { status: "verified" },
   });
-  revalidatePath("/registrar/requirements");
-  revalidatePath("/registrar/requirements/queue");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
+  revalidatePath("/registrar/approvals/queue");
+  revalidatePath("/registrar/approvals");
   revalidatePath("/registrar/approvals");
   revalidatePath("/student/requirements");
   const sub = await getRequirementSubmissionById(submissionId);
@@ -226,8 +239,10 @@ export async function rejectSubmissionAction(submissionId: string, remarks: stri
     entityId: submissionId,
     after: { status: "rejected", remarks: remarks.trim() },
   });
-  revalidatePath("/registrar/requirements");
-  revalidatePath("/registrar/requirements/queue");
+  revalidatePath("/registrar/approvals/requirements");
+  revalidatePath("/registrar/approvals");
+  revalidatePath("/registrar/approvals/queue");
+  revalidatePath("/registrar/approvals");
   revalidatePath("/registrar/approvals");
   revalidatePath("/student/requirements");
   const sub = await getRequirementSubmissionById(submissionId);

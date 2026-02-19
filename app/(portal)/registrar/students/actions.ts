@@ -36,7 +36,8 @@ export async function createStudent(formData: FormData) {
     contactNo,
   });
 
-  revalidatePath("/registrar/students");
+  revalidatePath("/registrar/records/students");
+  revalidatePath("/registrar/records");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -74,7 +75,8 @@ export async function updateStudent(id: string, formData: FormData) {
     })
     .where(and(eq(students.id, id), isNull(students.deletedAt)));
 
-  revalidatePath("/registrar/students");
+  revalidatePath("/registrar/records/students");
+  revalidatePath("/registrar/records");
   revalidatePath(`/registrar/students/${id}`);
   revalidatePath("/registrar");
   return { success: true };
@@ -94,7 +96,8 @@ export async function deleteStudent(id: string) {
     .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(eq(students.id, id));
 
-  revalidatePath("/registrar/students");
+  revalidatePath("/registrar/records/students");
+  revalidatePath("/registrar/records");
   revalidatePath("/registrar");
   return { success: true };
 }

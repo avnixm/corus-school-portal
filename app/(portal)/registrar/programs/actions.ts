@@ -27,10 +27,11 @@ export async function createProgramAction(formData: FormData) {
   }
 
   await createProgram({ code, name, description });
-  revalidatePath("/registrar/programs");
-  revalidatePath("/registrar/sections");
+  revalidatePath("/registrar/academics/programs");
+  revalidatePath("/registrar/academics/sections");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
-  revalidatePath("/registrar/enrollments");
+  revalidatePath("/registrar/records/enrollments");
   return { success: true };
 }
 
@@ -47,10 +48,11 @@ export async function updateProgramAction(id: string, formData: FormData) {
   }
 
   await updateProgram(id, { code, name, description });
-  revalidatePath("/registrar/programs");
-  revalidatePath("/registrar/sections");
+  revalidatePath("/registrar/academics/programs");
+  revalidatePath("/registrar/academics/sections");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
-  revalidatePath("/registrar/enrollments");
+  revalidatePath("/registrar/records/enrollments");
   return { success: true };
 }
 
@@ -59,9 +61,10 @@ export async function toggleProgramActiveAction(id: string, active: boolean) {
   if ("error" in auth) return { error: auth.error };
 
   await toggleProgramActive(id, active);
-  revalidatePath("/registrar/programs");
-  revalidatePath("/registrar/sections");
+  revalidatePath("/registrar/academics/programs");
+  revalidatePath("/registrar/academics/sections");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
-  revalidatePath("/registrar/enrollments");
+  revalidatePath("/registrar/records/enrollments");
   return { success: true };
 }

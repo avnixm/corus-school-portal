@@ -19,7 +19,7 @@ export function DeleteStudentButton({
       return;
     }
     await deleteStudent(studentId);
-    router.push("/registrar/students");
+    router.push("/registrar/records/students");
     router.refresh();
   }
 

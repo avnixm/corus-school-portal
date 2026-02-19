@@ -61,7 +61,7 @@ export default async function StudentDetailPage({
       <div className="flex items-center justify-between">
         <div>
           <Link
-            href="/registrar/students"
+            href="/registrar/records/students"
             className="text-sm font-medium text-[#6A0000] hover:underline"
           >
             ← Back to students
@@ -119,7 +119,7 @@ export default async function StudentDetailPage({
           <CardTitle className="text-sm font-semibold text-[#6A0000]">
             Enrollment History
           </CardTitle>
-          <Link href={`/registrar/enrollments?studentId=${id}`}>
+          <Link href={`/registrar/records/enrollments?studentId=${id}`}>
             <Button size="sm" variant="outline">
               Add enrollment
             </Button>

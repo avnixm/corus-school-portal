@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 import { LogOut, Menu } from "lucide-react";
 import { getStudentNavItems } from "./nav/student";
 import { getAdminNavItems } from "./nav/admin";
-import { getRegistrarNavItems, getRegistrarNavConfig } from "./nav/registrar";
+import { getRegistrarNavItems } from "./nav/registrar";
 import { getFinanceNavItems } from "./nav/finance";
 import { getTeacherNavItems } from "./nav/teacher";
-import { getProgramHeadNavConfig } from "./nav/programHead";
+import { getProgramHeadNavItems } from "./nav/programHead";
 import { getDeanNavItems } from "./nav/dean";
 
 interface AppShellProps {
@@ -62,21 +62,19 @@ export function AppShell({
   signOutAction,
   children,
 }: AppShellProps) {
-  // For registrar and program_head, use the grouped config
-  const registrarConfig = navVariant === "registrar" ? getRegistrarNavConfig() : undefined;
-  const programHeadConfig = navVariant === "program_head" ? getProgramHeadNavConfig() : undefined;
-  const sidebarConfig = registrarConfig ?? programHeadConfig;
+  // For registrar, use flat items (no grouped config)
+  const sidebarConfig = undefined;
 
   const sidebarItems =
     providedItems ??
     (navVariant === "registrar"
-      ? undefined // Use config instead
+      ? getRegistrarNavItems()
       : navVariant === "finance"
       ? getFinanceNavItems()
       : navVariant === "teacher"
       ? getTeacherNavItems()
       : navVariant === "program_head"
-      ? undefined // Use config instead
+      ? getProgramHeadNavItems()
       : navVariant === "dean"
       ? getDeanNavItems()
       : navVariant === "admin" || role === "admin"

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FileEdit, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCurriculumBasePath } from "@/lib/registrar/curriculum/CurriculumRouteContext";
 
 export function CurriculumViewChooser({
   programCode,
@@ -17,7 +18,8 @@ export function CurriculumViewChooser({
   schoolYearId: string;
   yearLevel: string;
 }) {
-  const base = `/registrar/curriculum?programId=${programId}&schoolYearId=${schoolYearId}&yearLevel=${encodeURIComponent(yearLevel)}`;
+  const basePath = useCurriculumBasePath();
+  const base = `${basePath}?programId=${programId}&schoolYearId=${schoolYearId}&yearLevel=${encodeURIComponent(yearLevel)}`;
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm">

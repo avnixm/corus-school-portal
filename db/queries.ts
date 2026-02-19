@@ -2098,12 +2098,14 @@ export async function createSection(values: {
   name: string;
   yearLevel?: string | null;
   active?: boolean;
+  maxCapacity?: number | null;
 }) {
   return db.insert(sections).values({
     programId: values.programId,
     name: values.name,
     yearLevel: values.yearLevel ?? null,
     active: values.active ?? true,
+    maxCapacity: values.maxCapacity ?? null,
   });
 }
 
@@ -2114,6 +2116,7 @@ export async function updateSection(
     name?: string;
     yearLevel?: string | null;
     active?: boolean;
+    maxCapacity?: number | null;
   }
 ) {
   return db.update(sections).set({ ...values, updatedAt: new Date() }).where(eq(sections.id, id));

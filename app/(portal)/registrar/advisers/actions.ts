@@ -30,6 +30,7 @@ export async function assignAdviserAction(formData: FormData) {
     await deleteAdviserAssignment(sectionId, schoolYearId);
   }
 
-  revalidatePath("/registrar/advisers");
+  revalidatePath("/registrar/staff/advisers");
+  revalidatePath("/registrar/staff");
   return { success: true };
 }

@@ -24,17 +24,23 @@ export function QueueFilters({
   terms,
   programs,
   current,
+  basePath = "/registrar/requirements/queue",
+  tabValue,
 }: {
   schoolYears: SchoolYearRow[];
   terms: TermRow[];
   programs: ProgramRow[];
-  current: { 
-    schoolYearId?: string; 
-    termId?: string; 
-    program?: string; 
+  current: {
+    schoolYearId?: string;
+    termId?: string;
+    program?: string;
     search?: string;
     enrollmentStatus?: string;
   };
+  /** When provided (e.g. "/registrar/approvals"), filters push to this path with tab param. */
+  basePath?: string;
+  /** When basePath is used, include this tab param (e.g. "queue"). */
+  tabValue?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,7 +49,10 @@ export function QueueFilters({
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
-    router.push("/registrar/requirements/queue?" + next.toString());
+    if (basePath === "/registrar/approvals" && tabValue) {
+      next.set("tab", tabValue);
+    }
+    router.push(basePath + "?" + next.toString());
   }
 
   return (

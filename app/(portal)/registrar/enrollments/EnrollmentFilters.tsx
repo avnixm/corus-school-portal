@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 
 type Program = { id: string; code: string; name: string };
 
-export function EnrollmentFilters({ programs }: { programs: Program[] }) {
+export function EnrollmentFilters({
+  programs,
+  basePath = "/registrar/enrollments",
+  tabValue,
+}: {
+  programs: Program[];
+  basePath?: string;
+  tabValue?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
@@ -17,8 +25,9 @@ export function EnrollmentFilters({ programs }: { programs: Program[] }) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    if (tabValue) params.set("tab", tabValue);
     startTransition(() => {
-      router.push(`/registrar/enrollments?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`);
     });
   }
 
@@ -45,7 +54,11 @@ export function EnrollmentFilters({ programs }: { programs: Program[] }) {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => router.push("/registrar/enrollments")}
+        onClick={() => {
+          const params = new URLSearchParams();
+          if (tabValue) params.set("tab", tabValue);
+          router.push(`${basePath}${params.toString() ? `?${params.toString()}` : ""}`);
+        }}
         disabled={pending}
       >
         Clear

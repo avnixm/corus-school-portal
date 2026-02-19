@@ -487,6 +487,8 @@ export const sections = pgTable(
     name: varchar("name", { length: 64 }).notNull(),
     gradeLevel: varchar("grade_level", { length: 32 }),
     yearLevel: varchar("year_level", { length: 32 }),
+    /** Max students per class; null = use app default (e.g. 40). */
+    maxCapacity: integer("max_capacity"),
     /** Legacy/denormalized; prefer programId. Kept so db:push does not drop existing data. */
     program: varchar("program", { length: 64 }),
     status: varchar("status", { length: 32 }),

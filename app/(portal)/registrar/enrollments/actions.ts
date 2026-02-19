@@ -61,7 +61,8 @@ export async function createEnrollmentAction(formData: FormData) {
     return { error: msg };
   }
 
-  revalidatePath("/registrar/enrollments");
+  revalidatePath("/registrar/records/enrollments");
+  revalidatePath("/registrar/records");
   revalidatePath("/registrar");
   revalidatePath(`/registrar/students/${studentId}`);
   return { success: true };
@@ -92,7 +93,8 @@ export async function updateEnrollmentStatus(
     await rejectEnrollmentById(enrollmentId, auth.userId);
   }
 
-  revalidatePath("/registrar/enrollments");
+  revalidatePath("/registrar/records/enrollments");
+  revalidatePath("/registrar/records");
   revalidatePath("/registrar/approvals");
   revalidatePath("/registrar");
   revalidatePath("/finance/assessments");
@@ -115,7 +117,8 @@ export async function assignSectionToEnrollmentAction(
     await finalizeEnrollmentClasses(enrollmentId);
   }
 
-  revalidatePath("/registrar/enrollments");
+  revalidatePath("/registrar/records/enrollments");
+  revalidatePath("/registrar/records");
   revalidatePath(`/registrar/students/${enrollment.studentId}`);
   return { success: true };
 }

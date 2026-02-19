@@ -28,7 +28,8 @@ export async function createSubjectAction(formData: FormData) {
   if (duplicate) return { error: "A subject with this code already exists for this program or as GE" };
 
   await createSubject({ type, programId, code, title, description, units });
-  revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/academics/subjects");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
   revalidatePath("/registrar");
   return { success: true };
@@ -61,7 +62,8 @@ export async function updateSubjectAction(id: string, formData: FormData) {
     type,
     programId,
   });
-  revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/academics/subjects");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }
@@ -71,7 +73,8 @@ export async function toggleSubjectActiveAction(id: string, active: boolean) {
   if ("error" in auth) return { error: auth.error };
 
   await toggleSubjectActive(id, active);
-  revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/academics/subjects");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }

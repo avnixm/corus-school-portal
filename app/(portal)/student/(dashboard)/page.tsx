@@ -27,7 +27,7 @@ import { formatStatusForDisplay } from "@/lib/formatStatus";
 import { getRoleDisplayLabel } from "@/lib/announcements/roleLabel";
 import { ProfileCompletenessWidget } from "@/components/student/ProfileCompletenessWidget";
 import { computeProfileCompleteness } from "@/lib/student/profileCompleteness";
-import { db } from "@/db";
+import { db } from "@/lib/db";
 import { studentAddresses, students } from "@/db/schema";
 import { eq } from "drizzle-orm";
 

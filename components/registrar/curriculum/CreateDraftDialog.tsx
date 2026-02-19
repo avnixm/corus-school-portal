@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { ErrorDialog } from "@/components/ui/ErrorDialog";
 import { createCurriculumVersionAction } from "@/app/(portal)/registrar/curriculum/actions";
+import { useCurriculumBasePath } from "@/lib/registrar/curriculum/CurriculumRouteContext";
 
 type Program = { id: string; code: string; name: string };
 type SchoolYear = { id: string; name: string };
@@ -34,6 +35,7 @@ export function CreateDraftDialog({
   schoolYears: SchoolYear[];
   onClose: () => void;
 }) {
+  const basePath = useCurriculumBasePath();
   const [programId, setProgramId] = useState("");
   const [schoolYearId, setSchoolYearId] = useState("");
   const [name, setName] = useState("");
@@ -55,7 +57,7 @@ export function CreateDraftDialog({
       setErrorMessage(result.error);
       setSubmitting(false);
     } else if (result.versionId) {
-      window.location.href = `/registrar/curriculum?programId=${programId}&versionId=${result.versionId}`;
+      window.location.href = `${basePath}?programId=${programId}&versionId=${result.versionId}`;
     }
   };
 

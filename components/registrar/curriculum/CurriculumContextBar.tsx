@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCurriculumBasePath } from "@/lib/registrar/curriculum/CurriculumRouteContext";
 
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
@@ -32,13 +33,14 @@ export function CurriculumContextBar({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const basePath = useCurriculumBasePath();
 
   const handleProgramChange = (programId: string) => {
     const params = new URLSearchParams();
     params.set("programId", programId);
     if (selectedSchoolYearId) params.set("schoolYearId", selectedSchoolYearId);
     params.set("yearLevel", selectedYearLevel);
-    router.push(`/registrar/curriculum?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const handleSchoolYearChange = (schoolYearId: string) => {
@@ -46,7 +48,7 @@ export function CurriculumContextBar({
     if (selectedProgramId) params.set("programId", selectedProgramId);
     params.set("schoolYearId", schoolYearId);
     params.set("yearLevel", selectedYearLevel);
-    router.push(`/registrar/curriculum?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const handleYearChange = (yearLevel: string) => {
@@ -54,7 +56,7 @@ export function CurriculumContextBar({
     if (selectedProgramId) params.set("programId", selectedProgramId);
     if (selectedSchoolYearId) params.set("schoolYearId", selectedSchoolYearId);
     params.set("yearLevel", yearLevel);
-    router.push(`/registrar/curriculum?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   return (

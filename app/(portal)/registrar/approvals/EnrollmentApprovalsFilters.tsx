@@ -34,6 +34,7 @@ export function EnrollmentApprovalsFilters({
     const next = new URLSearchParams(searchParams);
     if (value && value !== "__all__") next.set(key, value);
     else next.delete(key);
+    if (next.get("tab") === null) next.set("tab", "enrollments");
     router.push("/registrar/approvals?" + next.toString());
   }
 

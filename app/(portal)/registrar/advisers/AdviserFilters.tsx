@@ -13,9 +13,13 @@ const YEAR_LEVELS = ["1", "2", "3", "4", "5", "1st Year", "2nd Year", "3rd Year"
 export function AdviserFilters({
   programs,
   schoolYears,
+  basePath = "/registrar/advisers",
+  tabValue,
 }: {
   programs: Program[];
   schoolYears: SchoolYear[];
+  basePath?: string;
+  tabValue?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,8 +32,9 @@ export function AdviserFilters({
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    if (tabValue) params.set("tab", tabValue);
     startTransition(() => {
-      router.push(`/registrar/advisers?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`);
     });
   }
 
@@ -80,7 +85,11 @@ export function AdviserFilters({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => router.push("/registrar/advisers")}
+        onClick={() => {
+          const params = new URLSearchParams();
+          if (tabValue) params.set("tab", tabValue);
+          router.push(`${basePath}${params.toString() ? `?${params.toString()}` : ""}`);
+        }}
         disabled={pending}
       >
         Clear

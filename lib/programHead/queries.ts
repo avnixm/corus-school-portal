@@ -16,6 +16,7 @@ import {
   enrollmentFinanceStatus,
   announcements,
   ledgerEntries,
+  adviserAssignments,
 } from "@/db/schema";
 import { eq, and, desc, sql, gte, lte, inArray, isNull } from "drizzle-orm";
 import type { getProgramHeadScopePrograms } from "./scope";
@@ -553,6 +554,117 @@ export async function getSectionsWithLoads(
     .leftJoin(scheduleSub, eq(sections.id, scheduleSub.sectionId));
   const rows = sectionCond ? await base.where(sectionCond) : await base;
   return rows as { id: string; name: string; program: string | null; yearLevel: string | null; enrolledCount: number; scheduleCount: number }[];
+}
+
+import { CLASS_MANAGEMENT_MAX_CAPACITY } from "./constants";
+
+export type ClassManagementRow = {
+  id: string;
+  programId: string | null;
+  name: string;
+  program: string | null;
+  yearLevel: string | null;
+  enrolledCount: number;
+  /** Number of class schedules for this section in the term. */
+  scheduleCount: number;
+  /** Effective max (section override or default). */
+  maxCapacity: number;
+  /** Stored override from DB; null = use default. */
+  maxCapacityStored: number | null;
+  adviserName: string | null;
+  homeroom: string | null;
+  schoolYearName: string;
+  termName: string;
+};
+
+/** Sections in scope with enrollment, adviser, homeroom for Class Management page. */
+export async function getClassManagementRows(
+  scope: ProgramScope,
+  schoolYearId: string | null,
+  termId: string | null
+): Promise<ClassManagementRow[]> {
+  if (!schoolYearId || !termId) return [];
+  const sectionCond = programConditionSections(scope);
+  const enrollConds = [
+    eq(enrollments.status, "approved"),
+    eq(enrollments.schoolYearId, schoolYearId),
+    eq(enrollments.termId, termId),
+  ];
+  const enrolledSub = db
+    .select({ sectionId: enrollments.sectionId, count: sql<number>`count(*)::int`.as("enrolled_c") })
+    .from(enrollments)
+    .where(and(...enrollConds))
+    .groupBy(enrollments.sectionId)
+    .as("ec");
+
+  const adviserSub = db
+    .select({
+      sectionId: adviserAssignments.sectionId,
+      adviserName: userProfile.fullName,
+    })
+    .from(adviserAssignments)
+    .innerJoin(userProfile, eq(adviserAssignments.teacherUserProfileId, userProfile.id))
+    .where(eq(adviserAssignments.schoolYearId, schoolYearId))
+    .as("adv");
+
+  const scheduleSub = db
+    .select({ sectionId: classSchedules.sectionId, count: sql<number>`count(*)::int`.as("schedule_c") })
+    .from(classSchedules)
+    .where(and(eq(classSchedules.schoolYearId, schoolYearId), eq(classSchedules.termId, termId)))
+    .groupBy(classSchedules.sectionId)
+    .as("sc");
+
+  const base = db
+    .select({
+      id: sections.id,
+      programId: sections.programId,
+      name: sections.name,
+      program: programs.code,
+      yearLevel: sections.yearLevel,
+      maxCapacity: sections.maxCapacity,
+      enrolledCount: sql<number>`COALESCE(${enrolledSub.count}, 0)`.as("enrolled_count"),
+      scheduleCount: sql<number>`COALESCE(${scheduleSub.count}, 0)`.as("schedule_count"),
+      adviserName: adviserSub.adviserName,
+    })
+    .from(sections)
+    .leftJoin(programs, eq(sections.programId, programs.id))
+    .leftJoin(enrolledSub, eq(sections.id, enrolledSub.sectionId))
+    .leftJoin(scheduleSub, eq(sections.id, scheduleSub.sectionId))
+    .leftJoin(adviserSub, eq(sections.id, adviserSub.sectionId));
+  const sectionRows = sectionCond ? await base.where(sectionCond) : await base;
+
+  const roomRows = await db
+    .select({ sectionId: classSchedules.sectionId, room: classSchedules.room })
+    .from(classSchedules)
+    .where(and(eq(classSchedules.schoolYearId, schoolYearId), eq(classSchedules.termId, termId)));
+  const roomBySection = new Map<string, string | null>();
+  for (const r of roomRows) {
+    if (!roomBySection.has(r.sectionId)) roomBySection.set(r.sectionId, r.room ?? null);
+  }
+
+  const [syRow] = await db.select({ name: schoolYears.name }).from(schoolYears).where(eq(schoolYears.id, schoolYearId));
+  const [termRow] = await db.select({ name: terms.name }).from(terms).where(eq(terms.id, termId));
+  const schoolYearName = syRow?.name ?? "";
+  const termName = termRow?.name ?? "";
+
+  return sectionRows.map((r) => {
+    const stored = r.maxCapacity != null ? Number(r.maxCapacity) : null;
+    return {
+      id: r.id,
+      programId: r.programId ?? null,
+      name: r.name,
+      program: r.program,
+      yearLevel: r.yearLevel,
+      enrolledCount: Number(r.enrolledCount),
+      scheduleCount: Number(r.scheduleCount),
+      maxCapacity: stored ?? CLASS_MANAGEMENT_MAX_CAPACITY,
+      maxCapacityStored: stored,
+      adviserName: r.adviserName ?? null,
+      homeroom: roomBySection.get(r.id) ?? null,
+      schoolYearName,
+      termName,
+    };
+  });
 }
 
 export async function getDistinctProgramsFromEnrollments() {

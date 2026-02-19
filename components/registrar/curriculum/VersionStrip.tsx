@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Check, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { useCurriculumBasePath } from "@/lib/registrar/curriculum/CurriculumRouteContext";
 
 type Version = {
   id: string;
@@ -24,11 +25,12 @@ export function VersionStrip({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const basePath = useCurriculumBasePath();
 
   const handleVersionSelect = (versionId: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("versionId", versionId);
-    router.push(`/registrar/curriculum?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   if (versions.length === 0) {

@@ -1,211 +1,41 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { formatStatusForDisplay } from "@/lib/formatStatus";
-import { getPendingEnrollmentApprovalsList, getProgramsList } from "@/db/queries";
-import { getEnrollmentRequirementsSummary } from "@/lib/requirements/enrollmentSummary";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { EnrollmentApprovalActions } from "./EnrollmentApprovalActions";
-import { EnrollmentApprovalsFilters } from "./EnrollmentApprovalsFilters";
-import { RequirementsBadge } from "./RequirementsBadge";
-import { getAgeBadgeProps } from "@/lib/ui/age";
+import {
+  getProgramsList,
+} from "@/db/queries";
+import { ApprovalsShell } from "./ApprovalsShell";
+import { EnrollmentsTab, QueueTab, RequirementsTab, type ApprovalsSearchParams } from "./ApprovalsTabs";
 
 export const dynamic = "force-dynamic";
 
-function fullName(row: {
-  firstName: string;
-  middleName?: string | null;
-  lastName: string;
-}) {
-  return [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" ");
-}
+export const metadata = { title: "Approvals & Compliance" };
 
-export const metadata = { title: "Enrollment Approvals" };
+type SearchParams = Promise<ApprovalsSearchParams>;
 
-export default async function EnrollmentApprovalsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ 
-    search?: string;
-    program?: string;
-    yearLevel?: string;
-    reqsStatus?: string;
-  }>;
-}) {
+export default async function ApprovalsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [programs, allEnrollments] = await Promise.all([
-    getProgramsList(true),
-    getPendingEnrollmentApprovalsList(params.search),
-  ]);
+  const tab =
+    params.tab === "queue"
+      ? "queue"
+      : params.tab === "requirements"
+        ? "requirements"
+        : "enrollments";
 
-  // Apply client-side filters (since query doesn't support all filters yet)
-  let enrollments = allEnrollments;
-  if (params.program) {
-    enrollments = enrollments.filter(
-      (e) => e.programCode === params.program || e.program === params.program
-    );
-  }
-  if (params.yearLevel) {
-    enrollments = enrollments.filter((e) => e.yearLevel === params.yearLevel);
-  }
-
-  const summaries = await Promise.all(
-    enrollments.map((row) =>
-      getEnrollmentRequirementsSummary({
-        studentId: row.studentId,
-        enrollmentId: row.id,
-        program: row.programCode ?? row.program ?? null,
-        yearLevel: row.yearLevel ?? null,
-        schoolYearId: row.schoolYearId,
-        termId: row.termId,
-      })
-    )
-  );
-  const summaryByEnrollmentId = new Map(enrollments.map((r, i) => [r.id, summaries[i]]));
-
-  // Apply requirements filter
-  if (params.reqsStatus === "complete") {
-    enrollments = enrollments.filter((e) => {
-      const summary = summaryByEnrollmentId.get(e.id);
-      return summary && summary.required === 0 || (summary && summary.verified >= summary.required);
-    });
-  } else if (params.reqsStatus === "incomplete") {
-    enrollments = enrollments.filter((e) => {
-      const summary = summaryByEnrollmentId.get(e.id);
-      return summary && summary.required > 0 && summary.verified < summary.required;
-    });
-  }
+  const programs = await getProgramsList(true);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
-          Enrollment Approvals
-        </h2>
-        <p className="text-sm text-neutral-800">
-          Review and approve or reject enrollment requests.
-        </p>
-      </div>
-
-      <Suspense fallback={<div className="h-10" />}>
-        <EnrollmentApprovalsFilters programs={programs} current={params} />
-      </Suspense>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold text-neutral-900">
-            Pending approvals ({enrollments.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto rounded-xl border bg-white/80 text-neutral-900">
-            <table className="min-w-full text-left text-sm text-neutral-900">
-              <thead className="border-b bg-neutral-50 text-xs font-medium text-[#6A0000]">
-                <tr>
-                  <th className="px-4 py-2">Age</th>
-                  <th className="px-4 py-2">Student</th>
-                  <th className="px-4 py-2">School Year / Term</th>
-                  <th className="px-4 py-2">Program</th>
-                  <th className="px-4 py-2">Year Level</th>
-                  <th className="px-4 py-2">Section</th>
-                  <th className="px-4 py-2">Requirements</th>
-                  <th className="px-4 py-2">Finance</th>
-                  <th className="px-4 py-2">Date</th>
-                  <th className="px-4 py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {enrollments.map((row) => {
-                  const ageProps = getAgeBadgeProps(row.createdAt);
-                  return (
-                  <tr
-                    key={row.id}
-                    className="border-b last:border-0 hover:bg-neutral-50/80"
-                  >
-                    <td className="px-4 py-2">
-                      <Badge variant={ageProps.variant} className="text-xs">
-                        {ageProps.label}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2">
-                      <Link
-                        href={`/registrar/students/${row.studentId}`}
-                        className="font-medium text-[#6A0000] hover:underline"
-                      >
-                        {fullName(row)}
-                      </Link>
-                      {row.studentCode && (
-                        <span className="ml-1 text-xs text-neutral-700">
-                          ({row.studentCode})
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {row.schoolYearName} • {row.termName}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className="rounded bg-[#6A0000]/10 px-2 py-0.5 font-mono text-xs text-[#6A0000]">
-                        {row.programCode ?? row.program ?? "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">{row.yearLevel ?? "—"}</td>
-                    <td className="px-4 py-2">{row.sectionName ?? "—"}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex flex-col gap-1">
-                        <RequirementsBadge summary={summaryByEnrollmentId.get(row.id)} />
-                        <Link
-                          href={`/registrar/approvals/${row.id}/review`}
-                          className="text-xs text-[#6A0000] hover:underline"
-                        >
-                          Review files
-                        </Link>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs uppercase ${
-                          row.financeStatus === "cleared"
-                            ? "bg-green-100 text-green-800"
-                            : row.financeStatus === "paid"
-                            ? "bg-green-100 text-green-800"
-                            : row.financeStatus === "assessed"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-neutral-100 text-neutral-700"
-                        }`}
-                        title="Read-only"
-                      >
-                        {row.financeStatus ? formatStatusForDisplay(row.financeStatus) : "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-neutral-800">
-                      {row.createdAt
-                        ? new Date(row.createdAt).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <EnrollmentApprovalActions
-                        enrollmentId={row.id}
-                        requirementsSummary={summaryByEnrollmentId.get(row.id)}
-                      />
-                    </td>
-                  </tr>
-                  );
-                })}
-                {enrollments.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={10}
-                      className="px-4 py-8 text-center text-sm text-neutral-800"
-                    >
-                      No pending enrollment approvals.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <ApprovalsShell activeTab={tab}>
+      {tab === "enrollments" && (
+        <div className="space-y-4">
+          <EnrollmentsTab params={params} programs={programs} />
+        </div>
+      )}
+      {tab === "queue" && (
+        <div className="space-y-4">
+          <QueueTab params={params} programs={programs} basePath="/registrar/approvals" tabValue="queue" />
+        </div>
+      )}
+      {tab === "requirements" && (
+        <RequirementsTab />
+      )}
+    </ApprovalsShell>
   );
 }

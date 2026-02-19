@@ -24,7 +24,7 @@ export async function createProgramAction(formData: FormData) {
   const active = formData.get("active") === "true";
   if (!code || !name) return { error: "Code and name are required" };
   await createProgram({ code, name, active });
-  revalidatePath("/registrar/academic");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -36,7 +36,7 @@ export async function updateProgramAction(id: string, formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
   const active = formData.get("active") === "true";
   await updateProgram(id, { code, name, active });
-  revalidatePath("/registrar/academic");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -45,7 +45,7 @@ export async function toggleProgramActiveAction(id: string, active: boolean) {
   const auth = await requireRole(["registrar", "admin"]);
   if ("error" in auth) return { error: auth.error };
   await toggleProgramActive(id, active);
-  revalidatePath("/registrar/academic");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -54,7 +54,7 @@ export async function deleteProgramAction(id: string) {
   const auth = await requireRole(["registrar", "admin"]);
   if ("error" in auth) return { error: auth.error };
   await deleteProgram(id);
-  revalidatePath("/registrar/academic");
+  revalidatePath("/registrar/academics");
   revalidatePath("/registrar");
   return { success: true };
 }
@@ -77,8 +77,8 @@ export async function createSubjectAction(formData: FormData) {
   const duplicate = existing.some((s) => s.code === code && (type === "GE" ? s.isGe : s.programId === programId));
   if (duplicate) return { error: "A subject with this code already exists for this program or as GE" };
   await createSubject({ type, programId, code, title, description, units, active });
-  revalidatePath("/registrar/academic");
-  revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/academics");
+  revalidatePath("/registrar/academics/subjects");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }
@@ -105,8 +105,8 @@ export async function updateSubjectAction(id: string, formData: FormData) {
     programId,
     active,
   });
-  revalidatePath("/registrar/academic");
-  revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/academics");
+  revalidatePath("/registrar/academics/subjects");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }
@@ -115,8 +115,8 @@ export async function toggleSubjectActiveAction(id: string, active: boolean) {
   const auth = await requireRole(["registrar", "admin"]);
   if ("error" in auth) return { error: auth.error };
   await toggleSubjectActive(id, active);
-  revalidatePath("/registrar/academic");
-  revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/academics");
+  revalidatePath("/registrar/academics/subjects");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }
@@ -125,8 +125,8 @@ export async function deleteSubjectAction(id: string) {
   const auth = await requireRole(["registrar", "admin"]);
   if ("error" in auth) return { error: auth.error };
   await deleteSubject(id);
-  revalidatePath("/registrar/academic");
-  revalidatePath("/registrar/subjects");
+  revalidatePath("/registrar/academics");
+  revalidatePath("/registrar/academics/subjects");
   revalidatePath("/registrar/schedules");
   return { success: true };
 }
