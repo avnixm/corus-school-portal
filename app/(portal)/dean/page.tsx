@@ -10,7 +10,7 @@ import {
   getDeanAcademicRiskCount,
   getDeanRecentAnnouncements,
 } from "@/lib/dean/queries";
-import { getActiveSchoolYear, getActiveTerm } from "@/db/queries";
+import { getCachedActiveSchoolYear, getCachedActiveTerm } from "@/lib/db/cache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UsersRound, ClipboardCheck, AlertCircle, ShieldCheck, Wallet } from "lucide-react";
 
@@ -19,8 +19,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard" };
 
 export default async function DeanDashboardPage() {
-  const activeSy = await getActiveSchoolYear();
-  const activeTerm = await getActiveTerm();
+  const activeSy = await getCachedActiveSchoolYear();
+  const activeTerm = await getCachedActiveTerm();
   const syId = activeSy?.id ?? null;
   const termId = activeTerm?.id ?? null;
 

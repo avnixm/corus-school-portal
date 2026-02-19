@@ -10,7 +10,7 @@ import {
   getRequirementsList,
   getRequirementRulesList,
 } from "@/db/queries";
-import { getEnrollmentRequirementsSummary } from "@/lib/requirements/enrollmentSummary";
+import { getEnrollmentRequirementsSummariesBatch } from "@/lib/requirements/enrollmentSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -60,19 +60,16 @@ export async function EnrollmentsTab({
     enrollments = enrollments.filter((e) => e.yearLevel === params.yearLevel);
   }
 
-  const summaries = await Promise.all(
-    enrollments.map((row) =>
-      getEnrollmentRequirementsSummary({
-        studentId: row.studentId,
-        enrollmentId: row.id,
-        program: row.programCode ?? row.program ?? null,
-        yearLevel: row.yearLevel ?? null,
-        schoolYearId: row.schoolYearId,
-        termId: row.termId,
-      })
-    )
+  const summaryByEnrollmentId = await getEnrollmentRequirementsSummariesBatch(
+    enrollments.map((row) => ({
+      enrollmentId: row.id,
+      studentId: row.studentId,
+      program: row.programCode ?? row.program ?? null,
+      yearLevel: row.yearLevel ?? null,
+      schoolYearId: row.schoolYearId,
+      termId: row.termId,
+    }))
   );
-  const summaryByEnrollmentId = new Map(enrollments.map((r, i) => [r.id, summaries[i]]));
 
   if (params.reqsStatus === "complete") {
     enrollments = enrollments.filter((e) => {

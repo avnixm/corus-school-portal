@@ -1,12 +1,12 @@
 import "server-only";
 import {
   getRequirementRulesForContext,
-  getOrCreateStudentRequirementSubmission,
-  getRequirementFilesBySubmissionId,
+  getOrCreateStudentRequirementSubmissionsBatch,
+  getRequirementFilesBySubmissionIds,
 } from "@/db/queries";
 import { db } from "@/lib/db";
 import { requirements } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 
 export type ApplicableRequirement = {
   requirement: {
@@ -51,7 +51,6 @@ export async function getApplicableRequirements(params: {
     termId: params.termId ?? null,
   });
   // Fallback: if no rules match this context (e.g. new program/term), use generic enrollment rules
-  // so students can still see and submit common forms (Form 137, Birth Cert, etc.)
   if (rules.length === 0 && params.appliesTo === "enrollment" && params.enrollmentId) {
     rules = await getRequirementRulesForContext({
       appliesTo: "enrollment",
@@ -64,19 +63,47 @@ export async function getApplicableRequirements(params: {
   if (rules.length === 0) return [];
 
   const requirementIds = [...new Set(rules.map((r) => r.requirementId))];
-  const reqRows = await db.select().from(requirements).where(inArray(requirements.id, requirementIds));
+  const [reqRows, submissions] = await Promise.all([
+    db
+      .select({
+        id: requirements.id,
+        code: requirements.code,
+        name: requirements.name,
+        description: requirements.description,
+        instructions: requirements.instructions,
+        allowedFileTypes: requirements.allowedFileTypes,
+        maxFiles: requirements.maxFiles,
+        isActive: requirements.isActive,
+      })
+      .from(requirements)
+      .where(inArray(requirements.id, requirementIds)),
+    getOrCreateStudentRequirementSubmissionsBatch(
+      params.studentId,
+      params.enrollmentId,
+      requirementIds
+    ),
+  ]);
   const reqMap = new Map(reqRows.map((r) => [r.id, r]));
+  const submissionByReq = new Map(submissions.map((s) => [s.requirementId, s]));
+  const submissionIds = submissions.map((s) => s.id);
+  const filesRows =
+    submissionIds.length > 0
+      ? await getRequirementFilesBySubmissionIds(submissionIds)
+      : [];
+  const filesBySubmissionId = new Map<string, typeof filesRows>();
+  for (const f of filesRows) {
+    const list = filesBySubmissionId.get(f.submissionId) ?? [];
+    list.push(f);
+    filesBySubmissionId.set(f.submissionId, list);
+  }
 
   const result: ApplicableRequirement[] = [];
   for (const rule of rules) {
     const req = reqMap.get(rule.requirementId);
     if (!req || !req.isActive) continue;
-    const submission = await getOrCreateStudentRequirementSubmission(
-      params.studentId,
-      params.enrollmentId,
-      rule.requirementId
-    );
-    const files = await getRequirementFilesBySubmissionId(submission.id);
+    const submission = submissionByReq.get(rule.requirementId);
+    if (!submission) continue;
+    const files = filesBySubmissionId.get(submission.id) ?? [];
     result.push({
       requirement: {
         id: req.id,
@@ -94,11 +121,11 @@ export async function getApplicableRequirements(params: {
       },
       submission: {
         id: submission.id,
-        status: submission.status,
+        status: submission.status as "missing" | "submitted" | "verified" | "rejected",
         submittedAt: submission.submittedAt,
         verifiedAt: submission.verifiedAt,
         registrarRemarks: submission.registrarRemarks,
-        markAsToFollow: submission.markAsToFollow ?? false,
+        markAsToFollow: submission.markAsToFollow,
       },
       files: files.map((f) => ({
         id: f.id,

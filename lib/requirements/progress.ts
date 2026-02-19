@@ -12,6 +12,40 @@ export type RequirementProgress = {
 };
 
 /**
+ * Derives requirement progress from pre-fetched applicable requirements (avoids duplicate getApplicableRequirements).
+ */
+export function computeRequirementProgressFromApplicable(
+  applicable: ApplicableRequirement[]
+): RequirementProgress {
+  const required = applicable.filter((a) => a.rule.isRequired);
+  const verifiedCount = required.filter((a) => a.submission.status === "verified").length;
+  const requiredCount = required.length;
+  const blocking = required
+    .filter(
+      (a) =>
+        a.submission.status === "missing" ||
+        a.submission.status === "rejected" ||
+        a.submission.status === "submitted"
+    )
+    .map((a) => ({ name: a.requirement.name, status: a.submission.status }));
+  return { verifiedCount, requiredCount, blocking };
+}
+
+/**
+ * Derives missing required form names from pre-fetched applicable requirements (avoids duplicate getApplicableRequirements).
+ */
+export function getMissingRequiredFormNamesFromApplicable(
+  applicable: ApplicableRequirement[]
+): string[] {
+  const required = applicable.filter((a) => a.rule.isRequired);
+  const missing = required.filter(
+    (a) =>
+      a.submission.status === "missing" && !(a.submission.markAsToFollow ?? false)
+  );
+  return missing.map((a) => a.requirement.name);
+}
+
+/**
  * Returns progress for an enrollment: verified count, required count, and list of blocking items (missing or rejected).
  */
 export async function computeRequirementProgress(
@@ -30,19 +64,7 @@ export async function computeRequirementProgress(
     termId: enrollment.termId,
   });
 
-  const required = applicable.filter((a) => a.rule.isRequired);
-  const verifiedCount = required.filter((a) => a.submission.status === "verified").length;
-  const requiredCount = required.length;
-  const blocking = required
-    .filter(
-      (a) =>
-        a.submission.status === "missing" ||
-        a.submission.status === "rejected" ||
-        a.submission.status === "submitted"
-    )
-    .map((a) => ({ name: a.requirement.name, status: a.submission.status }));
-
-  return { verifiedCount, requiredCount, blocking };
+  return computeRequirementProgressFromApplicable(applicable);
 }
 
 /**

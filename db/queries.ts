@@ -2635,6 +2635,40 @@ export async function getSubmissionsByEnrollment(enrollmentId: string) {
     .where(eq(studentRequirementSubmissions.enrollmentId, enrollmentId));
 }
 
+/** All requirement rules for appliesTo='enrollment' (for batch summary). */
+export async function getRequirementRulesForEnrollmentAll() {
+  return db
+    .select({
+      id: requirementRules.id,
+      requirementId: requirementRules.requirementId,
+      isRequired: requirementRules.isRequired,
+      sortOrder: requirementRules.sortOrder,
+      program: requirementRules.program,
+      yearLevel: requirementRules.yearLevel,
+      schoolYearId: requirementRules.schoolYearId,
+      termId: requirementRules.termId,
+    })
+    .from(requirementRules)
+    .where(eq(requirementRules.appliesTo, "enrollment"))
+    .orderBy(requirementRules.sortOrder);
+}
+
+/** Submissions with requirement name for the given enrollment IDs (for batch summary). */
+export async function getSubmissionsWithRequirementNamesByEnrollmentIds(enrollmentIds: string[]) {
+  if (enrollmentIds.length === 0) return [];
+  return db
+    .select({
+      enrollmentId: studentRequirementSubmissions.enrollmentId,
+      requirementId: studentRequirementSubmissions.requirementId,
+      status: studentRequirementSubmissions.status,
+      requirementName: requirements.name,
+    })
+    .from(studentRequirementSubmissions)
+    .innerJoin(requirements, eq(studentRequirementSubmissions.requirementId, requirements.id))
+    .where(inArray(studentRequirementSubmissions.enrollmentId, enrollmentIds));
+}
+
+
 export async function updateStudentRequirementSubmission(
   id: string,
   values: Partial<{
@@ -2692,6 +2726,148 @@ export async function getRequirementFilesBySubmissionId(submissionId: string) {
     .select()
     .from(requirementFiles)
     .where(eq(requirementFiles.submissionId, submissionId));
+}
+
+/** Batch: all submissions for (studentId, enrollmentId) and requirementId in requirementIds. */
+export async function getStudentRequirementSubmissionsBatch(
+  studentId: string,
+  enrollmentId: string | null,
+  requirementIds: string[]
+) {
+  if (requirementIds.length === 0) return [];
+  return db
+    .select({
+      id: studentRequirementSubmissions.id,
+      studentId: studentRequirementSubmissions.studentId,
+      enrollmentId: studentRequirementSubmissions.enrollmentId,
+      requirementId: studentRequirementSubmissions.requirementId,
+      status: studentRequirementSubmissions.status,
+      submittedAt: studentRequirementSubmissions.submittedAt,
+      verifiedAt: studentRequirementSubmissions.verifiedAt,
+      registrarRemarks: studentRequirementSubmissions.registrarRemarks,
+      markAsToFollow: studentRequirementSubmissions.markAsToFollow,
+    })
+    .from(studentRequirementSubmissions)
+    .where(
+      and(
+        eq(studentRequirementSubmissions.studentId, studentId),
+        enrollmentId
+          ? eq(studentRequirementSubmissions.enrollmentId, enrollmentId)
+          : isNull(studentRequirementSubmissions.enrollmentId),
+        inArray(studentRequirementSubmissions.requirementId, requirementIds)
+      )
+    );
+}
+
+/** Batch: all files for any of the given submission IDs. */
+export async function getRequirementFilesBySubmissionIds(submissionIds: string[]) {
+  if (submissionIds.length === 0) return [];
+  return db
+    .select({
+      id: requirementFiles.id,
+      submissionId: requirementFiles.submissionId,
+      fileName: requirementFiles.fileName,
+      fileType: requirementFiles.fileType,
+      fileSize: requirementFiles.fileSize,
+      storageKey: requirementFiles.storageKey,
+    })
+    .from(requirementFiles)
+    .where(inArray(requirementFiles.submissionId, submissionIds));
+}
+
+/**
+ * Get or create student_requirement_submissions for (studentId, enrollmentId) and each requirementId.
+ * Returns one submission per requirementId; creates missing rows in a single insert.
+ */
+export async function getOrCreateStudentRequirementSubmissionsBatch(
+  studentId: string,
+  enrollmentId: string | null,
+  requirementIds: string[]
+): Promise<
+  {
+    id: string;
+    requirementId: string;
+    status: string;
+    submittedAt: Date | null;
+    verifiedAt: Date | null;
+    registrarRemarks: string | null;
+    markAsToFollow: boolean;
+  }[]
+> {
+  if (requirementIds.length === 0) return [];
+  const existing = await getStudentRequirementSubmissionsBatch(
+    studentId,
+    enrollmentId,
+    requirementIds
+  );
+  type SubRow = {
+    id: string;
+    requirementId: string;
+    status: string;
+    submittedAt: Date | null;
+    verifiedAt: Date | null;
+    registrarRemarks: string | null;
+    markAsToFollow: boolean;
+  };
+  const byReq = new Map<string, SubRow>(
+    existing.map((s) => [
+      s.requirementId,
+      {
+        id: s.id,
+        requirementId: s.requirementId,
+        status: s.status,
+        submittedAt: s.submittedAt,
+        verifiedAt: s.verifiedAt,
+        registrarRemarks: s.registrarRemarks,
+        markAsToFollow: s.markAsToFollow ?? false,
+      },
+    ])
+  );
+  const missingIds = requirementIds.filter((rid) => !byReq.has(rid));
+  if (missingIds.length > 0) {
+    const inserted = await db
+      .insert(studentRequirementSubmissions)
+      .values(
+        missingIds.map((requirementId) => ({
+          studentId,
+          enrollmentId,
+          requirementId,
+          status: "missing" as const,
+        }))
+      )
+      .returning({
+        id: studentRequirementSubmissions.id,
+        requirementId: studentRequirementSubmissions.requirementId,
+        status: studentRequirementSubmissions.status,
+        submittedAt: studentRequirementSubmissions.submittedAt,
+        verifiedAt: studentRequirementSubmissions.verifiedAt,
+        registrarRemarks: studentRequirementSubmissions.registrarRemarks,
+        markAsToFollow: studentRequirementSubmissions.markAsToFollow,
+      });
+    for (const row of inserted) {
+      byReq.set(row.requirementId, {
+        id: row.id,
+        requirementId: row.requirementId,
+        status: row.status,
+        submittedAt: row.submittedAt,
+        verifiedAt: row.verifiedAt,
+        registrarRemarks: row.registrarRemarks,
+        markAsToFollow: row.markAsToFollow ?? false,
+      });
+    }
+  }
+  return requirementIds.map((rid) => {
+    const s = byReq.get(rid)!;
+    return {
+      id: s.id,
+      requirementId: s.requirementId,
+      status: s.status,
+      submittedAt: s.submittedAt,
+      verifiedAt: s.verifiedAt,
+      registrarRemarks: s.registrarRemarks,
+      markAsToFollow: s.markAsToFollow,
+    };
+  });
 }
 
 export async function insertRequirementFile(values: {

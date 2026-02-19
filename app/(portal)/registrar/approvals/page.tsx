@@ -1,6 +1,4 @@
-import {
-  getProgramsList,
-} from "@/db/queries";
+import { getCachedProgramsList } from "@/lib/db/cache";
 import { ApprovalsShell } from "./ApprovalsShell";
 import { EnrollmentsTab, QueueTab, RequirementsTab, type ApprovalsSearchParams } from "./ApprovalsTabs";
 
@@ -19,7 +17,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Se
         ? "requirements"
         : "enrollments";
 
-  const programs = await getProgramsList(true);
+  const programs = await getCachedProgramsList(true);
 
   return (
     <ApprovalsShell activeTab={tab}>

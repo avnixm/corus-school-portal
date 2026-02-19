@@ -16,9 +16,10 @@ import {
   getScheduleWithDetailsByEnrollmentId,
 } from "@/db/queries";
 import { getCurrentStudent } from "@/lib/auth/getCurrentStudent";
+import { getApplicableRequirements } from "@/lib/requirements/getApplicableRequirements";
 import {
-  computeRequirementProgress,
-  getEnrolledStudentMissingRequiredFormNames,
+  computeRequirementProgressFromApplicable,
+  getMissingRequiredFormNamesFromApplicable,
 } from "@/lib/requirements/progress";
 import { getStudentBalance } from "@/lib/finance/queries";
 import { getAssessmentsByEnrollment } from "@/lib/finance/queries";
@@ -35,16 +36,24 @@ async function getDashboardData(studentId: string) {
   const enrollment = await getEnrollmentForStudentActiveTerm(studentId);
   const isEnrolled =
     enrollment?.status === "approved" || enrollment?.status === "enrolled";
-  const [
-    requirementsProgress,
-    efs,
-    assessments,
-    grades,
-    schedule,
-    announcements,
-    missingRequiredFormNames,
-  ] = await Promise.all([
-    enrollment?.id ? computeRequirementProgress(enrollment.id) : Promise.resolve(null),
+
+  let requirementsProgress: Awaited<ReturnType<typeof computeRequirementProgressFromApplicable>> | null = null;
+  let missingRequiredFormNames: string[] = [];
+  if (enrollment?.id) {
+    const applicable = await getApplicableRequirements({
+      studentId,
+      enrollmentId: enrollment.id,
+      appliesTo: "enrollment",
+      program: enrollment.program ?? null,
+      yearLevel: enrollment.yearLevel ?? null,
+      schoolYearId: enrollment.schoolYearId ?? null,
+      termId: enrollment.termId ?? null,
+    });
+    requirementsProgress = computeRequirementProgressFromApplicable(applicable);
+    missingRequiredFormNames = isEnrolled ? getMissingRequiredFormNamesFromApplicable(applicable) : [];
+  }
+
+  const [efs, assessments, grades, schedule, announcements] = await Promise.all([
     enrollment?.id ? getStudentBalance(enrollment.id) : Promise.resolve(null),
     enrollment?.id ? getAssessmentsByEnrollment(enrollment.id) : Promise.resolve([]),
     enrollment?.id
@@ -54,9 +63,6 @@ async function getDashboardData(studentId: string) {
       ? getScheduleWithDetailsByEnrollmentId(enrollment.id, 20)
       : Promise.resolve([]),
     getAnnouncementsForStudent(3, enrollment?.program ?? undefined),
-    enrollment?.id && isEnrolled
-      ? getEnrolledStudentMissingRequiredFormNames(enrollment.id)
-      : Promise.resolve([]),
   ]);
 
   const postedAssessment = assessments?.find((a) => a.status === "posted") ?? null;
@@ -72,7 +78,7 @@ async function getDashboardData(studentId: string) {
     grades: grades ?? [],
     todaySchedule,
     announcements: announcements ?? [],
-    missingRequiredFormNames: missingRequiredFormNames ?? [],
+    missingRequiredFormNames,
   };
 }
 
