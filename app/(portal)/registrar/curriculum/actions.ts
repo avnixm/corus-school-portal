@@ -36,6 +36,7 @@ export async function createCurriculumForProgramYearAction(
   const drafts = await getCurriculumVersionsList({ programId, schoolYearId, status: "draft" });
   if (drafts.length > 0) {
     revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
     return { versionId: drafts[0].id, error: null };
   }
   const version = await createCurriculumVersion({
@@ -46,6 +47,7 @@ export async function createCurriculumForProgramYearAction(
   });
   if (!version) return { error: "Failed to create curriculum", versionId: null };
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { versionId: version.id, error: null };
 }
 
@@ -64,6 +66,7 @@ export async function createCurriculumVersionAction(formData: FormData) {
   });
   if (!version) return { error: "Failed to create curriculum version" };
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true, versionId: version.id };
 }
 
@@ -88,6 +91,7 @@ export async function cloneCurriculumVersionAction(formData: FormData) {
   });
   if (!newVersion) return { error: "Failed to clone curriculum version" };
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true, versionId: newVersion.id };
 }
 
@@ -109,6 +113,7 @@ export async function addOrUpdateCurriculumBlockAction(values: {
     sortOrder: values.sortOrder,
   });
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   revalidatePath(`/registrar/curriculum/${values.versionId}`);
   return { success: true, blockId: block.id };
 }
@@ -141,6 +146,7 @@ export async function addSubjectToBlockAction(values: {
   });
   if (!added) return { error: "Subject already in block or failed to add" };
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   revalidatePath(`/registrar/curriculum/${block.curriculumVersionId}`);
   return { success: true };
 }
@@ -153,6 +159,7 @@ export async function updateBlockSubjectAction(
   if (error) return { error };
   await updateCurriculumBlockSubject(id, values);
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -161,6 +168,7 @@ export async function removeSubjectFromBlockAction(blockSubjectId: string) {
   if (error) return { error };
   await removeCurriculumBlockSubject(blockSubjectId);
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -191,6 +199,7 @@ export async function publishCurriculumVersionAction(versionId: string) {
   }
   await updateCurriculumVersionStatus(versionId, "published");
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   revalidatePath(`/registrar/curriculum/${versionId}`);
   return { success: true };
 }
@@ -202,6 +211,7 @@ export async function archiveCurriculumVersionAction(versionId: string) {
   if (!version) return { error: "Curriculum version not found" };
   await updateCurriculumVersionStatus(versionId, "archived");
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -216,6 +226,7 @@ export async function deleteCurriculumVersionAction(versionId: string) {
   const { deleteCurriculumVersion } = await import("@/db/queries");
   await deleteCurriculumVersion(versionId);
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -289,6 +300,7 @@ export async function addSubjectsToTermAction(values: {
     existingSet.add(item.subjectId);
   }
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -314,6 +326,7 @@ export async function moveSubjectBetweenTermsAction(values: {
   if (existingTo.some((s) => s.subjectId === row.subjectId)) {
     await removeCurriculumBlockSubject(values.blockSubjectId);
     revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
     return { success: true };
   }
   const nextSort = existingTo.length ? Math.max(...existingTo.map((s) => s.sortOrder)) + 1 : 0;
@@ -326,6 +339,7 @@ export async function moveSubjectBetweenTermsAction(values: {
     sortOrder: nextSort,
   });
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -361,6 +375,7 @@ export async function addSubjectsToBlockAction(values: {
     }
   }
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   revalidatePath(`/registrar/curriculum/${block.curriculumVersionId}`);
   return { success: true, addedCount };
 }
@@ -387,6 +402,7 @@ export async function addYearToVersionAction(versionId: string, yearLevel: strin
     });
   }
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -413,6 +429,7 @@ export async function createAllYearBlocksForVersion(versionId: string) {
     }
   }
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -524,6 +541,7 @@ export async function addSubjectsToYearAction(values: {
   }
 
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -571,6 +589,7 @@ export async function copyYearAction(values: {
     }
   }
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -590,6 +609,7 @@ export async function clearYearAction(versionId: string, yearLevel: string) {
     }
   }
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
 
@@ -607,5 +627,6 @@ export async function updateBlockSubjectMetaAction(values: {
     sortOrder: values.sortOrder,
   });
   revalidatePath("/registrar/curriculum");
+  revalidatePath("/registrar/academics/curriculum");
   return { success: true };
 }
