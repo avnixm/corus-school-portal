@@ -11,10 +11,12 @@ const STATUSES = ["unassessed", "assessed", "partially_paid", "paid", "cleared",
 const YEAR_LEVELS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
 export function ClearanceFilters({
+  basePath = "/program-head/clearance",
   schoolYears,
   terms,
   current,
 }: {
+  basePath?: string;
   schoolYears: SchoolYear[];
   terms: Term[];
   current: {
@@ -31,7 +33,7 @@ export function ClearanceFilters({
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
-    router.push(`/program-head/clearance?${next.toString()}`);
+    router.push(`${basePath}?${next.toString()}`);
   }
 
   return (
@@ -112,7 +114,7 @@ export function ClearanceFilters({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => router.push("/program-head/clearance")}
+          onClick={() => router.push(basePath)}
         >
           Clear
         </Button>
