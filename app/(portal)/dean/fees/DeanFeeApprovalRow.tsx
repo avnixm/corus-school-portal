@@ -61,7 +61,7 @@ export function DeanFeeApprovalRow({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
-            href={`/dean/fees/${feeSetupId}`}
+            href={`/dean/approvals/feeSetups/${feeSetupId}`}
             className="font-medium text-[#6A0000] hover:underline"
           >
             {programCode} – {programName}

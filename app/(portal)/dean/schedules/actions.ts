@@ -10,6 +10,7 @@ export async function approveScheduleAction(approvalId: string, remarks?: string
 
   await approveSchedule(approvalId, auth.userId, remarks);
   revalidatePath("/dean/schedules");
+  revalidatePath("/dean/approvals");
   return { success: true };
 }
 
@@ -23,5 +24,6 @@ export async function rejectScheduleAction(approvalId: string, remarks: string) 
 
   await rejectSchedule(approvalId, auth.userId, remarks);
   revalidatePath("/dean/schedules");
+  revalidatePath("/dean/approvals");
   return { success: true };
 }

@@ -48,6 +48,7 @@ export async function approveCapabilityPackageAction(packageId: string) {
   await approveCapabilityPackageDb(packageId, auth.userId);
   revalidatePath("/dean/teacher-capabilities");
   revalidatePath("/dean/teacher-capabilities/[packageId]");
+  revalidatePath("/dean/approvals");
   return { success: true };
 }
 
@@ -59,5 +60,6 @@ export async function rejectCapabilityPackageAction(packageId: string, remarks: 
   await rejectCapabilityPackageDb(packageId, auth.userId, remarks);
   revalidatePath("/dean/teacher-capabilities");
   revalidatePath("/dean/teacher-capabilities/[packageId]");
+  revalidatePath("/dean/approvals");
   return { success: true };
 }

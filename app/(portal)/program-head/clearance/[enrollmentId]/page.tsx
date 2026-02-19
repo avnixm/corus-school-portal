@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { getEnrollmentById, getStudentById } from "@/db/queries";
 import { getLedgerEntriesByEnrollment, getStudentBalance } from "@/lib/finance/queries";
+import { getClearanceRequestsByEnrollment } from "@/lib/clearance/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatStatusForDisplay } from "@/lib/formatStatus";
+import { ProgramHeadClearanceCard } from "./ProgramHeadClearanceCard";
 
 export const dynamic = "force-dynamic";
 
@@ -22,17 +24,18 @@ export default async function ProgramHeadClearanceEnrollmentPage({
         <h2 className="text-2xl font-semibold tracking-tight text-[#6A0000]">
           Enrollment not found
         </h2>
-        <Link href="/program-head/clearance" className="text-[#6A0000] underline">
+        <Link href="/program-head/finance?view=clearance" className="text-[#6A0000] underline">
           ← Back to Clearance
         </Link>
       </div>
     );
   }
 
-  const [student, balance, ledgerEntries] = await Promise.all([
+  const [student, balance, ledgerEntries, clearanceRequests] = await Promise.all([
     getStudentById(enrollment.studentId),
     getStudentBalance(enrollmentId),
     getLedgerEntriesByEnrollment(enrollmentId),
+    getClearanceRequestsByEnrollment(enrollmentId),
   ]);
 
   const studentName = student
@@ -43,7 +46,7 @@ export default async function ProgramHeadClearanceEnrollmentPage({
     <div className="space-y-8">
       <section>
         <Link
-          href="/program-head/clearance"
+          href="/program-head/finance?view=clearance"
           className="text-sm font-medium text-[#6A0000] hover:underline"
         >
           ← Back to Clearance
@@ -77,6 +80,11 @@ export default async function ProgramHeadClearanceEnrollmentPage({
           </p>
         </CardContent>
       </Card>
+
+      <ProgramHeadClearanceCard
+        enrollmentId={enrollmentId}
+        clearanceRequests={clearanceRequests}
+      />
 
       <Card>
         <CardHeader>

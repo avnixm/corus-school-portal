@@ -17,7 +17,7 @@ export function DeanFeeApprovalActions({ feeSetupId }: { feeSetupId: string }) {
     const r = await approveFeeSetupAsDean(feeSetupId);
     setPending(false);
     if (r?.error) alert(r.error);
-    else router.push("/dean/fees");
+    else router.push("/dean/approvals?tab=feeSetups");
   }
 
   async function handleReject() {
@@ -29,7 +29,7 @@ export function DeanFeeApprovalActions({ feeSetupId }: { feeSetupId: string }) {
     const r = await rejectFeeSetupAsDean(feeSetupId, remarks);
     setPending(false);
     if (r?.error) alert(r.error);
-    else router.push("/dean/fees");
+    else router.push("/dean/approvals?tab=feeSetups");
   }
 
   return (

@@ -6,6 +6,13 @@ import { requireRole } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { enrollmentFinanceStatus } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import {
+  getClearanceItemById,
+  clearClearanceItem,
+  blockClearanceItem,
+  signClearanceWithPromissoryNote,
+} from "@/lib/clearance/queries";
+import { createPromissoryNote, submitPromissoryNote } from "@/lib/clearance/promissory";
 
 async function checkAuth() {
   const result = await requireRole(["finance", "admin"]);
@@ -69,4 +76,74 @@ export async function putOnHoldAction(enrollmentId: string, reason?: string) {
   } catch (e) {
     return { error: "Failed to put on hold" };
   }
+}
+
+export async function clearClearanceItemAction(clearanceItemId: string) {
+  const { error, userId } = await checkAuth();
+  if (error || !userId) return { error: error ?? "Unauthorized" };
+
+  const item = await getClearanceItemById(clearanceItemId);
+  if (!item) return { error: "Item not found" };
+  if (item.officeType !== "finance") return { error: "Not a finance item" };
+
+  const result = await clearClearanceItem(clearanceItemId, userId);
+  if ("error" in result) return result;
+  revalidatePath("/finance/clearance");
+  revalidatePath("/finance");
+  return { success: true };
+}
+
+export async function blockClearanceItemAction(clearanceItemId: string, remarks: string) {
+  const { error, userId } = await checkAuth();
+  if (error || !userId) return { error: error ?? "Unauthorized" };
+
+  const item = await getClearanceItemById(clearanceItemId);
+  if (!item) return { error: "Item not found" };
+  if (item.officeType !== "finance") return { error: "Not a finance item" };
+
+  const result = await blockClearanceItem(clearanceItemId, remarks);
+  if ("error" in result) return result;
+  revalidatePath("/finance/clearance");
+  revalidatePath("/finance");
+  return { success: true };
+}
+
+export async function createPromissoryNoteAction(params: {
+  enrollmentId: string;
+  studentId: string;
+  periodId: string;
+  amountPromised: string;
+  dueDate: string;
+  reason: string;
+  financeRemarks?: string | null;
+}) {
+  const { error, userId } = await checkAuth();
+  if (error || !userId) return { error: error ?? "Unauthorized" };
+
+  const note = await createPromissoryNote(params, userId);
+  revalidatePath("/finance/clearance");
+  revalidatePath(`/finance/clearance/${params.enrollmentId}/promissory-note/new`);
+  return { success: true as const, noteId: note.id };
+}
+
+export async function submitPromissoryNoteAction(noteId: string) {
+  const { error, userId } = await checkAuth();
+  if (error || !userId) return { error: error ?? "Unauthorized" };
+
+  const result = await submitPromissoryNote(noteId, userId);
+  if ("error" in result) return result;
+  revalidatePath("/finance/clearance");
+  revalidatePath("/dean/promissory-notes");
+  return { success: true };
+}
+
+export async function signClearanceWithPromissoryNoteAction(itemId: string, noteId: string) {
+  const { error, userId } = await checkAuth();
+  if (error || !userId) return { error: error ?? "Unauthorized" };
+
+  const result = await signClearanceWithPromissoryNote(itemId, noteId, userId);
+  if ("error" in result) return result;
+  revalidatePath("/finance/clearance");
+  revalidatePath("/finance");
+  return { success: true };
 }

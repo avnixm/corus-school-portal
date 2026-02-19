@@ -72,7 +72,7 @@ export async function submitPendingApplication(formData: FormData) {
     notes,
   });
 
-  redirect("/student/pending-approval");
+  redirect("/student/complete-profile");
 }
 
 /**

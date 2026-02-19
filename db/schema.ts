@@ -1366,6 +1366,111 @@ export const governanceFlags = pgTable("governance_flags", {
   notes: text("notes"),
 });
 
+/**
+ * Clearance (per grading period, multi-office)
+ */
+export const clearanceRequestStatusEnum = pgEnum("clearance_request_status", [
+  "draft",
+  "in_progress",
+  "cleared",
+  "blocked",
+]);
+
+export const clearanceOfficeTypeEnum = pgEnum("clearance_office_type", [
+  "finance",
+  "registrar",
+  "program_head",
+  "library",
+  "lab",
+]);
+
+export const clearanceItemStatusEnum = pgEnum("clearance_item_status", [
+  "pending",
+  "cleared",
+  "blocked",
+]);
+
+export const promissoryNoteStatusEnum = pgEnum("promissory_note_status", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+  "voided",
+]);
+
+export const clearanceRequests = pgTable(
+  "clearance_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id),
+    schoolYearId: uuid("school_year_id")
+      .notNull()
+      .references(() => schoolYears.id),
+    termId: uuid("term_id")
+      .notNull()
+      .references(() => terms.id),
+    periodId: uuid("period_id")
+      .notNull()
+      .references(() => gradingPeriods.id),
+    status: clearanceRequestStatusEnum("status").notNull().default("in_progress"),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow(),
+    clearedAt: timestamp("cleared_at", { withTimezone: true }),
+    printedAt: timestamp("printed_at", { withTimezone: true }),
+    createdByUserId: text("created_by_user_id"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    enrollmentPeriodUnique: uniqueIndex("clearance_requests_enrollment_period_unique").on(
+      table.enrollmentId,
+      table.periodId
+    ),
+  })
+);
+
+export const clearanceItems = pgTable("clearance_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clearanceRequestId: uuid("clearance_request_id")
+    .notNull()
+    .references(() => clearanceRequests.id, { onDelete: "cascade" }),
+  officeType: clearanceOfficeTypeEnum("office_type").notNull(),
+  officeId: uuid("office_id"),
+  status: clearanceItemStatusEnum("status").notNull().default("pending"),
+  clearedByUserId: text("cleared_by_user_id"),
+  clearedAt: timestamp("cleared_at", { withTimezone: true }),
+  remarks: text("remarks"),
+  promissoryNoteId: uuid("promissory_note_id"),
+});
+
+export const promissoryNotes = pgTable("promissory_notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  enrollmentId: uuid("enrollment_id")
+    .notNull()
+    .references(() => enrollments.id),
+  studentId: uuid("student_id")
+    .notNull()
+    .references(() => students.id),
+  periodId: uuid("period_id")
+    .notNull()
+    .references(() => gradingPeriods.id),
+  amountPromised: numeric("amount_promised", { precision: 12, scale: 2 }).notNull(),
+  dueDate: date("due_date").notNull(),
+  reason: text("reason").notNull(),
+  financeRemarks: text("finance_remarks"),
+  status: promissoryNoteStatusEnum("status").notNull().default("draft"),
+  createdByUserId: text("created_by_user_id").notNull(),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  deanByUserId: text("dean_by_user_id"),
+  deanAt: timestamp("dean_at", { withTimezone: true }),
+  deanRemarks: text("dean_remarks"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 export const pendingApplicationStatusEnum = pgEnum(
   "pending_application_status",
   ["pending", "approved", "rejected"]

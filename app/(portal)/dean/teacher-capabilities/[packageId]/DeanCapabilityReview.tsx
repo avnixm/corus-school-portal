@@ -53,7 +53,7 @@ export function DeanCapabilityReview({ pkg, lines }: { pkg: Pkg; lines: Line[] }
       setError(res.error);
       return;
     }
-    router.push("/dean/teacher-capabilities");
+    router.push("/dean/approvals?tab=capabilities");
     router.refresh();
   }
 
@@ -70,7 +70,7 @@ export function DeanCapabilityReview({ pkg, lines }: { pkg: Pkg; lines: Line[] }
       setError(res.error);
       return;
     }
-    router.push("/dean/teacher-capabilities");
+    router.push("/dean/approvals?tab=capabilities");
     router.refresh();
   }
 

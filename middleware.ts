@@ -2,8 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/server";
 import { getUserProfileByUserId } from "@/lib/auth/getUserProfileForMiddleware";
 
+const PROGRAM_HEAD_REDIRECTS: [string, string][] = [
+  ["/program-head/classes", "/program-head/sections"],
+  ["/program-head/clearance", "/program-head/finance"],
+  ["/program-head/schedules", "/program-head/scheduling"],
+  ["/program-head/submissions", "/program-head/grades"],
+];
+
+const PROGRAM_HEAD_VIEW: Record<string, string> = {
+  "/program-head/clearance": "clearance",
+  "/program-head/schedules": "schedules",
+  "/program-head/submissions": "submissions",
+};
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const search = request.nextUrl.searchParams.toString();
+  const q = search ? `?${search}` : "";
+
+  // Legacy program-head paths: redirect with query preservation and view param
+  for (const [from, to] of PROGRAM_HEAD_REDIRECTS) {
+    if (pathname === from) {
+      const view = PROGRAM_HEAD_VIEW[from];
+      const dest = new URL(to, request.url);
+      if (view) dest.searchParams.set("view", view);
+      if (search) {
+        for (const [k, v] of request.nextUrl.searchParams) {
+          dest.searchParams.set(k, v);
+        }
+      }
+      return NextResponse.redirect(dest);
+    }
+  }
 
   // Protect portal routes (auth only; role checks in layout)
   if (

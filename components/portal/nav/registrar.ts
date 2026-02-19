@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { SidebarItem } from "../Sidebar";
 
-/** Flat registrar sidebar (8 items, no groups). */
+/** Flat registrar sidebar. */
 export const getRegistrarNavItems = (): SidebarItem[] => [
   { label: "Dashboard", href: "/registrar", icon: LayoutDashboard },
   { label: "Approvals & Compliance", href: "/registrar/approvals", icon: BadgeCheck },

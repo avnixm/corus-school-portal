@@ -103,7 +103,7 @@ export default async function ProgramHeadDashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-[#6A0000]">{pendingReleases}</div>
             <Link
-              href="/program-head/submissions"
+              href="/program-head/grades?view=submissions"
               className="mt-2 inline-block text-xs font-medium text-[#6A0000] hover:underline"
             >
               View →
@@ -138,7 +138,7 @@ export default async function ProgramHeadDashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-[#6A0000]">{uncleared}</div>
             <Link
-              href="/program-head/clearance"
+              href="/program-head/finance?view=clearance"
               className="mt-2 inline-block text-xs font-medium text-[#6A0000] hover:underline"
             >
               View →

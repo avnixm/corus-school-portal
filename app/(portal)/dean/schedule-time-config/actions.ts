@@ -10,6 +10,7 @@ export async function approveScheduleTimeConfigAction(configId: string) {
 
   await approveScheduleTimeConfig(configId, auth.userId);
   revalidatePath("/dean/schedule-time-config");
+  revalidatePath("/dean/approvals");
   return { success: true };
 }
 
@@ -19,5 +20,6 @@ export async function rejectScheduleTimeConfigAction(configId: string, remarks: 
 
   await rejectScheduleTimeConfig(configId, auth.userId, remarks);
   revalidatePath("/dean/schedule-time-config");
+  revalidatePath("/dean/approvals");
   return { success: true };
 }

@@ -188,4 +188,11 @@ body {
     margin: 0 auto !important;
     box-shadow: none !important;
   }
+  /* Clearance form & promissory note: A4-friendly */
+  #clearance-form,
+  #promissory-note {
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
 }

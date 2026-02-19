@@ -38,7 +38,7 @@ export function SubmissionsFilters({
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
-    router.push(`/program-head/submissions?${next.toString()}`);
+    router.push(`/program-head/grades?view=submissions&${next.toString()}`);
   }
 
   return (
@@ -137,7 +137,7 @@ export function SubmissionsFilters({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => router.push("/program-head/submissions")}
+          onClick={() => router.push("/program-head/grades?view=submissions")}
         >
           Clear
         </Button>

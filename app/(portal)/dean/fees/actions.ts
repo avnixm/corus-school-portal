@@ -36,6 +36,7 @@ export async function approveFeeSetupAsDean(feeSetupId: string) {
   });
 
   revalidatePath("/dean/fees");
+  revalidatePath("/dean/approvals");
   revalidatePath("/finance/fee-setup");
   return { success: true };
 }
@@ -69,6 +70,7 @@ export async function rejectFeeSetupAsDean(
   });
 
   revalidatePath("/dean/fees");
+  revalidatePath("/dean/approvals");
   revalidatePath("/finance/fee-setup");
   return { success: true };
 }

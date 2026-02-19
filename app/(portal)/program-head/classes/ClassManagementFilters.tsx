@@ -25,7 +25,7 @@ export function ClassManagementFilters({
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
-    router.push(`/program-head/classes?${next.toString()}`);
+    router.push(`/program-head/sections?${next.toString()}`);
   }
 
   return (
@@ -70,7 +70,7 @@ export function ClassManagementFilters({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => router.push("/program-head/classes")}
+          onClick={() => router.push("/program-head/sections")}
         >
           Clear
         </Button>

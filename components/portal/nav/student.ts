@@ -7,6 +7,7 @@ import {
   User,
   FileCheck,
   ClipboardList,
+  ShieldCheck,
 } from "lucide-react";
 
 import type { SidebarItem } from "../Sidebar";
@@ -26,6 +27,11 @@ export const getStudentNavItems = (): SidebarItem[] => [
     label: "Enrollment",
     href: "/student/enrollment",
     icon: ClipboardList,
+  },
+  {
+    label: "Clearance",
+    href: "/student/clearance",
+    icon: ShieldCheck,
   },
   {
     label: "Grades",
