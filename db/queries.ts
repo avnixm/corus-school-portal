@@ -130,6 +130,7 @@ export async function getProfileAndStudentByUserId(userId: string) {
       lastName: students.lastName,
       program: students.program,
       yearLevel: students.yearLevel,
+      profileCompletedAt: students.profileCompletedAt,
       createdAt: students.createdAt,
       updatedAt: students.updatedAt,
     })
